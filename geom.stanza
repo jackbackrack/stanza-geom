@@ -1,0 +1,479 @@
+defpackage geom:
+  import core
+  import math
+  import collections
+
+;;; VECS
+
+public defstruct V3i <: Equalable :
+  x: Int
+  y: Int
+  z: Int
+
+public defn V3i (x:Int, y:Int) -> V3i :
+  V3i(x, y, 0)
+
+defmethod equal? (v1:V3i, v2:V3i) :
+  x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) 
+
+public defn get (v:V3i, i:Int) -> Int :
+  if i == 0 : x(v)
+  else if i == 1 : y(v)
+  else if i == 2 : z(v)
+  else : 0 ;; TODO
+  
+defmethod print (o:OutputStream, v:V3i) :
+  print-all(o, ["V3i(", x(v), ",", y(v), ",", z(v), ")"])
+
+public defn dot (a:V3i, b:V3i) -> Int :
+  x(a) * x(b) + y(a) * y(b) + z(a) * z(b)
+
+public defn min (a:V3i) -> Int :
+  min(x(a), min(y(a), z(a)))
+
+public defn max (a:V3i) -> Int :
+  max(x(a), max(y(a), z(a)))
+
+public defn min (a:V3i, b:V3i) -> V3i :
+  V3i(min(x(a), x(b)), min(y(a), y(b)), min(z(a), z(b)))
+
+public defn max (a:V3i, b:V3i) -> V3i :
+  V3i(max(x(a), x(b)), max(y(a), y(b)), max(z(a), z(b)))
+
+public defn times (a:Int, b:V3i) -> V3i :
+  V3i(a * x(b), a * y(b), a * z(b))
+
+public defn divide (a:V3i, b:Int) -> V3i :
+  V3i(x(a) / b, y(a) / b, z(a) / b)
+
+public defn plus (a:V3i, b:V3i) -> V3i :
+  V3i(x(a) + x(b), y(a) + y(b), z(a) + z(b))
+
+public defn minus (a:V3i, b:V3i) -> V3i :
+  V3i(x(a) - x(b), y(a) - y(b), z(a) - z(b))
+
+public defn negate (a:V3i) -> V3i :
+  V3i((- x(a)), (- y(a)), (- z(a)))
+
+public defstruct V3f <: Equalable :
+  x: Float
+  y: Float
+  z: Float
+
+public defn V3f (x:Float, y:Float) -> V3f :
+  V3f(x, y, 0.0f)
+
+defmethod equal? (v1:V3f, v2:V3f) :
+  x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) 
+
+public defn get (v:V3f, i:Int) -> Float :
+  if i == 0 : x(v)
+  else if i == 1 : y(v)
+  else if i == 2 : z(v)
+  else : 0.0f ;; TODO
+  
+defmethod print (o:OutputStream, v:V3f) :
+  print-all(o, ["V3f(", x(v), ",", y(v), ",", z(v), ")"])
+
+public defn dot (a:V3f, b:V3f) -> Float :
+  x(a) * x(b) + y(a) * y(b) + z(a) * z(b)
+
+public defn min (a:V3f) -> Float :
+  min(x(a), min(y(a), z(a)))
+
+public defn max (a:V3f) -> Float :
+  max(x(a), max(y(a), z(a)))
+
+public defn min (a:V3f, b:V3f) -> V3f :
+  V3f(min(x(a), x(b)), min(y(a), y(b)), min(z(a), z(b)))
+
+public defn max (a:V3f, b:V3f) -> V3f :
+  V3f(max(x(a), x(b)), max(y(a), y(b)), max(z(a), z(b)))
+
+public defn len (a:V3f) -> Float :
+  sqrt(dot(a, a))
+
+public defn normalize (a:V3f) -> V3f :
+  a / len(a)
+
+public defn times (a:Float, b:V3f) -> V3f :
+  V3f(a * x(b), a * y(b), a * z(b))
+
+public defn divide (a:V3f, b:Float) -> V3f :
+  V3f(x(a) / b, y(a) / b, z(a) / b)
+
+public defn plus (a:V3f, b:V3f) -> V3f :
+  V3f(x(a) + x(b), y(a) + y(b), z(a) + z(b))
+
+public defn minus (a:V3f, b:V3f) -> V3f :
+  V3f(x(a) - x(b), y(a) - y(b), z(a) - z(b))
+
+public defn modulo (a:V3f, b:V3f) -> V3f :
+  V3f(y(a) * z(b) - z(a) * y(b),
+      z(a) * x(b) - x(a) * z(b),
+      x(a) * y(b) - y(a) * x(b))
+
+public defn negate (a:V3f) -> V3f :
+  V3f((- x(a)), (- y(a)), (- z(a)))
+
+public defstruct V4f <: Equalable :
+  x: Float
+  y: Float
+  z: Float
+  a: Float
+
+defmethod equal? (v1:V4f, v2:V4f) :
+  x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) and a(v1) == a(v2) 
+
+public defn get (v:V4f, i:Int) -> Float :
+  if i == 0 : x(v)
+  else if i == 1 : y(v)
+  else if i == 2 : z(v)
+  else if i == 3 : a(v)
+  else : 0.0f ;; TODO
+  
+defmethod print (o:OutputStream, v:V4f) :
+  print-all(o, ["V4f(", x(v) "," y(v) "," z(v) "," a(v) ")"])
+
+;;; BOX
+
+public defstruct Box :
+  lo: V3f
+  hi: V3f
+
+public defn Box (v:V3f) -> Box :
+  Box(v, v)
+
+defmethod print (o:OutputStream, b:Box) :
+  print-all(o, ["Box(", lo(b), ",", hi(b) ")"])
+
+public defn center (b:Box) -> V3f :
+  0.5f * (lo(b) + hi(b))
+
+public defn dims (b:Box) -> V3f :
+  hi(b) - lo(b)
+
+public defn union (b:Box, v:V3f) -> Box :
+  Box(min(lo(b), v), max(hi(b), v))
+
+public defn union (b0:Box, b1:Box) -> Box :
+  Box(min(lo(b0), lo(b1)), max(hi(b0), hi(b1)))
+
+;;; MAT
+
+public defstruct Mat44 :
+  elts: Array<Float>
+
+public defn mat44 (m00:Float,m01:Float,m02:Float,m03:Float,
+                   m10:Float,m11:Float,m12:Float,m13:Float,
+                   m20:Float,m21:Float,m22:Float,m23:Float,
+                   m30:Float,m31:Float,m32:Float,m33:Float) -> Mat44 :
+  Mat44(to-array<Float>([m00,m01,m02,m03,m10,m11,m12,m13,m20,m21,m22,m23,m30,m31,m32,m33]))
+
+defmethod print (o:OutputStream, m:Mat44) :
+  print(o, "MAT(")
+  for (e in elts(m), i in 0 to false) do :
+     if i > 0 : print(o, ",")
+     print(o, e)
+  print-all(o, ")")
+
+public defn get (m:Mat44, x:Int, y:Int) -> Float :
+  elts(m)[x * 4 + y]
+
+public defn set (m:Mat44, x:Int, y:Int, v:Float) -> False :
+  elts(m)[x * 4 + y] = v
+
+public defn mag-mat44 (s:Float) -> Mat44 :
+  mat44(   s, 0.0f, 0.0f, 0.0f,
+        0.0f,    s, 0.0f, 0.0f,
+        0.0f, 0.0f,    s, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f)
+
+public defn mag-mat44 (s:V3f) -> Mat44 :
+  mat44(x(s), 0.0f, 0.0f, 0.0f,
+        0.0f, y(s), 0.0f, 0.0f,
+        0.0f, 0.0f, z(s), 0.0f,
+        1.0f, 1.0f, 1.0f, 1.0f)
+
+public defn mov-mat44 (t:V3f) -> Mat44 :
+  mat44( 1.0f, 0.0f, 0.0f, 0.0f,
+         0.0f, 1.0f, 0.0f, 0.0f,
+         0.0f, 0.0f, 1.0f, 0.0f,
+         t[0], t[1], t[2], 1.0f)
+
+public defn rot-mat44 (r:V3f) -> Mat44 :
+  val cos_rz = cos(r[2])
+  val cos_ry = cos(r[1])
+  val cos_rx = cos(r[0])
+
+  val sin_rz = sin(r[2])
+  val sin_ry = sin(r[1])
+  val sin_rx = sin(r[0])
+
+  val m00 = cos_rz * cos_ry
+  val m01 = sin_rz * cos_ry
+  val m02 = (- sin_ry)
+  val m10 = (- sin_rz) * cos_rx + cos_rz * sin_ry * sin_rx
+  val m11 = cos_rz * cos_rx + sin_rz * sin_ry * sin_rx
+  val m12 = cos_ry * sin_rx
+  val m20 = (- sin_rz) * (- sin_rx) + cos_rz * sin_ry * cos_rx
+  val m21 = cos_rz * (- sin_rx) + sin_rz * sin_ry * cos_rx
+  val m22 = cos_ry * cos_rx
+
+  mat44( m00,  m01,  m02, 0.0f,
+         m10,  m11,  m12, 0.0f,
+         m20,  m21,  m22, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f)
+
+public defn rot-mat44 (r:V3f, a:Float) -> Mat44 :
+  val u = normalize(r)
+  val s = sin(a)
+  val c = cos(a)
+
+  val m00 = u[0] * u[0] * (1.0f - c) + c
+  val m01 = u[0] * u[1] * (1.0f - c) + u[2] * s
+  val m02 = u[0] * u[2] * (1.0f - c) - u[1] * s
+
+  val m10 = u[0] * u[1] * (1.0f - c) - u[2] * s
+  val m11 = u[1] * u[1] * (1.0f - c) + c
+  val m12 = u[1] * u[2] * (1.0f - c) + u[0] * s
+
+  val m20 = u[0] * u[2] * (1.0f - c) + u[1] * s
+  val m21 = u[1] * u[2] * (1.0f - c) - u[0] * s
+  val m22 = u[2] * u[2] * (1.0f - c) + c
+
+  mat44( m00,  m01,  m02, 0.0f,
+         m10,  m11,  m12, 0.0f,
+         m20,  m21,  m22, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f)
+
+public defn times (v:V3f, m:Mat44) -> V3f :
+  val px = x(v) * m[0,0] + y(v) * m[1,0] + z(v) * m[2,0] + m[3,0]
+  val py = x(v) * m[0,1] + y(v) * m[1,1] + z(v) * m[2,1] + m[3,1]
+  val pz = x(v) * m[0,2] + y(v) * m[1,2] + z(v) * m[2,2] + m[3,2]
+  val pw = x(v) * m[0,3] + y(v) * m[1,3] + z(v) * m[2,3] + m[3,3]
+  V3f(px / pw, py / pw, pz / pw)
+
+public defn times (a:Mat44, b:Mat44) -> Mat44 :
+  val res = mag-mat44(1.0f)
+  for i in 0 to 4 do :
+    for j in 0 to 4 do :
+      var sum: Float = 0.0f
+      for k in 0 to 4 do :
+        sum = sum + a[i,k] * b[k,j]
+      res[i, j] = sum
+  res
+
+;;; HALF -- PLANE
+
+public defstruct Half :
+  normal:   V3f
+  distance: Float
+
+public defmethod print (o:OutputStream, g:Half) :
+  print-all(o, ["half(" normal(g) "," distance(g) ")"])
+
+public defn half (x:Float, y:Float, z:Float, d:Float) -> Half :
+  Half(V3f(x, y, z), d)
+
+public defn half (v:V3f, d:Float) -> Half :
+  Half(v, d)
+
+public defn half (p1:V3f, p2:V3f, p3:V3f) -> Half :
+  val normal = normalize((p2 - p1) % (p3 - p1))
+  val distance = dot(normal, p1)
+  Half(normal, distance)
+
+defn times (g:Half, m:Mat44) -> Half :
+  var dir1:V3f       = V3f(1.0f, 0.0f, 0.0f) % normal(g)
+  var dir1-len:Float = dot(dir1, dir1)
+  var tmp:V3f        = V3f(0.0f, 1.0f, 0.0f) % normal(g)
+  var tmp-len:Float  = dot(tmp, tmp)
+  if tmp-len > dir1-len :
+    dir1     = tmp
+    dir1-len = tmp-len
+  tmp     = V3f(0.0f,0.0f, 1.0f) % normal(g)
+  tmp-len = dot(tmp, tmp)
+  if tmp-len > dir1-len :
+    dir1     = tmp
+  val dir2  = dir1 % normal(g)
+  val point = distance(g) * normal(g)
+  half(point * m, (point + dir2) * m, (point + dir1) * m)
+
+public defn distance-to (plane:Half, point:V3f) -> Float :
+  dot(point, normal(plane)) - distance(plane)
+
+public defn level (g:Half, point:V3f) -> Float :
+  (- distance-to(g, point))
+  
+;;; LINE
+
+public defstruct Line :
+  pos: V3f
+  dir: V3f
+
+public defn closest-point-to (l:Line, point:V3f) -> V3f :
+  dot((point - pos(l)), dir(l)) * dir(l) + pos(l)
+
+public defn line-of (p0:V3f, p1:V3f) -> Line :
+  Line(p0, normalize(p1 - p0))
+
+public defn extrude (p0:V3f, p1:V3f) -> Half :
+  val line   = line-of(p0, p1)
+  val normal = V3f(y(dir(line)), (- x(dir(line))))
+  val pt     = closest-point-to(line, V3f(0.0f, 0.0f))
+  val align  = dot(normal, normalize(pt))
+  ;; println-all(["CLOSEST POINT TO " x(pt) "," y(pt) " NORMAL " x(normal) "," y(normal) " ALIGN " align])
+  Half(normal, (if align > 0.0f : 1.0f else : -1.0f) * len(pt))
+
+
+;;; CONTOUR
+
+public defstruct Contour :
+  points: List<V3f>
+
+defmethod print (o:OutputStream, c:Contour) :
+  print("Contour(")
+  for (e in points(c), i in 0 to false) do :
+     if i > 0 : print(o, ",")
+     print(o, e)
+  print-all(o, ")")
+
+
+;;; POLYGON
+
+public defstruct Polygon :
+  contours: List<Contour>
+
+defmethod print (o:OutputStream, c:Polygon) :
+  print("Polygon(")
+  for (e in contours(c), i in 0 to false) do :
+     if i > 0 : print(o, ",")
+     print(o, e)
+  print-all(o, ")")
+
+;;; POLYLINE
+
+public defstruct PolyLine :
+  strokes: Array<Array<V3f>>
+
+defmethod print (o:OutputStream, c:PolyLine) :
+  print-all(["PolyLine(" strokes(c) ")"])
+
+public defn bbox (p:PolyLine) -> Box :
+  if length(strokes(p)) == 0 :
+    Box(V3f(0.0f, 0.0f), V3f(0.0f, 0.0f))
+  else :
+    val inf = 1.0e6f
+    val empty-box = Box(V3f(inf, inf, inf), V3f((- inf), (- inf), (- inf)))
+    val boxes = seq(reduce{union, empty-box, seq(Box, _)}, strokes(p))
+    reduce(union, empty-box, boxes)
+
+public defn center (p:PolyLine) -> PolyLine :
+  val ctr = center(bbox(p))
+  val res = map<Array<V3f>>(fn (a): map<V3f>({ _ - ctr}, a), strokes(p))
+  ;; println-all(["CTR " ctr " IN " p " OUT " res])
+  PolyLine(res)
+  
+public defn center-x (p:PolyLine) -> PolyLine :
+  val ctr = center(bbox(p))
+  val res = map<Array<V3f>>(fn (a): map<V3f>(fn (v): V3f(x(v) - x(ctr), y(v)), a), strokes(p))
+  ;; println-all(["CTR " ctr " IN " p " OUT " res])
+  PolyLine(res)
+
+public defn offset (p:PolyLine, off:V3f) -> PolyLine :
+  PolyLine(map<Array<V3f>>(fn (a): map<V3f>({off + _}, a), strokes(p)))
+
+;;; MESH
+
+public defstruct Mesh :
+  vertices: Vector<V3f>
+  indices:  Vector<Int>
+
+;; public defn triangulate (p: Polygon) :
+;;   val vertices = Vector<V3f>()
+;;   val indices  = Vector<Int>()
+;; 
+;;   defn vertex-callback (index: Int) :
+;;     ;; println("Vertex Callback")
+;;     add(indices, index)
+;; 
+;;   defn combine-callback (x:Float, y:Float, z:Float) -> Int :
+;;     ;; println("Combine Callback")
+;;     add(vertices, V3f(x, y, z))
+;;     length(vertices) - 1
+;; 
+;;   val tess-ptr = call-c(triangulator_new, vertex-callback, combine-callback)
+;; 
+;;   call-c(triangulator_begin_polygon, tess-ptr)
+;;   for c in contours(p) do :
+;;     call-c(triangulator_begin_contour, tess-ptr)
+;;     for p in points(c) do :
+;;       add(vertices, p)
+;;       call-c(triangulator_vertex, tess-ptr, length(vertices) - 1, x(p), y(p), z(p))
+;;     call-c(triangulator_end_contour, tess-ptr)
+;;   call-c(triangulator_end_polygon, tess-ptr)
+;; 
+;;   Mesh(vertices, indices)
+
+;;; QUAT
+
+public defstruct Quat :
+  x: Float
+  y: Float
+  z: Float
+  w: Float
+
+public defn quat-to-mat44 (q:Quat) -> Mat44 :
+  val n = x(q) * x(q) + y(q) * y(q) + z(q) * z(q) + w(q) * w(q)
+  val s = if n > 0.0f : 2.0f / n else : 0.0f
+  val [ xs,  ys,  zs] = [x(q) * s,  y(q) * s,  z(q) * s]
+  val [ wx,  wy,  wz] = [w(q) * xs, w(q) * ys, w(q) * zs]
+  val [ xx,  xy,  xz] = [x(q) * xs, x(q) * ys, x(q) * zs]
+  val [ yy,  yz,  zz] = [y(q) * ys, y(q) * zs, z(q) * zs]
+  val [m00, m01, m02] = [1.0f - (yy + zz),        (wy - wz),        (xz + wy)]
+  val [m10, m11, m12] = [       (xy + wz), 1.0f - (xx - zz),        (yz - wx)]
+  val [m20, m21, m22] = [1.0f - (yy + zz),        (yz + wx), 1.0f - (xx + yy)]
+  mat44( m00,  m01,  m02, 0.0f,
+         m10,  m11,  m12, 0.0f,
+         m20,  m21,  m22, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f)
+
+;;; ARCBALL
+
+val epsilon = 0.000001f
+
+public defstruct ArcBall :
+  st-vec: V3f with: (setter => st-vec-set)
+  en-vec: V3f with: (setter => en-vec-set)
+  adjust-width: Float with: (setter => adjust-width-set)
+  adjust-height: Float with: (setter => adjust-height-set)
+
+public defn set-bounds (a:ArcBall, new-width:Float, new-height:Float) :
+  adjust-width-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
+  adjust-height-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
+
+public defn map-to-sphere (a:ArcBall, new-pt:V3f) -> V3f :
+  val temp-pt = V3f(x(new-pt) * adjust-width(a) - 1.0f, 1.0f - (y(new-pt) * adjust-height(a)), 0.0f)
+  val length  = dot(temp-pt, temp-pt)
+  if length > 1.0f :
+    (1.0f / sqrt(length)) * temp-pt
+  else :
+    V3f(x(temp-pt), y(temp-pt), sqrt(1.0f - length))
+
+public defn arc-ball (new-width:Float, new-height:Float) -> ArcBall :
+  val res = ArcBall(V3f(0.0f, 0.0f, 0.0f), V3f(0.0f, 0.0f, 0.0f), 0.0f, 0.0f)
+  set-bounds(res, new-width, new-height)
+  res
+
+public defn click (a:ArcBall, new-pt:V3f) :
+  st-vec-set(a, map-to-sphere(a, new-pt))
+
+public defn drag (a:ArcBall, new-pt:V3f, new-rot:Quat) -> Quat :
+  en-vec-set(a, map-to-sphere(a, new-pt))
+  val perp = st-vec(a) % en-vec(a)
+  if len(perp) > epsilon :
+    Quat(x(perp), y(perp), z(perp), dot(st-vec(a), en-vec(a)))
+  else :
+    Quat(0.0f, 0.0f, 0.0f, 0.0f)
+
