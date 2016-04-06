@@ -1,0 +1,115 @@
+defpackage geom:
+  import core
+  import math
+  import collections
+
+public defstruct V3i <: Equalable :
+  x: Int
+  y: Int
+  z: Int
+
+public defn V3i (x:Int, y:Int) -> V3i :
+  V3i(x, y, 0)
+
+defmethod equal? (v1:V3i, v2:V3i) :
+  x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) 
+
+public defn get (v:V3i, i:Int) -> Int :
+  if i == 0 : x(v)
+  else if i == 1 : y(v)
+  else if i == 2 : z(v)
+  else : 0 ;; TODO
+  
+defmethod print (o:OutputStream, v:V3i) :
+  print-all(o, ["V3i(", x(v), ",", y(v), ",", z(v), ")"])
+
+public defn dot (a:V3i, b:V3i) -> Int :
+  x(a) * x(b) + y(a) * y(b) + z(a) * z(b)
+
+public defn min (a:V3i) -> Int :
+  min(x(a), min(y(a), z(a)))
+
+public defn max (a:V3i) -> Int :
+  max(x(a), max(y(a), z(a)))
+
+public defn min (a:V3i, b:V3i) -> V3i :
+  V3i(min(x(a), x(b)), min(y(a), y(b)), min(z(a), z(b)))
+
+public defn max (a:V3i, b:V3i) -> V3i :
+  V3i(max(x(a), x(b)), max(y(a), y(b)), max(z(a), z(b)))
+
+public defn times (a:Int, b:V3i) -> V3i :
+  V3i(a * x(b), a * y(b), a * z(b))
+
+public defn divide (a:V3i, b:Int) -> V3i :
+  V3i(x(a) / b, y(a) / b, z(a) / b)
+
+public defn plus (a:V3i, b:V3i) -> V3i :
+  V3i(x(a) + x(b), y(a) + y(b), z(a) + z(b))
+
+public defn minus (a:V3i, b:V3i) -> V3i :
+  V3i(x(a) - x(b), y(a) - y(b), z(a) - z(b))
+
+public defn negate (a:V3i) -> V3i :
+  V3i((- x(a)), (- y(a)), (- z(a)))
+
+public defstruct V3f <: Equalable :
+  x: Float
+  y: Float
+  z: Float
+
+public defn V3f (x:Float, y:Float) -> V3f :
+  V3f(x, y, 0.0f)
+
+defmethod equal? (v1:V3f, v2:V3f) :
+  x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) 
+
+public defn get (v:V3f, i:Int) -> Float :
+  if i == 0 : x(v)
+  else if i == 1 : y(v)
+  else if i == 2 : z(v)
+  else : 0.0f ;; TODO
+  
+defmethod print (o:OutputStream, v:V3f) :
+  print-all(o, ["V3f(", x(v), ",", y(v), ",", z(v), ")"])
+
+public defn dot (a:V3f, b:V3f) -> Float :
+  x(a) * x(b) + y(a) * y(b) + z(a) * z(b)
+
+public defn min (a:V3f) -> Float :
+  min(x(a), min(y(a), z(a)))
+
+public defn max (a:V3f) -> Float :
+  max(x(a), max(y(a), z(a)))
+
+public defn min (a:V3f, b:V3f) -> V3f :
+  V3f(min(x(a), x(b)), min(y(a), y(b)), min(z(a), z(b)))
+
+public defn max (a:V3f, b:V3f) -> V3f :
+  V3f(max(x(a), x(b)), max(y(a), y(b)), max(z(a), z(b)))
+
+public defn len (a:V3f) -> Float :
+  sqrt(dot(a, a))
+
+public defn normalize (a:V3f) -> V3f :
+  a / len(a)
+
+public defn times (a:Float, b:V3f) -> V3f :
+  V3f(a * x(b), a * y(b), a * z(b))
+
+public defn divide (a:V3f, b:Float) -> V3f :
+  V3f(x(a) / b, y(a) / b, z(a) / b)
+
+public defn plus (a:V3f, b:V3f) -> V3f :
+  V3f(x(a) + x(b), y(a) + y(b), z(a) + z(b))
+
+public defn minus (a:V3f, b:V3f) -> V3f :
+  V3f(x(a) - x(b), y(a) - y(b), z(a) - z(b))
+
+public defn modulo (a:V3f, b:V3f) -> V3f :
+  V3f(y(a) * z(b) - z(a) * y(b),
+      z(a) * x(b) - x(a) * z(b),
+      x(a) * y(b) - y(a) * x(b))
+
+public defn negate (a:V3f) -> V3f :
+  V3f((- x(a)), (- y(a)), (- z(a)))

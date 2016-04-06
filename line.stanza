@@ -1,0 +1,23 @@
+defpackage geom:
+  import core
+  import math
+  import collections
+
+public defstruct Line :
+  pos: V3f
+  dir: V3f
+
+public defn closest-point-to (l:Line, point:V3f) -> V3f :
+  dot((point - pos(l)), dir(l)) * dir(l) + pos(l)
+
+public defn line-of (p0:V3f, p1:V3f) -> Line :
+  Line(p0, normalize(p1 - p0))
+
+public defn extrude (p0:V3f, p1:V3f) -> Half :
+  val line   = line-of(p0, p1)
+  val normal = V3f(y(dir(line)), (- x(dir(line))))
+  val pt     = closest-point-to(line, V3f(0.0f, 0.0f))
+  val align  = dot(normal, normalize(pt))
+  ;; println-all(["CLOSEST POINT TO " x(pt) "," y(pt) " NORMAL " x(normal) "," y(normal) " ALIGN " align])
+  Half(normal, (if align > 0.0f : 1.0f else : -1.0f) * len(pt))
+

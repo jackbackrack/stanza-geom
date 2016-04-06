@@ -1,0 +1,15 @@
+defpackage geom:
+  import core
+  import math
+  import collections
+
+public defstruct Polygon :
+  contours: List<Contour>
+
+defmethod print (o:OutputStream, c:Polygon) :
+  print("Polygon(")
+  for (e in contours(c), i in 0 to false) do :
+     if i > 0 : print(o, ",")
+     print(o, e)
+  print-all(o, ")")
+
