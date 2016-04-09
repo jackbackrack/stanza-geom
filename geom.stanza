@@ -179,6 +179,9 @@ public defn normalize (a:V3f) -> V3f :
 public defn times (a:Float, b:V3f) -> V3f :
   V3f(a * x(b), a * y(b), a * z(b))
 
+public defn times (a:V3f, b:V3f) -> V3f :
+  V3f(x(a) * x(b), y(a) * y(b), z(a) * z(b))
+
 public defn divide (a:V3f, b:Float) -> V3f :
   V3f(x(a) / b, y(a) / b, z(a) / b)
 
@@ -491,6 +494,11 @@ public defn center (p:PolyLine) -> PolyLine :
 public defn center-x (p:PolyLine) -> PolyLine :
   val ctr = center(bbox(p))
   val res = map<Array<V3f>>(fn (a): map<V3f>(fn (v): V3f(x(v) - x(ctr), y(v)), a), strokes(p))
+  ;; println-all(["CTR " ctr " IN " p " OUT " res])
+  PolyLine(res)
+
+public defn mag (p:PolyLine, fac:V3f) -> PolyLine :
+  val res = map<Array<V3f>>(fn (a): map<V3f>(fn (v): v * fac, a), strokes(p))
   ;; println-all(["CTR " ctr " IN " p " OUT " res])
   PolyLine(res)
 
