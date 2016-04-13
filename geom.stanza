@@ -473,6 +473,9 @@ defmethod print (o:OutputStream, c:Polygon) :
 public defstruct PolyLine :
   strokes: Array<Array<V3f>>
 
+public defn PolyLine (strokes:Tuple<Tuple<V3f>>) -> PolyLine :
+  PolyLine(to-array<Array<V3f>>(seq(fn (s:Seqable<V3f>): to-array<V3f>(s), strokes)))
+
 defmethod print (o:OutputStream, c:PolyLine) :
   print-all(["PolyLine(" strokes(c) ")"])
 
