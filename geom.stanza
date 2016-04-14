@@ -58,20 +58,21 @@ defmethod print (o:OutputStream, v:Vf) :
 ;;; V3i
 
 public lostanza deftype V3i <: Array<Int> :
-  length: long
-  elts: int ...
+  x: Int
+  y: Int
+  z: Int
 
 public lostanza defn V3i (x:ref<Int>, y:ref<Int>, z:ref<Int>) -> ref<V3i> :
-  return new V3i{3, x.value, y.value, z.value}
+  return new V3i{x.value, y.value, z.value}
 
 public lostanza defn x (v:ref<V3i>) -> ref<Int> :
-  return new Int{v.elts[0]}
+  return new Int{v.x}
 
 public lostanza defn y (v:ref<V3i>) -> ref<Int> :
-  return new Int{v.elts[1]}
+  return new Int{v.y}
 
 public lostanza defn z (v:ref<V3i>) -> ref<Int> :
-  return new Int{v.elts[2]}
+  return new Int{v.z}
 
 public defn V3i (x:Int, y:Int) -> V3i :
   V3i(x, y, 0)
@@ -79,7 +80,7 @@ public defn V3i (x:Int, y:Int) -> V3i :
 public lostanza defn v3i-get (v:ref<V3i>, i:ref<Int>) -> ref<Int> :
   #if-not-defined(OPTIMIZE) :
      ensure-index-in-bounds(i, new Int{3})
-  return new Int{v.elts[i.value]}
+  return new Int{addr!(v.x)[i.value]}
   
 defmethod get (a:V3i, i:Int) -> Int : v3i-get(a, i)
 defmethod length (a:V3i) -> Int : 3
@@ -123,28 +124,29 @@ public defn negate (a:V3i) -> V3i :
 ;;; V3f
 
 public lostanza deftype V3f <: Array<Float> :
-  length: long
-  elts:  float ...
+  x: Float
+  y: Float
+  z: Float
+
+public lostanza defn V3f (x:ref<Float>, y:ref<Float>, z:ref<Float>) -> ref<V3f> :
+  return new V3f{x.value, y.value, z.value}
+
+public lostanza defn x (v:ref<V3f>) -> ref<Float> :
+  return new Float{v.x}
+
+public lostanza defn y (v:ref<V3f>) -> ref<Float> :
+  return new Float{v.y}
+
+public lostanza defn z (v:ref<V3f>) -> ref<Float> :
+  return new Float{v.z}
 
 public defn V3f (x:Float, y:Float) -> V3f :
   V3f(x, y, 0.0f)
 
-public lostanza defn V3f (x:ref<Float>, y:ref<Float>, z:ref<Float>) -> ref<V3f> :
-  return new V3f{3, x.value, y.value, z.value}
-
-public lostanza defn x (v:ref<V3f>) -> ref<Float> :
-  return new Float{v.elts[0]}
-
-public lostanza defn y (v:ref<V3f>) -> ref<Float> :
-  return new Float{v.elts[1]}
-
-public lostanza defn z (v:ref<V3f>) -> ref<Float> :
-  return new Float{v.elts[2]}
-
-lostanza defn v3f-get (v:ref<V3f>, i:ref<Int>) -> ref<Float> :
+public lostanza defn v3f-get (v:ref<V3f>, i:ref<Int>) -> ref<Float> :
   #if-not-defined(OPTIMIZE) :
      ensure-index-in-bounds(i, new Int{3})
-  return new Float{v.elts[i.value]}
+  return new Float{addr!(v.x)[i.value]}
   
 public defmethod get (a:V3f, i:Int) -> Float : v3f-get(a, i)
 public defmethod length (a:V3f) -> Int : 3
@@ -202,28 +204,33 @@ public defn negate (a:V3f) -> V3f :
 ;;; V4f
 
 public lostanza deftype V4f <: Array<Float> :
-  length: long
-  elts: float ...
+  x: Float
+  y: Float
+  z: Float
+  a: Float
 
 public lostanza defn V4f (x:ref<Float>, y:ref<Float>, z:ref<Float>, a:ref<Float>) -> ref<V4f> :
-  return new V4f{4, x.value, y.value, z.value, a.value}
+  return new V4f{x.value, y.value, z.value}
 
 public lostanza defn x (v:ref<V4f>) -> ref<Float> :
-  return new Float{v.elts[0]}
+  return new Float{v.x}
 
 public lostanza defn y (v:ref<V4f>) -> ref<Float> :
-  return new Float{v.elts[1]}
+  return new Float{v.y}
 
 public lostanza defn z (v:ref<V4f>) -> ref<Float> :
-  return new Float{v.elts[2]}
+  return new Float{v.z}
 
 public lostanza defn a (v:ref<V4f>) -> ref<Float> :
-  return new Float{v.elts[3]}
+  return new Float{a.z}
 
-lostanza defn v4f-get (v:ref<V4f>, i:ref<Int>) -> ref<Float> :
+public defn V4f (x:Float, y:Float, z:Float) -> V4f :
+  V4f(x, y, z, 0.0f)
+
+public lostanza defn v4f-get (v:ref<V4f>, i:ref<Int>) -> ref<Float> :
   #if-not-defined(OPTIMIZE) :
-     ensure-index-in-bounds(i, new Int{4})
-  return new Float{v.elts[i.value]}
+     ensure-index-in-bounds(i, new Int{3})
+  return new Float{addr!(v.x)[i.value]}
   
 public defmethod get (a:V4f, i:Int) -> Float : v4f-get(a, i)
 public defmethod length (a:V4f) -> Int : 4
@@ -261,25 +268,39 @@ public defn union (b0:Box, b1:Box) -> Box :
 ;;; MAT
 
 public lostanza deftype Mat44 <: Array<Float> :
-  length: long
-  elts:   float ...
+  m00: Float
+  m01: Float
+  m02: Float
+  m03: Float
+  m10: Float
+  m11: Float
+  m12: Float
+  m13: Float
+  m20: Float
+  m21: Float
+  m22: Float
+  m23: Float
+  m30: Float
+  m31: Float
+  m32: Float
+  m33: Float
 
 public lostanza defn Mat44 (m00:ref<Float>,m01:ref<Float>,m02:ref<Float>,m03:ref<Float>,
                             m10:ref<Float>,m11:ref<Float>,m12:ref<Float>,m13:ref<Float>,
                             m20:ref<Float>,m21:ref<Float>,m22:ref<Float>,m23:ref<Float>,
                             m30:ref<Float>,m31:ref<Float>,m32:ref<Float>,m33:ref<Float>) -> ref<Mat44> :
-  return new Mat44{16, m00.value,m01.value,m02.value,m03.value,m10.value,m11.value,m12.value,m13.value,
-                       m20.value,m21.value,m22.value,m23.value,m30.value,m31.value,m32.value,m33.value}
+  return new Mat44{m00.value,m01.value,m02.value,m03.value,m10.value,m11.value,m12.value,m13.value,
+                   m20.value,m21.value,m22.value,m23.value,m30.value,m31.value,m32.value,m33.value}
 
 public lostanza defn mat44-get (m:ref<Mat44>, i:ref<Int>) -> ref<Float> :
   #if-not-defined(OPTIMIZE) :
      ensure-index-in-bounds(i, new Int{16})
-  return new Float{m.elts[i.value]}
+  return new Float{addr!(m.m00)[i.value]}
   
 public lostanza defn mat44-set (m:ref<Mat44>, i:ref<Int>, x:ref<Float>) -> ref<False> :
   #if-not-defined(OPTIMIZE) :
      ensure-index-in-bounds(i, new Int{16})
-  m.elts[i.value] = x.value
+  addr!(m.x)[i.value] = x.value
   return false
   
 defmethod get (a:Mat44, i:Int) -> Float : mat44-get(a, i)
@@ -299,128 +320,128 @@ defmethod print (o:OutputStream, m:Mat44) :
      print(o, m[i])
   print-all(o, ")")
 
-;; public defn mag-mat44 (s:Float) -> Mat44 :
-;;    Mat44(   s, 0.0f, 0.0f, 0.0f,
-;;          0.0f,    s, 0.0f, 0.0f,
-;;          0.0f, 0.0f,    s, 0.0f,
-;;          0.0f, 0.0f, 0.0f, 1.0f)
-;;  
-;; public defn mag-mat44 (s:V3f) -> Mat44 :
-;;   Mat44(x(s), 0.0f, 0.0f, 0.0f,
-;;         0.0f, y(s), 0.0f, 0.0f,
-;;         0.0f, 0.0f, z(s), 0.0f,
-;;         1.0f, 1.0f, 1.0f, 1.0f)
-;; 
-;; public defn mov-mat44 (t:V3f) -> Mat44 :
-;;   Mat44( 1.0f, 0.0f, 0.0f, 0.0f,
-;;          0.0f, 1.0f, 0.0f, 0.0f,
-;;          0.0f, 0.0f, 1.0f, 0.0f,
-;;          t[0], t[1], t[2], 1.0f)
-;; 
-;; public defn rot-mat44 (r:V3f) -> Mat44 :
-;;   val cos_rz = cos(r[2])
-;;   val cos_ry = cos(r[1])
-;;   val cos_rx = cos(r[0])
-;; 
-;;   val sin_rz = sin(r[2])
-;;   val sin_ry = sin(r[1])
-;;   val sin_rx = sin(r[0])
-;; 
-;;   val m00 = cos_rz * cos_ry
-;;   val m01 = sin_rz * cos_ry
-;;   val m02 = (- sin_ry)
-;;   val m10 = (- sin_rz) * cos_rx + cos_rz * sin_ry * sin_rx
-;;   val m11 = cos_rz * cos_rx + sin_rz * sin_ry * sin_rx
-;;   val m12 = cos_ry * sin_rx
-;;   val m20 = (- sin_rz) * (- sin_rx) + cos_rz * sin_ry * cos_rx
-;;   val m21 = cos_rz * (- sin_rx) + sin_rz * sin_ry * cos_rx
-;;   val m22 = cos_ry * cos_rx
-;; 
-;;   Mat44( m00,  m01,  m02, 0.0f,
-;;          m10,  m11,  m12, 0.0f,
-;;          m20,  m21,  m22, 0.0f,
-;;         0.0f, 0.0f, 0.0f, 1.0f)
-;; 
-;; public defn rot-mat44 (r:V3f, a:Float) -> Mat44 :
-;;   val u = normalize(r)
-;;   val s = sin(a)
-;;   val c = cos(a)
-;; 
-;;   val m00 = u[0] * u[0] * (1.0f - c) + c
-;;   val m01 = u[0] * u[1] * (1.0f - c) + u[2] * s
-;;   val m02 = u[0] * u[2] * (1.0f - c) - u[1] * s
-;; 
-;;   val m10 = u[0] * u[1] * (1.0f - c) - u[2] * s
-;;   val m11 = u[1] * u[1] * (1.0f - c) + c
-;;   val m12 = u[1] * u[2] * (1.0f - c) + u[0] * s
-;; 
-;;   val m20 = u[0] * u[2] * (1.0f - c) + u[1] * s
-;;   val m21 = u[1] * u[2] * (1.0f - c) - u[0] * s
-;;   val m22 = u[2] * u[2] * (1.0f - c) + c
-;; 
-;;   Mat44( m00,  m01,  m02, 0.0f,
-;;          m10,  m11,  m12, 0.0f,
-;;          m20,  m21,  m22, 0.0f,
-;;         0.0f, 0.0f, 0.0f, 1.0f)
-;; 
-;; public defn times (v:V3f, m:Mat44) -> V3f :
-;;   val px = x(v) * m[0,0] + y(v) * m[1,0] + z(v) * m[2,0] + m[3,0]
-;;   val py = x(v) * m[0,1] + y(v) * m[1,1] + z(v) * m[2,1] + m[3,1]
-;;   val pz = x(v) * m[0,2] + y(v) * m[1,2] + z(v) * m[2,2] + m[3,2]
-;;   val pw = x(v) * m[0,3] + y(v) * m[1,3] + z(v) * m[2,3] + m[3,3]
-;;   V3f(px / pw, py / pw, pz / pw)
-;; 
-;; public defn times (a:Mat44, b:Mat44) -> Mat44 :
-;;   val res = mag-mat44(1.0f)
-;;   for i in 0 to 4 do :
-;;     for j in 0 to 4 do :
-;;       var sum: Float = 0.0f
-;;       for k in 0 to 4 do :
-;;         sum = sum + a[i,k] * b[k,j]
-;;       res[i, j] = sum
-;;   res
+public defn mag-mat44 (s:Float) -> Mat44 :
+   Mat44(   s, 0.0f, 0.0f, 0.0f,
+         0.0f,    s, 0.0f, 0.0f,
+         0.0f, 0.0f,    s, 0.0f,
+         0.0f, 0.0f, 0.0f, 1.0f)
+ 
+public defn mag-mat44 (s:V3f) -> Mat44 :
+  Mat44(x(s), 0.0f, 0.0f, 0.0f,
+        0.0f, y(s), 0.0f, 0.0f,
+        0.0f, 0.0f, z(s), 0.0f,
+        1.0f, 1.0f, 1.0f, 1.0f)
+
+public defn mov-mat44 (t:V3f) -> Mat44 :
+  Mat44( 1.0f, 0.0f, 0.0f, 0.0f,
+         0.0f, 1.0f, 0.0f, 0.0f,
+         0.0f, 0.0f, 1.0f, 0.0f,
+         t[0], t[1], t[2], 1.0f)
+
+public defn rot-mat44 (r:V3f) -> Mat44 :
+  val cos_rz = cos(r[2])
+  val cos_ry = cos(r[1])
+  val cos_rx = cos(r[0])
+
+  val sin_rz = sin(r[2])
+  val sin_ry = sin(r[1])
+  val sin_rx = sin(r[0])
+
+  val m00 = cos_rz * cos_ry
+  val m01 = sin_rz * cos_ry
+  val m02 = (- sin_ry)
+  val m10 = (- sin_rz) * cos_rx + cos_rz * sin_ry * sin_rx
+  val m11 = cos_rz * cos_rx + sin_rz * sin_ry * sin_rx
+  val m12 = cos_ry * sin_rx
+  val m20 = (- sin_rz) * (- sin_rx) + cos_rz * sin_ry * cos_rx
+  val m21 = cos_rz * (- sin_rx) + sin_rz * sin_ry * cos_rx
+  val m22 = cos_ry * cos_rx
+
+  Mat44( m00,  m01,  m02, 0.0f,
+         m10,  m11,  m12, 0.0f,
+         m20,  m21,  m22, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f)
+
+public defn rot-mat44 (r:V3f, a:Float) -> Mat44 :
+  val u = normalize(r)
+  val s = sin(a)
+  val c = cos(a)
+
+  val m00 = u[0] * u[0] * (1.0f - c) + c
+  val m01 = u[0] * u[1] * (1.0f - c) + u[2] * s
+  val m02 = u[0] * u[2] * (1.0f - c) - u[1] * s
+
+  val m10 = u[0] * u[1] * (1.0f - c) - u[2] * s
+  val m11 = u[1] * u[1] * (1.0f - c) + c
+  val m12 = u[1] * u[2] * (1.0f - c) + u[0] * s
+
+  val m20 = u[0] * u[2] * (1.0f - c) + u[1] * s
+  val m21 = u[1] * u[2] * (1.0f - c) - u[0] * s
+  val m22 = u[2] * u[2] * (1.0f - c) + c
+
+  Mat44( m00,  m01,  m02, 0.0f,
+         m10,  m11,  m12, 0.0f,
+         m20,  m21,  m22, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f)
+
+public defn times (v:V3f, m:Mat44) -> V3f :
+  val px = x(v) * m[0,0] + y(v) * m[1,0] + z(v) * m[2,0] + m[3,0]
+  val py = x(v) * m[0,1] + y(v) * m[1,1] + z(v) * m[2,1] + m[3,1]
+  val pz = x(v) * m[0,2] + y(v) * m[1,2] + z(v) * m[2,2] + m[3,2]
+  val pw = x(v) * m[0,3] + y(v) * m[1,3] + z(v) * m[2,3] + m[3,3]
+  V3f(px / pw, py / pw, pz / pw)
+
+public defn times (a:Mat44, b:Mat44) -> Mat44 :
+  val res = mag-mat44(1.0f)
+  for i in 0 to 4 do :
+    for j in 0 to 4 do :
+      var sum: Float = 0.0f
+      for k in 0 to 4 do :
+        sum = sum + a[i,k] * b[k,j]
+      res[i, j] = sum
+  res
 
 ;;; HALF -- PLANE
 
-;; public defstruct Half :
-;;   normal:   V3f
-;;   distance: Float
-;; 
-;; public defmethod print (o:OutputStream, g:Half) :
-;;   print-all(o, ["half(" normal(g) "," distance(g) ")"])
-;; 
-;; public defn half (x:Float, y:Float, z:Float, d:Float) -> Half :
-;;   Half(V3f(x, y, z), d)
-;; 
-;; public defn half (v:V3f, d:Float) -> Half :
-;;   Half(v, d)
-;; 
-;; public defn half (p1:V3f, p2:V3f, p3:V3f) -> Half :
-;;   val normal = normalize((p2 - p1) % (p3 - p1))
-;;   val distance = dot(normal, p1)
-;;   Half(normal, distance)
-;; 
-;; defn times (g:Half, m:Mat44) -> Half :
-;;   var dir1:V3f       = V3f(1.0f, 0.0f, 0.0f) % normal(g)
-;;   var dir1-len:Float = dot(dir1, dir1)
-;;   var tmp:V3f        = V3f(0.0f, 1.0f, 0.0f) % normal(g)
-;;   var tmp-len:Float  = dot(tmp, tmp)
-;;   if tmp-len > dir1-len :
-;;     dir1     = tmp
-;;     dir1-len = tmp-len
-;;   tmp     = V3f(0.0f,0.0f, 1.0f) % normal(g)
-;;   tmp-len = dot(tmp, tmp)
-;;   if tmp-len > dir1-len :
-;;     dir1     = tmp
-;;   val dir2  = dir1 % normal(g)
-;;   val point = distance(g) * normal(g)
-;;   half(point * m, (point + dir2) * m, (point + dir1) * m)
-;;  
-;; public defn distance-to (plane:Half, point:V3f) -> Float :
-;;   dot(point, normal(plane)) - distance(plane)
-;; 
-;; public defn level (g:Half, point:V3f) -> Float :
-;;   (- distance-to(g, point))
+public defstruct Half :
+  normal:   V3f
+  distance: Float
+
+public defmethod print (o:OutputStream, g:Half) :
+  print-all(o, ["half(" normal(g) "," distance(g) ")"])
+
+public defn half (x:Float, y:Float, z:Float, d:Float) -> Half :
+  Half(V3f(x, y, z), d)
+
+public defn half (v:V3f, d:Float) -> Half :
+  Half(v, d)
+
+public defn half (p1:V3f, p2:V3f, p3:V3f) -> Half :
+  val normal = normalize((p2 - p1) % (p3 - p1))
+  val distance = dot(normal, p1)
+  Half(normal, distance)
+
+defn times (g:Half, m:Mat44) -> Half :
+  var dir1:V3f       = V3f(1.0f, 0.0f, 0.0f) % normal(g)
+  var dir1-len:Float = dot(dir1, dir1)
+  var tmp:V3f        = V3f(0.0f, 1.0f, 0.0f) % normal(g)
+  var tmp-len:Float  = dot(tmp, tmp)
+  if tmp-len > dir1-len :
+    dir1     = tmp
+    dir1-len = tmp-len
+  tmp     = V3f(0.0f,0.0f, 1.0f) % normal(g)
+  tmp-len = dot(tmp, tmp)
+  if tmp-len > dir1-len :
+    dir1     = tmp
+  val dir2  = dir1 % normal(g)
+  val point = distance(g) * normal(g)
+  half(point * m, (point + dir2) * m, (point + dir1) * m)
+ 
+public defn distance-to (plane:Half, point:V3f) -> Float :
+  dot(point, normal(plane)) - distance(plane)
+
+public defn level (g:Half, point:V3f) -> Float :
+  (- distance-to(g, point))
 
 ;;; LINE
 
@@ -537,87 +558,89 @@ public defn offset (p:PolyLine, off:V3f) -> PolyLine :
 ;; ;;   call-c(triangulator_end_polygon, tess-ptr)
 ;; ;; 
 ;; ;;   Mesh(vertices, indices)
-;; 
-;; ;;; QUAT
-;; 
-;; public lostanza deftype Quat <: Equalable :
-;;   length: long
-;;   elts:  float ...
-;; 
-;; public lostanza defn Quat (x:ref<Float>, y:ref<Float>, z:ref<Float>, w:ref<Float>) -> ref<Quat> :
-;;   return new Quat{4, x.value, y.value, z.value, w.value}
-;; 
-;; public lostanza defn x (v:ref<Quat>) -> ref<Float> :
-;;   return new Float{v.elts[0]}
-;; 
-;; public lostanza defn y (v:ref<Quat>) -> ref<Float> :
-;;   return new Float{v.elts[1]}
-;; 
-;; public lostanza defn z (v:ref<Quat>) -> ref<Float> :
-;;   return new Float{v.elts[2]}
-;; 
-;; public lostanza defn w (v:ref<Quat>) -> ref<Float> :
-;;   return new Float{v.elts[3]}
-;; 
-;; public lostanza defn get (v:ref<Quat>, i:ref<Int>) -> ref<Float> :
-;;   #if-not-defined(OPTIMIZE) :
-;;      ensure-index-in-bounds(i, new Int{4})
-;;   return new Float{v.elts[i.value]}
-;;   
-;; defmethod equal? (v1:Quat, v2:Quat) :
-;;   x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) and w(v1) == w(v2) 
-;; 
-;; public defn quat-to-mat44 (q:Quat) -> Mat44 :
-;;   val n = x(q) * x(q) + y(q) * y(q) + z(q) * z(q) + w(q) * w(q)
-;;   val s = if n > 0.0f : 2.0f / n else : 0.0f
-;;   val [ xs,  ys,  zs] = [x(q) * s,  y(q) * s,  z(q) * s]
-;;   val [ wx,  wy,  wz] = [w(q) * xs, w(q) * ys, w(q) * zs]
-;;   val [ xx,  xy,  xz] = [x(q) * xs, x(q) * ys, x(q) * zs]
-;;   val [ yy,  yz,  zz] = [y(q) * ys, y(q) * zs, z(q) * zs]
-;;   val [m00, m01, m02] = [1.0f - (yy + zz),        (wy - wz),        (xz + wy)]
-;;   val [m10, m11, m12] = [       (xy + wz), 1.0f - (xx - zz),        (yz - wx)]
-;;   val [m20, m21, m22] = [1.0f - (yy + zz),        (yz + wx), 1.0f - (xx + yy)]
-;;   Mat44( m00,  m01,  m02, 0.0f,
-;;          m10,  m11,  m12, 0.0f,
-;;          m20,  m21,  m22, 0.0f,
-;;         0.0f, 0.0f, 0.0f, 1.0f)
-;; 
-;; ;;; ARCBALL
-;; 
-;; val epsilon = 0.000001f
-;; 
-;; public defstruct ArcBall :
-;;   st-vec: V3f with: (setter => st-vec-set)
-;;   en-vec: V3f with: (setter => en-vec-set)
-;;   adjust-width: Float with: (setter => adjust-width-set)
-;;   adjust-height: Float with: (setter => adjust-height-set)
-;; 
-;; public defn set-bounds (a:ArcBall, new-width:Float, new-height:Float) :
-;;   adjust-width-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
-;;   adjust-height-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
-;; 
-;; public defn map-to-sphere (a:ArcBall, new-pt:V3f) -> V3f :
-;;   val temp-pt = V3f(x(new-pt) * adjust-width(a) - 1.0f, 1.0f - (y(new-pt) * adjust-height(a)), 0.0f)
-;;   val length  = dot(temp-pt, temp-pt)
-;;   if length > 1.0f :
-;;     (1.0f / sqrt(length)) * temp-pt
-;;   else :
-;;     V3f(x(temp-pt), y(temp-pt), sqrt(1.0f - length))
-;; 
-;; public defn arc-ball (new-width:Float, new-height:Float) -> ArcBall :
-;;   val res = ArcBall(V3f(0.0f, 0.0f, 0.0f), V3f(0.0f, 0.0f, 0.0f), 0.0f, 0.0f)
-;;   set-bounds(res, new-width, new-height)
-;;   res
-;; 
-;; public defn click (a:ArcBall, new-pt:V3f) :
-;;   st-vec-set(a, map-to-sphere(a, new-pt))
-;; 
-;; public defn drag (a:ArcBall, new-pt:V3f, new-rot:Quat) -> Quat :
-;;   en-vec-set(a, map-to-sphere(a, new-pt))
-;;   val perp = st-vec(a) % en-vec(a)
-;;   if len(perp) > epsilon :
-;;     Quat(x(perp), y(perp), z(perp), dot(st-vec(a), en-vec(a)))
-;;   else :
-;;     Quat(0.0f, 0.0f, 0.0f, 0.0f)
-;; 
-;; 
+
+;;; QUAT
+
+public lostanza deftype Quat <: Array<Float> :
+  x: Float
+  y: Float
+  z: Float
+  w: Float
+
+public lostanza defn Quat (x:ref<Float>, y:ref<Float>, z:ref<Float>, w:ref<Float>) -> ref<Quat> :
+  return new Quat{x.value, y.value, z.value, w.value}
+
+public lostanza defn x (v:ref<Quat>) -> ref<Float> :
+  return new Float{v.x}
+
+public lostanza defn y (v:ref<Quat>) -> ref<Float> :
+  return new Float{v.y}
+
+public lostanza defn z (v:ref<Quat>) -> ref<Float> :
+  return new Float{v.z}
+
+public lostanza defn w (v:ref<Quat>) -> ref<Float> :
+  return new Float{v.w}
+
+public lostanza defn get (v:ref<Quat>, i:ref<Int>) -> ref<Float> :
+  #if-not-defined(OPTIMIZE) :
+     ensure-index-in-bounds(i, new Int{4})
+  return new Float{addr!(v.x)[i.value]}
+  
+defmethod equal? (v1:Quat, v2:Quat) :
+  x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) and w(v1) == w(v2) 
+
+public defn quat-to-mat44 (q:Quat) -> Mat44 :
+  val n = x(q) * x(q) + y(q) * y(q) + z(q) * z(q) + w(q) * w(q)
+  val s = if n > 0.0f : 2.0f / n else : 0.0f
+  val [ xs,  ys,  zs] = [x(q) * s,  y(q) * s,  z(q) * s]
+  val [ wx,  wy,  wz] = [w(q) * xs, w(q) * ys, w(q) * zs]
+  val [ xx,  xy,  xz] = [x(q) * xs, x(q) * ys, x(q) * zs]
+  val [ yy,  yz,  zz] = [y(q) * ys, y(q) * zs, z(q) * zs]
+  val [m00, m01, m02] = [1.0f - (yy + zz),        (wy - wz),        (xz + wy)]
+  val [m10, m11, m12] = [       (xy + wz), 1.0f - (xx - zz),        (yz - wx)]
+  val [m20, m21, m22] = [1.0f - (yy + zz),        (yz + wx), 1.0f - (xx + yy)]
+  Mat44( m00,  m01,  m02, 0.0f,
+         m10,  m11,  m12, 0.0f,
+         m20,  m21,  m22, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f)
+
+;;; ARCBALL
+
+val epsilon = 0.000001f
+
+public defstruct ArcBall :
+  st-vec: V3f with: (setter => st-vec-set)
+  en-vec: V3f with: (setter => en-vec-set)
+  adjust-width: Float with: (setter => adjust-width-set)
+  adjust-height: Float with: (setter => adjust-height-set)
+
+public defn set-bounds (a:ArcBall, new-width:Float, new-height:Float) :
+  adjust-width-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
+  adjust-height-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
+
+public defn map-to-sphere (a:ArcBall, new-pt:V3f) -> V3f :
+  val temp-pt = V3f(x(new-pt) * adjust-width(a) - 1.0f, 1.0f - (y(new-pt) * adjust-height(a)), 0.0f)
+  val length  = dot(temp-pt, temp-pt)
+  if length > 1.0f :
+    (1.0f / sqrt(length)) * temp-pt
+  else :
+    V3f(x(temp-pt), y(temp-pt), sqrt(1.0f - length))
+
+public defn arc-ball (new-width:Float, new-height:Float) -> ArcBall :
+  val res = ArcBall(V3f(0.0f, 0.0f, 0.0f), V3f(0.0f, 0.0f, 0.0f), 0.0f, 0.0f)
+  set-bounds(res, new-width, new-height)
+  res
+
+public defn click (a:ArcBall, new-pt:V3f) :
+  st-vec-set(a, map-to-sphere(a, new-pt))
+
+public defn drag (a:ArcBall, new-pt:V3f, new-rot:Quat) -> Quat :
+  en-vec-set(a, map-to-sphere(a, new-pt))
+  val perp = st-vec(a) % en-vec(a)
+  if len(perp) > epsilon :
+    Quat(x(perp), y(perp), z(perp), dot(st-vec(a), en-vec(a)))
+  else :
+    Quat(0.0f, 0.0f, 0.0f, 0.0f)
+
+
