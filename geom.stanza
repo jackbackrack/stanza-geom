@@ -260,45 +260,45 @@ public defn union (b0:Box, b1:Box) -> Box :
 
 ;;; MAT
 
-;; public lostanza deftype Mat44 <: Array<Float> :
-;;   length: long
-;;   elts:   float ...
-;; 
-;; public lostanza defn Mat44 (m00:ref<Float>,m01:ref<Float>,m02:ref<Float>,m03:ref<Float>,
-;;                             m10:ref<Float>,m11:ref<Float>,m12:ref<Float>,m13:ref<Float>,
-;;                             m20:ref<Float>,m21:ref<Float>,m22:ref<Float>,m23:ref<Float>,
-;;                             m30:ref<Float>,m31:ref<Float>,m32:ref<Float>,m33:ref<Float>) -> ref<Mat44> :
-;;   return new Mat44{16, m00.value,m01.value,m02.value,m03.value,m10.value,m11.value,m12.value,m13.value,
-;;                        m20.value,m21.value,m22.value,m23.value,m30.value,m31.value,m32.value,m33.value}
-;; 
-;; public lostanza defn mat44-get (m:ref<Mat44>, i:ref<Int>) -> ref<Float> :
-;;   #if-not-defined(OPTIMIZE) :
-;;      ensure-index-in-bounds(i, new Int{16})
-;;   return new Float{m.elts[i.value]}
-;;   
-;; public lostanza defn mat44-set (m:ref<Mat44>, i:ref<Int>, x:ref<Float>) -> ref<False> :
-;;   #if-not-defined(OPTIMIZE) :
-;;      ensure-index-in-bounds(i, new Int{16})
-;;   m.elts[i.value] = x.value
-;;   return false
-;;   
-;; defmethod get (a:Mat44, i:Int) -> Float : mat44-get(a, i)
-;; defmethod set (a:Mat44, i:Int, c:Float) -> False : mat44-set(a, i, c)
-;; defmethod length (a:Mat44) -> Int : 16
-;; 
-;; public defn get (m:Mat44, x:Int, y:Int) -> Float :
-;;   m[x * 4 + y]
-;; 
-;; public defn set (m:Mat44, x:Int, y:Int, v:Float) -> False :
-;;   m[x * 4 + y] = v
-;; 
-;; defmethod print (o:OutputStream, m:Mat44) :
-;;   print(o, "MAT(")
-;;   for (i in 0 to 16) do :
-;;      if i > 0 : print(o, ",")
-;;      print(o, m[i])
-;;   print-all(o, ")")
-;; 
+public lostanza deftype Mat44 <: Array<Float> :
+  length: long
+  elts:   float ...
+
+public lostanza defn Mat44 (m00:ref<Float>,m01:ref<Float>,m02:ref<Float>,m03:ref<Float>,
+                            m10:ref<Float>,m11:ref<Float>,m12:ref<Float>,m13:ref<Float>,
+                            m20:ref<Float>,m21:ref<Float>,m22:ref<Float>,m23:ref<Float>,
+                            m30:ref<Float>,m31:ref<Float>,m32:ref<Float>,m33:ref<Float>) -> ref<Mat44> :
+  return new Mat44{16, m00.value,m01.value,m02.value,m03.value,m10.value,m11.value,m12.value,m13.value,
+                       m20.value,m21.value,m22.value,m23.value,m30.value,m31.value,m32.value,m33.value}
+
+public lostanza defn mat44-get (m:ref<Mat44>, i:ref<Int>) -> ref<Float> :
+  #if-not-defined(OPTIMIZE) :
+     ensure-index-in-bounds(i, new Int{16})
+  return new Float{m.elts[i.value]}
+  
+public lostanza defn mat44-set (m:ref<Mat44>, i:ref<Int>, x:ref<Float>) -> ref<False> :
+  #if-not-defined(OPTIMIZE) :
+     ensure-index-in-bounds(i, new Int{16})
+  m.elts[i.value] = x.value
+  return false
+  
+defmethod get (a:Mat44, i:Int) -> Float : mat44-get(a, i)
+defmethod set (a:Mat44, i:Int, c:Float) -> False : mat44-set(a, i, c)
+defmethod length (a:Mat44) -> Int : 16
+
+public defn get (m:Mat44, x:Int, y:Int) -> Float :
+  m[x * 4 + y]
+
+public defn set (m:Mat44, x:Int, y:Int, v:Float) -> False :
+  m[x * 4 + y] = v
+
+defmethod print (o:OutputStream, m:Mat44) :
+  print(o, "MAT(")
+  for (i in 0 to 16) do :
+     if i > 0 : print(o, ",")
+     print(o, m[i])
+  print-all(o, ")")
+
 ;; public defn mag-mat44 (s:Float) -> Mat44 :
 ;;    Mat44(   s, 0.0f, 0.0f, 0.0f,
 ;;          0.0f,    s, 0.0f, 0.0f,
@@ -471,10 +471,7 @@ defmethod print (o:OutputStream, c:Polygon) :
 ;;; POLYLINE
 
 public defstruct PolyLine :
-  strokes: Array<Array<V3f>>
-
-public defn PolyLine (strokes:Tuple<Tuple<V3f>>) -> PolyLine :
-  PolyLine(to-array<Array<V3f>>(seq(fn (s:Seqable<V3f>): to-array<V3f>(s), strokes)))
+  strokes: Tuple<Tuple<V3f>>
 
 defmethod print (o:OutputStream, c:PolyLine) :
   print-all(["PolyLine(" strokes(c) ")"])
@@ -490,23 +487,24 @@ public defn bbox (p:PolyLine) -> Box :
 
 public defn center (p:PolyLine) -> PolyLine :
   val ctr = center(bbox(p))
-  val res = map<Array<V3f>>(fn (a): map<V3f>({ _ - ctr}, a), strokes(p))
+  val res = for s in strokes(p) map : map({ _ - ctr}, s)
   ;; println-all(["CTR " ctr " IN " p " OUT " res])
   PolyLine(res)
   
 public defn center-x (p:PolyLine) -> PolyLine :
   val ctr = center(bbox(p))
-  val res = map<Array<V3f>>(fn (a): map<V3f>(fn (v): V3f(x(v) - x(ctr), y(v)), a), strokes(p))
+  val res = for s in strokes(p) map : for v in s map : V3f(x(v) - x(ctr), y(v))
   ;; println-all(["CTR " ctr " IN " p " OUT " res])
   PolyLine(res)
 
 public defn mag (p:PolyLine, fac:V3f) -> PolyLine :
-  val res = map<Array<V3f>>(fn (a): map<V3f>(fn (v): v * fac, a), strokes(p))
+  val res = for s in strokes(p) map : map({ _ * fac}, s)
   ;; println-all(["CTR " ctr " IN " p " OUT " res])
   PolyLine(res)
 
 public defn offset (p:PolyLine, off:V3f) -> PolyLine :
-  PolyLine(map<Array<V3f>>(fn (a): map<V3f>({off + _}, a), strokes(p)))
+  val res = for s in strokes(p) map : map({ off + _ }, s)
+  PolyLine(res)
 
 ;; ;;; MESH
 ;; 
