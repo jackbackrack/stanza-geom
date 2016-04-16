@@ -547,7 +547,6 @@ public defn mag (p:PolyLine, fac:V3f) -> PolyLine :
 
 public defn offset (p:PolyLine, off:V3f) -> PolyLine :
   val res = for s in strokes(p) map :
-    println-all(["S = " s])
     map(fn (e:V3f): off + e, s)
   PolyLine(res)
 
