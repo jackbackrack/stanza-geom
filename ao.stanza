@@ -1,0 +1,313 @@
+defpackage ao :
+  import core
+  import collections
+  import geom
+
+extern store_new: () -> ptr<?>
+extern store_delete: (ptr<?>) -> int
+extern token_x: (ptr<?>) -> ptr<?>
+extern token_y: (ptr<?>) -> ptr<?>
+extern token_z: (ptr<?>) -> ptr<?>
+extern token_const: (ptr<?>, float) -> ptr<?>
+extern token_unary: (ptr<?>, int, ptr<?>) -> ptr<?>
+extern token_binary: (ptr<?>, int, ptr<?>, ptr<?>) -> ptr<?>
+extern opcode_enum: (ptr<?>) -> int
+extern tree_new: (ptr<?>, ptr<?>) -> ptr<?>
+extern tree_export_mesh: (ptr<?>, ptr<?>, float, float, float, float, float, float, float) -> ptr<?>
+;; extern tree_render_mesh: (ptr<?>, ptr<ptr<float>>, float, float, float, float, float, float, float) -> int
+extern tree_render_mesh: (ptr<?>, ptr<int>, ptr<ptr<float>>, ptr<int>, ptr<ptr<int>>, float, float, float, float, float, float, float) -> int
+extern window_show_tree: (ptr<?>, ptr<?>, ptr<?>) -> ptr<?>
+extern ao_run: () -> ptr<?>
+extern ao_halt: () -> ptr<?>
+extern printf: (ptr<?>, ? ...) -> int
+extern free: (ptr<?>) -> int
+
+public lostanza deftype Tree :
+  value: ptr<?>
+
+public lostanza deftype Store :
+  value: ptr<?>
+
+public lostanza deftype Node :
+  value: ptr<?>
+
+public lostanza defn new-store () -> ref<Store> :
+  return new Store{call-c store_new()}
+
+public lostanza defn del (s:ref<Store>) -> ref<False> :
+  store_delete(s.value)
+  return false
+
+public lostanza defn new-tree (s:ref<Store>, t:ref<Node>) -> ref<Tree> :
+  return new Tree{call-c tree_new(s.value, t.value)}
+
+public lostanza defn tree-export-mesh (t:ref<Tree>, filename:ref<String>, xmin:ref<Double>, ymin:ref<Double>, zmin:ref<Double>, xmax:ref<Double>, ymax:ref<Double>, zmax:ref<Double>, res:ref<Double>) -> ref<False> :
+  call-c tree_export_mesh(t.value, addr!(filename.chars), xmin.value as float, xmax.value as float, ymin.value as float, ymax.value as float, zmin.value as float, zmax.value as float, res.value as float)
+  return false
+
+;; public lostanza deftype RenderMesh :
+;;   length: int
+;;   value: ptr<float>
+
+public lostanza deftype RenderMesh :
+  n-verts: int
+  verts: ptr<float>
+  n-tris: int
+  tris: ptr<int>
+
+public lostanza defn n-verts (m:ref<RenderMesh>) -> ref<Int> :
+  return new Int{m.n-verts}
+
+public lostanza defn get-vert-value (m:ref<RenderMesh>, i:ref<Int>) -> ref<Float> :
+  return new Float{m.verts[i.value]}
+
+public lostanza defn n-tris (m:ref<RenderMesh>) -> ref<Int> :
+  return new Int{m.n-tris}
+
+public lostanza defn get-vert-index (m:ref<RenderMesh>, i:ref<Int>) -> ref<Int> :
+  return new Int{m.tris[i.value]}
+
+defn to-mesh (rm:RenderMesh) -> Mesh :
+  val tris = generate<V3i> :
+    for ti in 0 to n-tris(rm) do :
+      val toff = ti * 3
+      yield(V3i(get-vert-index(rm, toff + 0), get-vert-index(rm, toff + 1), get-vert-index(rm, toff + 2)))
+  val verts = generate<V3f> :
+    for vi in 0 to n-tris(rm) do :
+      val voff = vi * 3
+      yield(V3f(get-vert-value(rm, voff + 0), get-vert-value(rm, voff + 1), get-vert-value(rm, voff + 2)))
+  Mesh(to-tuple(verts), to-tuple(tris))
+
+public lostanza defn tree-render-mesh (t:ref<Tree>, xmin:ref<Double>, ymin:ref<Double>, zmin:ref<Double>, xmax:ref<Double>, ymax:ref<Double>, zmax:ref<Double>, res:ref<Double>) -> ref<Mesh> :
+  val out = new RenderMesh{0, 0L as ptr<float>, 0, 0L as ptr<int>}
+  val len = call-c tree_render_mesh(t.value, addr!(out.n-verts), addr!(out.verts), addr!(out.n-tris), addr!(out.tris), xmin.value as float, xmax.value as float, ymin.value as float, ymax.value as float, zmin.value as float, zmax.value as float, res.value as float)
+  val mesh = to-mesh(out)
+  call-c free(out.verts)
+  call-c free(out.tris)
+  return mesh
+
+public lostanza defn show (t:ref<Tree>, filename:ref<String>, name:ref<String>) -> ref<False> :
+  call-c window_show_tree(addr!(filename.chars), addr!(name.chars), t.value)
+  return false
+
+public defn show (t:Tree) :
+  show(t, "ao.stanza", "shape")
+
+public lostanza defn ao-run () -> ref<False>  :
+  call-c ao_run()
+  return false
+
+public lostanza defn ao-halt () -> ref<False> :
+  call-c ao_halt()
+  return false
+
+var *store* = new-store()
+defn current-store () -> Store : *store*
+
+public lostanza defn fab-x () -> ref<Node> :
+  return new Node{call-c token_x(current-store().value)}
+public lostanza defn fab-y () -> ref<Node> :
+  return new Node{call-c token_y(current-store().value)}
+public lostanza defn fab-z () -> ref<Node> :
+  return new Node{call-c token_z(current-store().value)}
+public lostanza defn lit (f:ref<Double>) -> ref<Node> :
+  return new Node{call-c token_const(current-store().value, f.value as float)}
+public lostanza defn unary (op:ref<Int>, t:ref<Node>) -> ref<Node> :
+  return new Node{call-c token_unary(current-store().value, op.value, t.value)}
+public lostanza defn binary (op:ref<Int>, t1:ref<Node>, t2:ref<Node>) -> ref<Node> :
+  return new Node{call-c token_binary(current-store().value, op.value, t1.value, t2.value)}
+public lostanza defn op (name:ref<String>) -> ref<Int> :
+  return new Int{call-c opcode_enum(addr!(name.chars))}
+
+public defn modulus (x:Node, y:Node) -> Node : binary(op("mod"), x, y)
+public defn times (x:Node, y:Node) -> Node : binary(op("mul"), x, y)
+public defn nan-fill (x:Node, y:Node) -> Node : binary(op("nan-fill"), x, y)
+public defn min (x:Node, y:Node) -> Node : binary(op("min"), x, y)
+public defn max (x:Node, y:Node) -> Node : binary(op("max"), x, y)
+public defn divide (x:Node, y:Node) -> Node : binary(op("div"), x, y)
+public defn plus (x:Node, y:Node) -> Node : binary(op("add"), x, y)
+public defn minus (x:Node, y:Node) -> Node : binary(op("sub"), x, y)
+public defn atan2 (x:Node, y:Node) -> Node : binary(op("atan2"), x, y)
+public defn sqrt (x:Node) -> Node : unary(op("sqrt"), x)
+public defn square (x:Node) -> Node : unary(op("square"), x)
+public defn abs (x:Node) -> Node : unary(op("abs"), x)
+public defn sin (x:Node) -> Node : unary(op("sin"), x)
+public defn cos (x:Node) -> Node : unary(op("cos"), x)
+public defn tan (x:Node) -> Node : unary(op("tan"), x)
+public defn asin (x:Node) -> Node : unary(op("asin"), x)
+public defn acos (x:Node) -> Node : unary(op("acos"), x)
+public defn exp (x:Node) -> Node : unary(op("exp"), x)
+public defn negate (x:Node) -> Node : unary(op("neg"), x)
+
+public val pi = 3.1414
+
+var *x* = fab-x()
+var *y* = fab-y()
+var *z* = fab-z()
+
+public defn x () -> Node : *x*
+public defn y () -> Node : *y*
+public defn z () -> Node : *z*
+
+public defn with-xyz (nx:Node, ny:Node, nz:Node, f:()->Node) -> Node :
+  val [lx,ly,lz] = [*x*,*y*,*z*]
+  let-var *x* = nx :
+    let-var *y* = ny :
+      let-var *z* = nz :
+        f()
+
+public defn move (dx:Node, dy:Node, dz:Node, f:()->Node) -> Node :
+  with-xyz(x() - dx, y() - dy, z() - dz, f)
+
+public defn move (dx:Node, dy:Node, f:()->Node) -> Node :
+  move(dx, dy, lit(0.0), f)
+
+public defn rotate-x (a:Node, s:()->Node) -> Node :
+  val [ca, sa] = [cos(a), sin(a)]
+  with-xyz(x(), ca * y() + sa * z(), (- sa) * y() + ca * z(), s)
+
+public defn rotate-y (a:Node, s:()->Node) -> Node :
+  val [ca, sa] = [cos(a), sin(a)]
+  with-xyz(ca * x() + sa * z(), y(), (- sa) * x() + ca * z(), s)
+
+public defn rotate-z (a:Node, s:()->Node) -> Node :
+  val [ca, sa] = [cos(a), sin(a)]
+  with-xyz(ca * x() + sa * y(), (- sa) * x() + ca * y(), z(), s)
+
+public defn reflect-x (s:()->Node) -> Node :
+  with-xyz((- x()), y(), z(), s)
+
+public defn reflect-y (s:()->Node) -> Node :
+  with-xyz(x(), (- y()), z(), s)
+
+public defn reflect-z (s:()->Node) -> Node :
+  with-xyz(x(), y(), (- z()), s)
+
+public defn reflect-xy (s:()->Node) -> Node :
+  with-xyz(y(), x(), z(), s)
+
+public defn reflect-xz (s:()->Node) -> Node :
+  with-xyz(z(), y(), x(), s)
+
+public defn reflect-yz (s:()->Node) -> Node :
+  with-xyz(x(), z(), y(), s)
+
+public defn scale-x (sx:Node, s:()->Node) -> Node :
+  with-xyz(x() / sx, y(), z(), s)
+
+public defn scale-y (sy:Node, s:()->Node) -> Node :
+  with-xyz(x(), y() / sy, z(), s)
+
+public defn scale-z (sz:Node, s:()->Node) -> Node :
+  with-xyz(x(), y(), z() / sz, s)
+
+public defn shear-x-y (ymin:Node, ymax:Node, dx0:Node, dx1:Node, s:()->Node) -> Node :
+  val f = (y() - ymin) / (ymax - y())
+  with-xyz(x() - dx0 * (lit(1.0) - f) - dx1 * f, y(), z(), s)
+
+public defn taper-x-y (ymin:Node, ymax:Node, s0:Node, s1:Node, s:()->Node) -> Node :
+  val dy = ymax - ymin
+  val ds = s1 - s0
+  val sc = dy / ((s1 * (y() - ymin)) - (s0 * (y() - ymax)))
+  with-xyz(x() * sc, y(), z(), s)
+
+public defn taper-xy-z (zmin:Node, zmax:Node, s0:Node, s1:Node, s:()->Node) -> Node :
+  val dz = zmax - zmin
+  val sc = dz / ((s1 * (z() - zmin)) - (s0 * (z() - zmax)))
+  with-xyz(x() * sc, y() * sc, z(), s)
+
+public defn taper-xy-z (h:Node, s0:Node, s1:Node, s:()->Node) -> Node :
+  taper-xy-z(dim-min(h), dim-max(h), s0, s1, s)
+
+public defn distance (a:Node, b:Node) -> Node :
+  sqrt(square(a) + square(b))
+
+public defn distance (a:Node, b:Node, c:Node) -> Node :
+  sqrt(square(a) + square(b) + square(c))
+
+public defn circle (r:Node) -> Node :
+  distance(x(), y()) - r
+
+public defn circle (x:Node, y:Node, r:Node) -> Node :
+  move(x, y, {circle(r)})
+
+public defn sphere (r:Node) -> Node :
+  distance(x(), y(), z()) - r
+
+public defn sphere (x:Node, y:Node, z:Node, r:Node) -> Node :
+  move(x, y, z, {circle(r)})
+
+public defn union (a:Node, b:Node) -> Node :
+  min(a, b)
+
+public defn union (args:Seqable<Node>) -> Node :
+  reduce(union, args)
+
+public defn intersection (a:Node, b:Node) -> Node :
+  max(a, b)
+
+public defn intersection (args:Seqable<Node>) -> Node :
+  reduce(intersection, args)
+
+public defn difference (a:Node, b:Node) -> Node :
+  max(a, (- b))
+
+public defn difference (a:Node, args:Seqable<Node>) -> Node :
+  difference(a, union(args))
+
+public defn offset (s:Node, o:Node) -> Node : s - o
+  
+public defn clearance (a:Node, b:Node, o:Node) -> Node :
+  max(a, (- offset(b, o)))
+  
+public defn shell (s:Node, o:Node) -> Node :
+  clearance(s, s, o)
+  
+public defn blend (a:Node, b:Node, m:Node) -> Node :
+  val joint = union(a, b)
+  val fillet = sqrt(abs(a) + sqrt(abs(b))) - m
+  union(joint, fillet)
+  
+public defn morph (a:Node, b:Node, m:Node) -> Node :
+  a * (lit(1.0) - m) + b * m
+  
+public defn rect (xmin:Node, ymin:Node, xmax:Node, ymax:Node) -> Node :
+  max(max(xmin - x(), x() - xmax), max(ymin - y(), y() - ymax))
+
+public defn dim-min (d:Node) -> Node : d * lit(-0.5)
+public defn dim-max (d:Node) -> Node : d * lit(0.5)
+
+public defn rect (w:Node, h:Node) -> Node :
+  rect(dim-min(w), dim-min(h), dim-max(w), dim-max(h))
+
+public defn extrude-z (zmin:Node, zmax:Node, shape:Node) -> Node :
+  max(shape, max(zmin - z(), z() - zmax))
+
+public defn extrude-z (h:Node, shape:Node) -> Node :
+  extrude-z(dim-min(h), dim-max(h), shape)
+
+public defn cube (xmin:Node, ymin:Node, zmin:Node, xmax:Node, ymax:Node, zmax:Node) -> Node :
+  extrude-z(zmin, zmax, rect(xmin, ymin, xmax, ymax))
+
+public defn cube (w:Node, h:Node, d:Node) -> Node :
+  cube(dim-min(w), dim-min(h), dim-min(d), dim-max(w), dim-max(h), dim-max(d))
+
+public defn cube (d:Node) -> Node :
+  cube(d, d, d)
+
+public defn cylinder-z (r:Node, h:Node) -> Node :
+  extrude-z(h, circle(r))
+
+public defn cone-z (r:Node, h:Node) -> Node :
+  taper-xy-z(h, lit(1.0), lit(0.0), {cylinder-z(r, h)})
+
+public defn pyramid-z (r:Node, h:Node) -> Node :
+  taper-xy-z(h, lit(0.0), lit(1.0), {extrude-z(h, rect(r, r))})
+
+public defn torus-z (R:Node, r:Node) -> Node :
+  val d = distance(x(), y())
+  distance(R - d, z()) - r
+
+public defn jit (f:()->Node) -> Tree :
+  new-tree(current-store(), f())
+
