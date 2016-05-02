@@ -558,6 +558,9 @@ public defstruct Mesh :
   vertices: Tuple<V3f>
   indices:  Tuple<V3i>
 
+defmethod print (o:OutputStream, m:Mesh) :
+  print-all(o, ["Mesh(" vertices(m) "," indices(m) ")"])
+
 ;; ;; public defn triangulate (p: Polygon) :
 ;; ;;   val vertices = Vector<V3f>()
 ;; ;;   val indices  = Vector<Int>()

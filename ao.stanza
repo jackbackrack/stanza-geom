@@ -35,7 +35,7 @@ public lostanza defn new-store () -> ref<Store> :
   return new Store{call-c store_new()}
 
 public lostanza defn del (s:ref<Store>) -> ref<False> :
-  store_delete(s.value)
+  call-c store_delete(s.value)
   return false
 
 public lostanza defn new-tree (s:ref<Store>, t:ref<Node>) -> ref<Tree> :
@@ -101,7 +101,7 @@ public lostanza defn ao-halt () -> ref<False> :
   call-c ao_halt()
   return false
 
-var *store* = new-store()
+public var *store* = new-store()
 defn current-store () -> Store : *store*
 
 public lostanza defn fab-x () -> ref<Node> :
@@ -119,7 +119,7 @@ public lostanza defn binary (op:ref<Int>, t1:ref<Node>, t2:ref<Node>) -> ref<Nod
 public lostanza defn op (name:ref<String>) -> ref<Int> :
   return new Int{call-c opcode_enum(addr!(name.chars))}
 
-public defn modulus (x:Node, y:Node) -> Node : binary(op("mod"), x, y)
+public defn modulo (x:Node, y:Node) -> Node : binary(op("mod"), x, y)
 public defn times (x:Node, y:Node) -> Node : binary(op("mul"), x, y)
 public defn nan-fill (x:Node, y:Node) -> Node : binary(op("nan-fill"), x, y)
 public defn min (x:Node, y:Node) -> Node : binary(op("min"), x, y)
@@ -159,8 +159,12 @@ public defn with-xyz (nx:Node, ny:Node, nz:Node, f:()->Node) -> Node :
 public defn move (dx:Node, dy:Node, dz:Node, f:()->Node) -> Node :
   with-xyz(x() - dx, y() - dy, z() - dz, f)
 
-public defn move (dx:Node, dy:Node, f:()->Node) -> Node :
-  move(dx, dy, lit(0.0), f)
+;; public defn move (dx:Node, dy:Node, f:()->Node) -> Node :
+;;   move(dx, dy, lit(0.0), f)
+
+public defn move-x (dx:Node, f:() -> Node) -> Node : move(dx, lit(0.0), lit(0.0), f)
+public defn move-y (dy:Node, f:() -> Node) -> Node : move(lit(0.0), dy, lit(0.0), f)
+public defn move-z (dz:Node, f:() -> Node) -> Node : move(lit(0.0), lit(0.0), dz, f)
 
 public defn rotate-x (a:Node, s:()->Node) -> Node :
   val [ca, sa] = [cos(a), sin(a)]
@@ -228,26 +232,26 @@ public defn distance (a:Node, b:Node, c:Node) -> Node :
 public defn circle (r:Node) -> Node :
   distance(x(), y()) - r
 
-public defn circle (x:Node, y:Node, r:Node) -> Node :
-  move(x, y, {circle(r)})
+;; public defn circle (x:Node, y:Node, r:Node) -> Node :
+;;   move(x, y, {circle(r)})
 
 public defn sphere (r:Node) -> Node :
   distance(x(), y(), z()) - r
 
-public defn sphere (x:Node, y:Node, z:Node, r:Node) -> Node :
-  move(x, y, z, {circle(r)})
+;; public defn sphere (x:Node, y:Node, z:Node, r:Node) -> Node :
+;;   move(x, y, z, {circle(r)})
 
-public defn union (a:Node, b:Node) -> Node :
+public defn bit-or (a:Node, b:Node) -> Node :
   min(a, b)
 
 public defn union (args:Seqable<Node>) -> Node :
-  reduce(union, args)
+  reduce(bit-or, args)
 
-public defn intersection (a:Node, b:Node) -> Node :
+public defn bit-and (a:Node, b:Node) -> Node :
   max(a, b)
 
 public defn intersection (args:Seqable<Node>) -> Node :
-  reduce(intersection, args)
+  reduce(bit-and, args)
 
 public defn difference (a:Node, b:Node) -> Node :
   max(a, (- b))
@@ -264,14 +268,14 @@ public defn shell (s:Node, o:Node) -> Node :
   clearance(s, s, o)
   
 public defn blend (a:Node, b:Node, m:Node) -> Node :
-  val joint = union(a, b)
+  val joint = a | b
   val fillet = sqrt(abs(a) + sqrt(abs(b))) - m
-  union(joint, fillet)
+  joint | fillet
   
 public defn morph (a:Node, b:Node, m:Node) -> Node :
   a * (lit(1.0) - m) + b * m
   
-public defn rect (xmin:Node, ymin:Node, xmax:Node, ymax:Node) -> Node :
+defn rect (xmin:Node, ymin:Node, xmax:Node, ymax:Node) -> Node :
   max(max(xmin - x(), x() - xmax), max(ymin - y(), y() - ymax))
 
 public defn dim-min (d:Node) -> Node : d * lit(-0.5)
@@ -280,16 +284,16 @@ public defn dim-max (d:Node) -> Node : d * lit(0.5)
 public defn rect (w:Node, h:Node) -> Node :
   rect(dim-min(w), dim-min(h), dim-max(w), dim-max(h))
 
-public defn extrude-z (zmin:Node, zmax:Node, shape:Node) -> Node :
-  max(shape, max(zmin - z(), z() - zmax))
+defn extrude-z (zmin:Node, zmax:Node, shape:Node) -> Node :
+   max(shape, max(zmin - z(), z() - zmax))
 
 public defn extrude-z (h:Node, shape:Node) -> Node :
   extrude-z(dim-min(h), dim-max(h), shape)
 
-public defn cube (xmin:Node, ymin:Node, zmin:Node, xmax:Node, ymax:Node, zmax:Node) -> Node :
+defn cube (xmin:Node, ymin:Node, zmin:Node, xmax:Node, ymax:Node, zmax:Node) -> Node :
   extrude-z(zmin, zmax, rect(xmin, ymin, xmax, ymax))
 
-public defn cube (w:Node, h:Node, d:Node) -> Node :
+defn cube (w:Node, h:Node, d:Node) -> Node :
   cube(dim-min(w), dim-min(h), dim-min(d), dim-max(w), dim-max(h), dim-max(d))
 
 public defn cube (d:Node) -> Node :
@@ -308,6 +312,13 @@ public defn torus-z (R:Node, r:Node) -> Node :
   val d = distance(x(), y())
   distance(R - d, z()) - r
 
-public defn jit (f:()->Node) -> Tree :
-  new-tree(current-store(), f())
+public defn jit (f:() -> Node) -> Tree :
+  let-var *store* = new-store() :
+    let-var *x* = fab-x() :
+      let-var *y* = fab-y() :
+        let-var *z* = fab-z() :
+          val root = f()
+          val tree = new-tree(*store*, root)
+          del(*store*)
+          tree
 

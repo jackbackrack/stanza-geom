@@ -1,0 +1,193 @@
+defpackage ao-parser :
+   import core
+   import math
+   import collections
+   import reader
+   import geom
+   import ao
+
+;============================================================
+;===================== Syntax Tree ==========================
+;============================================================
+
+deftype Exp
+defstruct OrOp <: Exp : (x:Exp, y:Exp)
+defstruct AndOp <: Exp : (x:Exp, y:Exp)
+defstruct DiffOp <: Exp : (x:Exp, y:Exp)
+defstruct AddOp <: Exp : (x:Exp, y:Exp)
+defstruct ModOp <: Exp : (x:Exp, y:Exp)
+defstruct SubOp <: Exp : (x:Exp, y:Exp)
+defstruct MulOp <: Exp : (x:Exp, y:Exp)
+defstruct DivOp <: Exp : (x:Exp, y:Exp)
+defstruct Identifier <: Exp : (name:Symbol)
+defstruct CallOp <: Exp : (f:Identifier, args:List<Exp>)
+defstruct Number <: Exp : (value:Double)
+
+defmethod print (o:OutputStream, e:Exp) :
+   print{o, _} $ match(e) :
+      (e:OrOp) : "%_ | %_" % [x(e), y(e)]
+      (e:AndOp) : "%_ & %_" % [x(e), y(e)]
+      (e:DiffOp) : "%_ \\ %_" % [x(e), y(e)]
+      (e:AddOp) : "%_ + %_" % [x(e), y(e)]
+      (e:ModOp) : "%_ %% %_" % [x(e), y(e)]
+      (e:SubOp) : "%_ - %_" % [x(e), y(e)]
+      (e:MulOp) : "%_ * %_" % [x(e), y(e)]
+      (e:DivOp) : "%_ / %_" % [x(e), y(e)]
+      (e:CallOp) : "%_(%,)" % [f(e), args(e)]
+      (e:Identifier) : name(e)
+      (e:Number) : value(e)
+
+defstruct Function :
+  arity: Int
+  apply: (List<Exp>) -> Node
+
+defn Function (f:(Node) -> Node) :
+  Function(1, fn (args:List<Exp>) : f(eval(args[0])))
+
+defn Function (f:(Node, Node) -> Node) :
+  Function(2, fn (args:List<Exp>) : f(eval(args[0]), eval(args[1])))
+
+defn Function (f:(Node, Node, Node) -> Node) :
+  Function(3, fn (args:List<Exp>) : f(eval(args[0]), eval(args[1]), eval(args[2])))
+
+defn Function (f:(() -> Node) -> Node) :
+  Function(1, fn (args:List<Exp>) : f({ eval(args[0]) }))
+
+defn Function (f:(Node, () -> Node) -> Node) :
+  Function(2, fn (args:List<Exp>) : f(eval(args[0]), { eval(args[1]) }))
+
+defn Function (f:(Node, Node, () -> Node) -> Node) :
+  Function(3, fn (args:List<Exp>) : f(eval(args[0]), eval(args[1]), { eval(args[2]) }))
+
+defn Function (f:(Node, Node, Node, () -> Node) -> Node) :
+  Function(4, fn (args:List<Exp>) : f(eval(args[0]), eval(args[1]), eval(args[2]), { eval(args[3]) }))
+
+defmethod print (o:OutputStream, f:Function) :
+  print-all(o, ["FUN(" arity(f) ")"])
+
+val bindings = HashTable<Symbol,(() -> Node)>()
+val functions = HashTable<Symbol,Function>()
+
+defn lookup (n:Symbol) -> Node :
+  if not key?(bindings, n) :
+    fatal("UNDEFINED BINDING %_" % [n])
+  bindings[n]()
+
+defn apply (f:Function, args:List<Exp>) -> Node :
+  if length(args) != arity(f) :
+    fatal("WRONG NUMBER OF ARGS %_ FOR FUN %_" % [length(args), f])
+  apply(f)(args)
+
+public defn eval (e:Exp) -> Node :
+  match(e) :
+    (e:ModOp) : eval(x(e)) % eval(y(e))
+    (e:AndOp) : eval(x(e)) & eval(y(e))
+    (e:OrOp) : eval(x(e)) | eval(y(e))
+    (e:DiffOp) : difference(eval(x(e)), eval(y(e)))
+    (e:AddOp) : eval(x(e)) + eval(y(e))
+    (e:SubOp) : eval(x(e)) - eval(y(e))
+    (e:MulOp) : eval(x(e)) * eval(y(e))
+    (e:DivOp) : eval(x(e)) / eval(y(e))
+    (e:CallOp) : apply(functions[name(f(e))])(args(e))
+    (e:Identifier) : lookup(name(e))
+    (e:Number) : lit(value(e))
+
+;============================================================
+;================== Parser Definition =======================
+;============================================================
+
+defn* apply-suffix-ops (x:Exp, fs:List<(Exp -> Exp)>) -> Exp :
+   if empty?(fs) : x
+   else : apply-suffix-ops(head(fs)(x), tail(fs))
+
+defsyntax ao :
+   defrule :
+      exp = (?x:#exp0 ?ops:#op0 ...) : apply-suffix-ops(x, ops)
+      exp0 = (?x:#exp1 ?ops:#op1 ...) : apply-suffix-ops(x, ops)
+      exp1 = (?x:#term ?ops:#op2 ...) : apply-suffix-ops(x, ops)
+      term = ((?e:#exp)) : e
+      term = (?x:#id) : x
+      term = (?x:#num) : x
+
+      id = (?x) when unwrap-token(x) is Symbol :
+         Identifier(unwrap-token(x))
+
+      num = (?x) when unwrap-token(x) is Double :
+         Number(unwrap-token(x))      
+
+      op0 = (+ ?y:#exp0) : AddOp{_:Exp, y}
+      op0 = (- ?y:#exp0) : SubOp{_:Exp, y}
+      op0 = (& ?y:#exp0) : AndOp{_:Exp, y}
+      op0 = (~ | ?y:#exp0) : OrOp{_:Exp, y}
+
+      op1 = (% ?y:#exp1) : ModOp{_:Exp, y}
+      op1 = (* ?y:#exp1) : MulOp{_:Exp, y}
+      op1 = (/ ?y:#exp1) : DivOp{_:Exp, y}
+
+      op2 = ((@do ?args:#exp ...)) : CallOp{_:Identifier, args}
+
+public defn parse-ao-exps (form) -> List<Exp> :
+   with-syntax(ao) :
+      match-syntax(form) :
+         (?es:#exp ...) :
+            es          
+
+public defn eval-ao (s:String, to-mesh: (Tree) -> Mesh, default: Mesh) -> Mesh :
+  val forms = read-all(s)
+  val es = parse-ao-exps(forms)
+  if empty?(es) :
+    default
+  else :
+    val e = es[0]
+    val res = jit({ eval(e) })
+    val m = to-mesh(res)
+    m
+
+;============================================================
+;===================== Driver ===============================
+;============================================================
+
+bindings[`pi] = { lit(3.1415) }
+bindings[`x] = { fab-x() }
+bindings[`y] = { fab-y() }
+bindings[`z] = { fab-z() }
+functions[`neg] = Function(fn (x:Node): negate(x))
+functions[`min] = Function(fn (x:Node, y:Node): min(x, y))
+functions[`max] = Function(fn (x:Node, y:Node): max(x, y))
+functions[`sin] = Function(fn (x:Node): sin(x))
+functions[`cos] = Function(fn (x:Node): cos(x))
+functions[`tan] = Function(fn (x:Node): tan(x))
+functions[`asin] = Function(fn (x:Node): asin(x))
+functions[`acos] = Function(fn (x:Node): acos(x))
+functions[`atan2] = Function(fn (x:Node, y:Node): atan2(x, y))
+functions[`exp] = Function(exp)
+functions[`sqr] = Function(square)
+functions[`rect] = Function(rect)
+functions[`circle] = Function(circle)
+functions[`cube] = Function(cube)
+functions[`sphere] = Function(sphere)
+functions[`mov] = Function(move)
+functions[`mov-x] = Function(move-x)
+functions[`mov-y] = Function(move-y)
+functions[`mov-z] = Function(move-x)
+functions[`mag-x] = Function(scale-x)
+functions[`mag-y] = Function(scale-y)
+functions[`mag-z] = Function(scale-z)
+functions[`rot-x] = Function(rotate-x)
+functions[`rot-y] = Function(rotate-y)
+functions[`rot-z] = Function(rotate-z)
+functions[`reflect-x] = Function(reflect-x)
+functions[`reflect-y] = Function(reflect-y)
+functions[`reflect-z] = Function(reflect-z)
+functions[`reflect-xy] = Function(reflect-xy)
+functions[`reflect-xz] = Function(reflect-xz)
+functions[`reflect-yz] = Function(reflect-yz)
+functions[`offset] = Function(offset)
+functions[`clearance] = Function(clearance)
+functions[`blend] = Function(blend)
+functions[`morph] = Function(morph)
+functions[`extrude-z] = Function(extrude-z)
+functions[`cylinder-z] = Function(cylinder-z)
+functions[`cone-z] = Function(cone-z)
+functions[`pyramid-z] = Function(pyramid-z)
+functions[`torus-z] = Function(torus-z)
