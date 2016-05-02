@@ -13,7 +13,7 @@ defpackage ao-parser :
 deftype Exp
 defstruct OrOp <: Exp : (x:Exp, y:Exp)
 defstruct AndOp <: Exp : (x:Exp, y:Exp)
-defstruct DiffOp <: Exp : (x:Exp, y:Exp)
+;; defstruct DiffOp <: Exp : (x:Exp, y:Exp)
 defstruct AddOp <: Exp : (x:Exp, y:Exp)
 defstruct ModOp <: Exp : (x:Exp, y:Exp)
 defstruct SubOp <: Exp : (x:Exp, y:Exp)
@@ -27,7 +27,7 @@ defmethod print (o:OutputStream, e:Exp) :
    print{o, _} $ match(e) :
       (e:OrOp) : "%_ | %_" % [x(e), y(e)]
       (e:AndOp) : "%_ & %_" % [x(e), y(e)]
-      (e:DiffOp) : "%_ \\ %_" % [x(e), y(e)]
+      ;; (e:DiffOp) : "%_ \\ %_" % [x(e), y(e)]
       (e:AddOp) : "%_ + %_" % [x(e), y(e)]
       (e:ModOp) : "%_ %% %_" % [x(e), y(e)]
       (e:SubOp) : "%_ - %_" % [x(e), y(e)]
@@ -62,15 +62,33 @@ defn Function (f:(Node, Node, () -> Node) -> Node) :
 defn Function (f:(Node, Node, Node, () -> Node) -> Node) :
   Function(4, fn (args:List<Exp>) : f(eval(args[0]), eval(args[1]), eval(args[2]), { eval(args[3]) }))
 
+defstruct UndefinedFunctionException <: Exception :
+  name: Symbol
+
+defmethod print (o:OutputStream, e:UndefinedFunctionException) :
+  print-all(o, ["undefined function " name(e)])
+
 defmethod print (o:OutputStream, f:Function) :
   print-all(o, ["FUN(" arity(f) ")"])
+
+defn apply (name:Symbol, args:List<Exp>) -> Node :
+  if key?(functions, name) :
+    apply(functions[name])(args)
+  else :
+    throw(UndefinedFunctionException(name))
 
 val bindings = HashTable<Symbol,(() -> Node)>()
 val functions = HashTable<Symbol,Function>()
 
+defstruct UndefinedBindingException <: Exception :
+  name: Symbol
+
+defmethod print (o:OutputStream, e:UndefinedBindingException) :
+  print-all(o, ["undefined binding " name(e)])
+
 defn lookup (n:Symbol) -> Node :
   if not key?(bindings, n) :
-    fatal("UNDEFINED BINDING %_" % [n])
+    throw(UndefinedBindingException(n))
   bindings[n]()
 
 defn apply (f:Function, args:List<Exp>) -> Node :
@@ -83,12 +101,12 @@ public defn eval (e:Exp) -> Node :
     (e:ModOp) : eval(x(e)) % eval(y(e))
     (e:AndOp) : eval(x(e)) & eval(y(e))
     (e:OrOp) : eval(x(e)) | eval(y(e))
-    (e:DiffOp) : difference(eval(x(e)), eval(y(e)))
+    ;; (e:DiffOp) : difference(eval(x(e)), eval(y(e)))
     (e:AddOp) : eval(x(e)) + eval(y(e))
     (e:SubOp) : eval(x(e)) - eval(y(e))
     (e:MulOp) : eval(x(e)) * eval(y(e))
     (e:DivOp) : eval(x(e)) / eval(y(e))
-    (e:CallOp) : apply(functions[name(f(e))])(args(e))
+    (e:CallOp) : apply(name(f(e)), args(e))
     (e:Identifier) : lookup(name(e))
     (e:Number) : lit(value(e))
 
@@ -133,15 +151,18 @@ public defn parse-ao-exps (form) -> List<Exp> :
             es          
 
 public defn eval-ao (s:String, to-mesh: (Tree) -> Mesh, default: Mesh) -> Mesh :
-  val forms = read-all(s)
-  val es = parse-ao-exps(forms)
-  if empty?(es) :
-    default
-  else :
-    val e = es[0]
-    val res = jit({ eval(e) })
-    val m = to-mesh(res)
-    m
+  try :
+    val forms = read-all(s)
+    val es = parse-ao-exps(forms)
+    if empty?(es) :
+      default
+    else :
+      val e = es[0]
+      val res = jit({ eval(e) })
+      val m = to-mesh(res)
+      m
+   catch (e:Exception) :
+     default
 
 ;============================================================
 ;===================== Driver ===============================
@@ -151,6 +172,7 @@ bindings[`pi] = { lit(3.1415) }
 bindings[`x] = { fab-x() }
 bindings[`y] = { fab-y() }
 bindings[`z] = { fab-z() }
+functions[`diff] = Function(fn (x:Node, y:Node): difference(x, y))
 functions[`neg] = Function(fn (x:Node): negate(x))
 functions[`min] = Function(fn (x:Node, y:Node): min(x, y))
 functions[`max] = Function(fn (x:Node, y:Node): max(x, y))
