@@ -196,6 +196,12 @@ public defn reflect-xz (s:()->Node) -> Node :
 public defn reflect-yz (s:()->Node) -> Node :
   with-xyz(x(), z(), y(), s)
 
+public defn scale (sx:Node, sy:Node, sz:Node, s:()->Node) -> Node :
+  with-xyz(x() / sx, y() / sy, z() / sz, s)
+
+public defn scale1 (sa:Node, s:()->Node) -> Node :
+  with-xyz(x() / sa, y() / sa, z() / sa, s)
+
 public defn scale-x (sx:Node, s:()->Node) -> Node :
   with-xyz(x() / sx, y(), z(), s)
 
@@ -229,14 +235,14 @@ public defn distance (a:Node, b:Node) -> Node :
 public defn distance (a:Node, b:Node, c:Node) -> Node :
   sqrt(square(a) + square(b) + square(c))
 
-public defn circle (r:Node) -> Node :
-  distance(x(), y()) - r
+public defn circle (d:Node) -> Node :
+  distance(x(), y()) - (d * lit(0.5))
 
 ;; public defn circle (x:Node, y:Node, r:Node) -> Node :
 ;;   move(x, y, {circle(r)})
 
-public defn sphere (r:Node) -> Node :
-  distance(x(), y(), z()) - r
+public defn sphere (d:Node) -> Node :
+  distance(x(), y(), z()) - (d * lit(0.5))
 
 ;; public defn sphere (x:Node, y:Node, z:Node, r:Node) -> Node :
 ;;   move(x, y, z, {circle(r)})
@@ -299,18 +305,18 @@ defn cube (w:Node, h:Node, d:Node) -> Node :
 public defn cube (d:Node) -> Node :
   cube(d, d, d)
 
-public defn cylinder-z (r:Node, h:Node) -> Node :
-  extrude-z(h, circle(r))
+public defn cylinder-z (d:Node, h:Node) -> Node :
+  extrude-z(h, circle(d))
 
-public defn cone-z (r:Node, h:Node) -> Node :
-  taper-xy-z(h, lit(1.0), lit(0.0), {cylinder-z(r, h)})
+public defn cone-z (d:Node, h:Node) -> Node :
+  taper-xy-z(h, lit(1.0), lit(0.0), {cylinder-z(d, h)})
 
-public defn pyramid-z (r:Node, h:Node) -> Node :
-  taper-xy-z(h, lit(0.0), lit(1.0), {extrude-z(h, rect(r, r))})
+public defn pyramid-z (d:Node, h:Node) -> Node :
+  taper-xy-z(h, lit(0.0), lit(1.0), {extrude-z(h, rect(d, d))})
 
-public defn torus-z (R:Node, r:Node) -> Node :
-  val d = distance(x(), y())
-  distance(R - d, z()) - r
+public defn torus-z (D:Node, d:Node) -> Node :
+  val dist = distance(x(), y())
+  distance((D * lit(0.5)) - dist, z()) - (d * lit(0.5))
 
 public defn jit (f:() -> Node) -> Tree :
   let-var *store* = new-store() :

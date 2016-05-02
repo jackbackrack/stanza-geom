@@ -4,38 +4,8 @@ defpackage ao-parser :
    import collections
    import reader
    import geom
+   import exp-parser
    import ao
-
-;============================================================
-;===================== Syntax Tree ==========================
-;============================================================
-
-deftype Exp
-defstruct OrOp <: Exp : (x:Exp, y:Exp)
-defstruct AndOp <: Exp : (x:Exp, y:Exp)
-;; defstruct DiffOp <: Exp : (x:Exp, y:Exp)
-defstruct AddOp <: Exp : (x:Exp, y:Exp)
-defstruct ModOp <: Exp : (x:Exp, y:Exp)
-defstruct SubOp <: Exp : (x:Exp, y:Exp)
-defstruct MulOp <: Exp : (x:Exp, y:Exp)
-defstruct DivOp <: Exp : (x:Exp, y:Exp)
-defstruct Identifier <: Exp : (name:Symbol)
-defstruct CallOp <: Exp : (f:Identifier, args:List<Exp>)
-defstruct Number <: Exp : (value:Double)
-
-defmethod print (o:OutputStream, e:Exp) :
-   print{o, _} $ match(e) :
-      (e:OrOp) : "%_ | %_" % [x(e), y(e)]
-      (e:AndOp) : "%_ & %_" % [x(e), y(e)]
-      ;; (e:DiffOp) : "%_ \\ %_" % [x(e), y(e)]
-      (e:AddOp) : "%_ + %_" % [x(e), y(e)]
-      (e:ModOp) : "%_ %% %_" % [x(e), y(e)]
-      (e:SubOp) : "%_ - %_" % [x(e), y(e)]
-      (e:MulOp) : "%_ * %_" % [x(e), y(e)]
-      (e:DivOp) : "%_ / %_" % [x(e), y(e)]
-      (e:CallOp) : "%_(%,)" % [f(e), args(e)]
-      (e:Identifier) : name(e)
-      (e:Number) : value(e)
 
 defstruct Function :
   arity: Int
@@ -66,7 +36,7 @@ defstruct UndefinedFunctionException <: Exception :
   name: Symbol
 
 defmethod print (o:OutputStream, e:UndefinedFunctionException) :
-  print-all(o, ["undefined function " name(e)])
+  print-all(o, ["Undefined function " name(e)])
 
 defmethod print (o:OutputStream, f:Function) :
   print-all(o, ["FUN(" arity(f) ")"])
@@ -84,24 +54,30 @@ defstruct UndefinedBindingException <: Exception :
   name: Symbol
 
 defmethod print (o:OutputStream, e:UndefinedBindingException) :
-  print-all(o, ["undefined binding " name(e)])
+  print(o, "Undefined binding %_" % [name(e)])
 
 defn lookup (n:Symbol) -> Node :
   if not key?(bindings, n) :
     throw(UndefinedBindingException(n))
   bindings[n]()
 
+defstruct WrongNumberArgumentsException <: Exception :
+  fun: Function
+  num: Int
+
+defmethod print (o:OutputStream, e:WrongNumberArgumentsException) :
+  print(o, "Wrong number of args %_ for fun %_" % [num(e), arity(fun(e))])
+
 defn apply (f:Function, args:List<Exp>) -> Node :
   if length(args) != arity(f) :
-    fatal("WRONG NUMBER OF ARGS %_ FOR FUN %_" % [length(args), f])
+    throw(WrongNumberArgumentsException(f, length(args)))
   apply(f)(args)
 
-public defn eval (e:Exp) -> Node :
+defn eval (e:Exp) -> Node :
   match(e) :
     (e:ModOp) : eval(x(e)) % eval(y(e))
     (e:AndOp) : eval(x(e)) & eval(y(e))
     (e:OrOp) : eval(x(e)) | eval(y(e))
-    ;; (e:DiffOp) : difference(eval(x(e)), eval(y(e)))
     (e:AddOp) : eval(x(e)) + eval(y(e))
     (e:SubOp) : eval(x(e)) - eval(y(e))
     (e:MulOp) : eval(x(e)) * eval(y(e))
@@ -109,51 +85,12 @@ public defn eval (e:Exp) -> Node :
     (e:CallOp) : apply(name(f(e)), args(e))
     (e:Identifier) : lookup(name(e))
     (e:Number) : lit(value(e))
-
-;============================================================
-;================== Parser Definition =======================
-;============================================================
-
-defn* apply-suffix-ops (x:Exp, fs:List<(Exp -> Exp)>) -> Exp :
-   if empty?(fs) : x
-   else : apply-suffix-ops(head(fs)(x), tail(fs))
-
-defsyntax ao :
-   defrule :
-      exp = (?x:#exp0 ?ops:#op0 ...) : apply-suffix-ops(x, ops)
-      exp0 = (?x:#exp1 ?ops:#op1 ...) : apply-suffix-ops(x, ops)
-      exp1 = (?x:#term ?ops:#op2 ...) : apply-suffix-ops(x, ops)
-      term = ((?e:#exp)) : e
-      term = (?x:#id) : x
-      term = (?x:#num) : x
-
-      id = (?x) when unwrap-token(x) is Symbol :
-         Identifier(unwrap-token(x))
-
-      num = (?x) when unwrap-token(x) is Double :
-         Number(unwrap-token(x))      
-
-      op0 = (+ ?y:#exp0) : AddOp{_:Exp, y}
-      op0 = (- ?y:#exp0) : SubOp{_:Exp, y}
-      op0 = (& ?y:#exp0) : AndOp{_:Exp, y}
-      op0 = (~ | ?y:#exp0) : OrOp{_:Exp, y}
-
-      op1 = (% ?y:#exp1) : ModOp{_:Exp, y}
-      op1 = (* ?y:#exp1) : MulOp{_:Exp, y}
-      op1 = (/ ?y:#exp1) : DivOp{_:Exp, y}
-
-      op2 = ((@do ?args:#exp ...)) : CallOp{_:Identifier, args}
-
-public defn parse-ao-exps (form) -> List<Exp> :
-   with-syntax(ao) :
-      match-syntax(form) :
-         (?es:#exp ...) :
-            es          
+    (e:Integer) : lit(to-double(value(e)))
 
 public defn eval-ao (s:String, to-mesh: (Tree) -> Mesh, default: Mesh) -> Mesh :
   try :
     val forms = read-all(s)
-    val es = parse-ao-exps(forms)
+    val es = parse-exps(forms)
     if empty?(es) :
       default
     else :
@@ -164,9 +101,7 @@ public defn eval-ao (s:String, to-mesh: (Tree) -> Mesh, default: Mesh) -> Mesh :
    catch (e:Exception) :
      default
 
-;============================================================
-;===================== Driver ===============================
-;============================================================
+;;; AO BINDINGS
 
 bindings[`pi] = { lit(3.1415) }
 bindings[`x] = { fab-x() }
@@ -192,9 +127,12 @@ functions[`mov] = Function(move)
 functions[`mov-x] = Function(move-x)
 functions[`mov-y] = Function(move-y)
 functions[`mov-z] = Function(move-x)
+functions[`mag] = Function(scale)
+functions[`mag1] = Function(scale1)
 functions[`mag-x] = Function(scale-x)
 functions[`mag-y] = Function(scale-y)
 functions[`mag-z] = Function(scale-z)
+;; functions[`rot] = Function(rotate)
 functions[`rot-x] = Function(rotate-x)
 functions[`rot-y] = Function(rotate-y)
 functions[`rot-z] = Function(rotate-z)
@@ -208,8 +146,8 @@ functions[`offset] = Function(offset)
 functions[`clearance] = Function(clearance)
 functions[`blend] = Function(blend)
 functions[`morph] = Function(morph)
-functions[`extrude-z] = Function(extrude-z)
-functions[`cylinder-z] = Function(cylinder-z)
-functions[`cone-z] = Function(cone-z)
-functions[`pyramid-z] = Function(pyramid-z)
-functions[`torus-z] = Function(torus-z)
+functions[`extrude] = Function(extrude-z)
+functions[`cyl] = Function(cylinder-z)
+functions[`cone] = Function(cone-z)
+functions[`pyr] = Function(pyramid-z)
+functions[`torus] = Function(torus-z)
