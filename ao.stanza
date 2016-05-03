@@ -1,5 +1,6 @@
 defpackage ao :
   import core
+  import math
   import collections
   import geom
 
@@ -129,7 +130,7 @@ public defn plus (x:Node, y:Node) -> Node : binary(op("add"), x, y)
 public defn minus (x:Node, y:Node) -> Node : binary(op("sub"), x, y)
 public defn atan2 (x:Node, y:Node) -> Node : binary(op("atan2"), x, y)
 public defn sqrt (x:Node) -> Node : unary(op("sqrt"), x)
-public defn square (x:Node) -> Node : unary(op("square"), x)
+public defn sqr (x:Node) -> Node : unary(op("square"), x)
 public defn abs (x:Node) -> Node : unary(op("abs"), x)
 public defn sin (x:Node) -> Node : unary(op("sin"), x)
 public defn cos (x:Node) -> Node : unary(op("cos"), x)
@@ -229,6 +230,12 @@ public defn taper-xy-z (zmin:Node, zmax:Node, s0:Node, s1:Node, s:()->Node) -> N
 public defn taper-xy-z (h:Node, s0:Node, s1:Node, s:()->Node) -> Node :
   taper-xy-z(dim-min(h), dim-max(h), s0, s1, s)
 
+public defn revolve-y (s:()->Node) -> Node :
+  with-xyz(sqrt(sqr(x()) + sqr(z())), y(), z(), s)
+
+public defn revolve-x (s:()->Node) -> Node :
+  with-xyz(x(), sqrt(sqr(y()) + sqr(z())), z(), s)
+
 public defn distance (a:Node, b:Node) -> Node :
   sqrt(square(a) + square(b))
 
@@ -289,6 +296,31 @@ public defn dim-max (d:Node) -> Node : d * lit(0.5)
 
 public defn rect (w:Node, h:Node) -> Node :
   rect(dim-min(w), dim-min(h), dim-max(w), dim-max(h))
+
+public defn square (d:Node) -> Node :
+  rect(d, d)
+
+public defn edge (x0:Node, y0:Node, x1:Node, y1:Node) -> Node :
+  (y1 - y0) * (x() - x0) - (x1 - x0) * (y() - y0)
+
+public defn convex (pts:Tuple<[Node, Node]>) -> Node :
+  val edges = 
+    for i in 0 to length(pts) seq :
+      val [x+, y+] = pts[(i + 1) % length(pts)]
+      val [x-, y-] = pts[i]
+      edge(x+, y+, x-, y-)
+  reduce(fn (a:Node, b:Node): max(a, b), edges)
+
+public defn circle-n (d:Node, n:Int) -> Node :
+  val r = lit(0.5) * d
+  val points = 
+    for i in 0 to n seq :
+      val a = to-double(i) * 2.0 * 3.1415 / to-double(n)
+      [r * lit(sin(a)), r * lit(cos(a))]
+  convex(to-tuple(points))
+
+public defn triangle (x0:Node, y0:Node, x1:Node, y1:Node, x2:Node, y2:Node) -> Node :
+  convex([[x0, y0], [x1, y1], [x2, y2]])
 
 defn extrude-z (zmin:Node, zmax:Node, shape:Node) -> Node :
    max(shape, max(zmin - z(), z() - zmax))
