@@ -7,15 +7,10 @@ defpackage ao-eval :
    import eval
    import ao
 
-public defn eval-ao (s:String, to-mesh: (Tree) -> Mesh, default: Mesh) -> Mesh :
-  try :
-    val forms = read-all(s)
-    val es = unwrap-all(parse(forms))
-    val res = jit({ eval-begin(top-env, es) })
-    val m = to-mesh(res)
-    m
-  catch (e:Exception) :
-    default
+public defn eval-ao (s:String) -> Tree :
+  val forms = read-all(s)
+  val es = unwrap-all(parse(forms))
+  jit({ eval-begin(top-env, es) })
 
 add-binding(top-env, `pi, 3.1415)
 add-binding(top-env, `lit, lit)
