@@ -12,6 +12,28 @@ public defn eval-ao (s:String) -> Tree :
   val es = unwrap-all(parse(forms))
   jit({ eval-begin(top-env, es) })
 
+;;; TODO: TEMPORARY CHECKING UNTIL REPL MODE IMPLEMENTED IN COMPILER
+
+defstruct ThunkExpectedException <: Exception : 
+  arg: Int
+
+defmethod print (o:OutputStream, e:ThunkExpectedException) :
+  print(o, "Expected Thunk on Arg %_" % [arg(e)])
+
+defn check-thunk (x, i) :
+  if x is-not (() -> Node) :
+    throw(ThunkExpectedException(i))
+
+defn thunk-function0 (f) -> ((?) -> Node) :
+  fn (t) : (check-thunk(t, 0) f(t))
+
+defn thunk-function1 (f) -> ((Node, ?) -> Node) :
+  fn (a0:Node t) : (println-all(["CHECK " a0 " and " t]) check-thunk(t, 1) f(a0 t))
+
+defn thunk-function3 (f) -> ((Node, Node, Node, ?) -> Node) :
+  fn (a0:Node a1:Node a2:Node t) :
+    (println-all(["CHECK " t]) check-thunk(t, 3) f(a0 a1 a2 t))
+
 add-binding(top-env, `pi, 3.1415)
 add-binding(top-env, `lit, lit)
 add-binding(top-env, `x, fab-x)
@@ -44,27 +66,28 @@ add-binding(top-env, `convex, convex)
 add-binding(top-env, `circle-n, circle-n)
 add-binding(top-env, `cube, cube)
 add-binding(top-env, `sphere, sphere)
-add-binding(top-env, `mov, move)
-add-binding(top-env, `mov-x, move-x)
-add-binding(top-env, `mov-y, move-y)
-add-binding(top-env, `mov-z, move-x)
-add-binding(top-env, `mag, scale)
-add-binding(top-env, `mag1, scale1)
-add-binding(top-env, `mag-x, scale-x)
-add-binding(top-env, `mag-y, scale-y)
-add-binding(top-env, `mag-z, scale-z)
-;; add-binding(top-env, `rot, rotate)
-add-binding(top-env, `rot-x, rotate-x)
-add-binding(top-env, `rot-y, rotate-y)
-add-binding(top-env, `rot-z, rotate-z)
-add-binding(top-env, `revolve-x, revolve-x)
-add-binding(top-env, `revolve-y, revolve-y)
-add-binding(top-env, `reflect-x, reflect-x)
-add-binding(top-env, `reflect-y, reflect-y)
-add-binding(top-env, `reflect-z, reflect-z)
-add-binding(top-env, `reflect-xy, reflect-xy)
-add-binding(top-env, `reflect-xz, reflect-xz)
-add-binding(top-env, `reflect-yz, reflect-yz)
+add-binding(top-env, `mov, thunk-function3(move))
+add-binding(top-env, `mov-x, thunk-function1(move-x))
+add-binding(top-env, `mov-y, thunk-function1(move-y))
+add-binding(top-env, `mov-z, thunk-function1(move-x))
+add-binding(top-env, `mag, thunk-function3(scale))
+add-binding(top-env, `mag1, thunk-function1(scale1))
+add-binding(top-env, `mag-x, thunk-function1(scale-x))
+add-binding(top-env, `mag-y, thunk-function1(scale-y))
+add-binding(top-env, `mag-z, thunk-function1(scale-z))
+;; add-binding(top-env, `rot, thunk-function4(rotate))
+add-binding(top-env, `rot-x, thunk-function1(rotate-x))
+add-binding(top-env, `rot-y, thunk-function1(rotate-y))
+add-binding(top-env, `rot-z, thunk-function1(rotate-z))
+add-binding(top-env, `rev, thunk-function1(revolve-y))
+add-binding(top-env, `reflect-x, thunk-function1(reflect-x))
+add-binding(top-env, `reflect-y, thunk-function1(reflect-y))
+add-binding(top-env, `reflect-z, thunk-function1(reflect-z))
+add-binding(top-env, `reflect-xy, thunk-function1(reflect-xy))
+add-binding(top-env, `reflect-xz, thunk-function1(reflect-xz))
+add-binding(top-env, `reflect-yz, thunk-function1(reflect-yz))
+add-binding(top-env, `shear, thunk-function3(shear-x-y))
+add-binding(top-env, `taper, thunk-function3(taper-xy-z))
 add-binding(top-env, `offset, offset)
 add-binding(top-env, `clearance, clearance)
 add-binding(top-env, `blend, blend)

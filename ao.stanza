@@ -212,17 +212,20 @@ public defn scale-y (sy:Node, s:()->Node) -> Node :
 public defn scale-z (sz:Node, s:()->Node) -> Node :
   with-xyz(x(), y(), z() / sz, s)
 
-public defn shear-x-y (ymin:Node, ymax:Node, dx0:Node, dx1:Node, s:()->Node) -> Node :
+defn shear-x-y (ymin:Node, ymax:Node, dx0:Node, dx1:Node, s:()->Node) -> Node :
   val f = (y() - ymin) / (ymax - y())
   with-xyz(x() - dx0 * (lit(1.0) - f) - dx1 * f, y(), z(), s)
 
-public defn taper-x-y (ymin:Node, ymax:Node, s0:Node, s1:Node, s:()->Node) -> Node :
+public defn shear-x-y (h:Node, dx0:Node, dx1:Node, s:()->Node) -> Node :
+  shear-x-y(dim-min(h), dim-max(h), dx0, dx1, s)
+
+defn taper-x-y (ymin:Node, ymax:Node, s0:Node, s1:Node, s:()->Node) -> Node :
   val dy = ymax - ymin
   val ds = s1 - s0
   val sc = dy / ((s1 * (y() - ymin)) - (s0 * (y() - ymax)))
   with-xyz(x() * sc, y(), z(), s)
 
-public defn taper-xy-z (zmin:Node, zmax:Node, s0:Node, s1:Node, s:()->Node) -> Node :
+defn taper-xy-z (zmin:Node, zmax:Node, s0:Node, s1:Node, s:()->Node) -> Node :
   val dz = zmax - zmin
   val sc = dz / ((s1 * (z() - zmin)) - (s0 * (z() - zmax)))
   with-xyz(x() * sc, y() * sc, z(), s)
@@ -237,10 +240,10 @@ public defn revolve-x (s:()->Node) -> Node :
   with-xyz(x(), sqrt(sqr(y()) + sqr(z())), z(), s)
 
 public defn distance (a:Node, b:Node) -> Node :
-  sqrt(square(a) + square(b))
+  sqrt(sqr(a) + sqr(b))
 
 public defn distance (a:Node, b:Node, c:Node) -> Node :
-  sqrt(square(a) + square(b) + square(c))
+  sqrt(sqr(a) + sqr(b) + sqr(c))
 
 public defn circle (d:Node) -> Node :
   distance(x(), y()) - (d * lit(0.5))
