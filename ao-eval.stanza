@@ -4,150 +4,69 @@ defpackage ao-eval :
    import collections
    import reader
    import geom
-   import exp-parser
+   import eval
    import ao
-
-defstruct Function :
-  arity: Int
-  apply: (List<Exp>) -> Node
-
-defn Function (f:(Node) -> Node) :
-  Function(1, fn (args:List<Exp>) : f(eval(args[0])))
-
-defn Function (f:(Node, Node) -> Node) :
-  Function(2, fn (args:List<Exp>) : f(eval(args[0]), eval(args[1])))
-
-defn Function (f:(Node, Node, Node) -> Node) :
-  Function(3, fn (args:List<Exp>) : f(eval(args[0]), eval(args[1]), eval(args[2])))
-
-defn Function (f:(() -> Node) -> Node) :
-  Function(1, fn (args:List<Exp>) : f({ eval(args[0]) }))
-
-defn Function (f:(Node, () -> Node) -> Node) :
-  Function(2, fn (args:List<Exp>) : f(eval(args[0]), { eval(args[1]) }))
-
-defn Function (f:(Node, Node, () -> Node) -> Node) :
-  Function(3, fn (args:List<Exp>) : f(eval(args[0]), eval(args[1]), { eval(args[2]) }))
-
-defn Function (f:(Node, Node, Node, () -> Node) -> Node) :
-  Function(4, fn (args:List<Exp>) : f(eval(args[0]), eval(args[1]), eval(args[2]), { eval(args[3]) }))
-
-defstruct UndefinedFunctionException <: Exception :
-  name: Symbol
-
-defmethod print (o:OutputStream, e:UndefinedFunctionException) :
-  print-all(o, ["Undefined function " name(e)])
-
-defmethod print (o:OutputStream, f:Function) :
-  print-all(o, ["FUN(" arity(f) ")"])
-
-defn apply (name:Symbol, args:List<Exp>) -> Node :
-  if key?(functions, name) :
-    apply(functions[name])(args)
-  else :
-    throw(UndefinedFunctionException(name))
-
-val bindings = HashTable<Symbol,(() -> Node)>()
-val functions = HashTable<Symbol,Function>()
-
-defstruct UndefinedBindingException <: Exception :
-  name: Symbol
-
-defmethod print (o:OutputStream, e:UndefinedBindingException) :
-  print(o, "Undefined binding %_" % [name(e)])
-
-defn lookup (n:Symbol) -> Node :
-  if not key?(bindings, n) :
-    throw(UndefinedBindingException(n))
-  bindings[n]()
-
-defstruct WrongNumberArgumentsException <: Exception :
-  fun: Function
-  num: Int
-
-defmethod print (o:OutputStream, e:WrongNumberArgumentsException) :
-  print(o, "Wrong number of args %_ for fun %_" % [num(e), arity(fun(e))])
-
-defn apply (f:Function, args:List<Exp>) -> Node :
-  if length(args) != arity(f) :
-    throw(WrongNumberArgumentsException(f, length(args)))
-  apply(f)(args)
-
-defn eval (e:Exp) -> Node :
-  match(e) :
-    (e:ModOp) : eval(x(e)) % eval(y(e))
-    (e:AndOp) : eval(x(e)) & eval(y(e))
-    (e:OrOp) : eval(x(e)) | eval(y(e))
-    (e:AddOp) : eval(x(e)) + eval(y(e))
-    (e:SubOp) : eval(x(e)) - eval(y(e))
-    (e:MulOp) : eval(x(e)) * eval(y(e))
-    (e:DivOp) : eval(x(e)) / eval(y(e))
-    (e:CallOp) : apply(name(f(e)), args(e))
-    (e:Identifier) : lookup(name(e))
-    (e:Number) : lit(value(e))
-    (e:Integer) : lit(to-double(value(e)))
 
 public defn eval-ao (s:String, to-mesh: (Tree) -> Mesh, default: Mesh) -> Mesh :
   try :
     val forms = read-all(s)
-    val es = parse-exps(forms)
-    if empty?(es) :
-      default
-    else :
-      val e = es[0]
-      val res = jit({ eval(e) })
-      val m = to-mesh(res)
-      m
-   catch (e:Exception) :
-     default
+    val es = unwrap-all(parse(forms))
+    val res = jit({ eval-begin(top-env, es) })
+    val m = to-mesh(res)
+    m
+  catch (e:Exception) :
+    default
 
-;;; AO BINDINGS
-
-bindings[`pi] = { lit(3.1415) }
-bindings[`x] = { fab-x() }
-bindings[`y] = { fab-y() }
-bindings[`z] = { fab-z() }
-functions[`diff] = Function(fn (x:Node, y:Node): difference(x, y))
-functions[`neg] = Function(fn (x:Node): negate(x))
-functions[`min] = Function(fn (x:Node, y:Node): min(x, y))
-functions[`max] = Function(fn (x:Node, y:Node): max(x, y))
-functions[`sin] = Function(fn (x:Node): sin(x))
-functions[`cos] = Function(fn (x:Node): cos(x))
-functions[`tan] = Function(fn (x:Node): tan(x))
-functions[`asin] = Function(fn (x:Node): asin(x))
-functions[`acos] = Function(fn (x:Node): acos(x))
-functions[`atan2] = Function(fn (x:Node, y:Node): atan2(x, y))
-functions[`exp] = Function(exp)
-functions[`sqr] = Function(square)
-functions[`rect] = Function(rect)
-functions[`circle] = Function(circle)
-functions[`cube] = Function(cube)
-functions[`sphere] = Function(sphere)
-functions[`mov] = Function(move)
-functions[`mov-x] = Function(move-x)
-functions[`mov-y] = Function(move-y)
-functions[`mov-z] = Function(move-x)
-functions[`mag] = Function(scale)
-functions[`mag1] = Function(scale1)
-functions[`mag-x] = Function(scale-x)
-functions[`mag-y] = Function(scale-y)
-functions[`mag-z] = Function(scale-z)
-;; functions[`rot] = Function(rotate)
-functions[`rot-x] = Function(rotate-x)
-functions[`rot-y] = Function(rotate-y)
-functions[`rot-z] = Function(rotate-z)
-functions[`reflect-x] = Function(reflect-x)
-functions[`reflect-y] = Function(reflect-y)
-functions[`reflect-z] = Function(reflect-z)
-functions[`reflect-xy] = Function(reflect-xy)
-functions[`reflect-xz] = Function(reflect-xz)
-functions[`reflect-yz] = Function(reflect-yz)
-functions[`offset] = Function(offset)
-functions[`clearance] = Function(clearance)
-functions[`blend] = Function(blend)
-functions[`morph] = Function(morph)
-functions[`extrude] = Function(extrude-z)
-functions[`cyl] = Function(cylinder-z)
-functions[`cone] = Function(cone-z)
-functions[`pyr] = Function(pyramid-z)
-functions[`torus] = Function(torus-z)
+add-binding(top-env, `pi, 3.1415)
+add-binding(top-env, `lit, Function(`lit, lit))
+add-binding(top-env, `x, Function(`x, fab-x))
+add-binding(top-env, `y, Function(`y, fab-y))
+add-binding(top-env, `z, Function(`z, fab-z))
+add-binding(top-env, `diff, Function(`diff, difference))
+add-binding(top-env, `plus, Function(`plus, plus))
+add-binding(top-env, `minus, Function(`minus, minus))
+add-binding(top-env, `times, Function(`times, times))
+add-binding(top-env, `divide, Function(`divide, divide))
+add-binding(top-env, `negate, Function(`negate, negate))
+add-binding(top-env, `sin, Function(`sin, sin))
+add-binding(top-env, `cos, Function(`cos, cos))
+add-binding(top-env, `tan, Function(`tan, tan))
+add-binding(top-env, `asin, Function(`asin, asin))
+add-binding(top-env, `acos, Function(`acos, acos))
+add-binding(top-env, `atan, Function(`atan, atan))
+add-binding(top-env, `atan2, Function(`atan2, atan2))
+add-binding(top-env, `pow, Function(`pow, pow))
+add-binding(top-env, `exp, Function(`exp, exp))
+add-binding(top-env, `sqr, Function(`sqr, square))
+add-binding(top-env, `rect, Function(`rect, rect))
+add-binding(top-env, `circle, Function(`circle, circle))
+add-binding(top-env, `cube, Function(`cube, cube))
+add-binding(top-env, `sphere, Function(`sphere, sphere))
+add-binding(top-env, `mov, Function(`mov, move))
+add-binding(top-env, `mov-x, Function(`mov-x, move-x))
+add-binding(top-env, `mov-y, Function(`mov-y, move-y))
+add-binding(top-env, `mov-z, Function(`mov-z, move-x))
+add-binding(top-env, `mag, Function(`mag, scale))
+add-binding(top-env, `mag1, Function(`mag1, scale1))
+add-binding(top-env, `mag-x, Function(`mag-x, scale-x))
+add-binding(top-env, `mag-y, Function(`mag-y, scale-y))
+add-binding(top-env, `mag-z, Function(`mag-z, scale-z))
+;; add-binding(top-env, `rot, Function(`rot, rotate))
+add-binding(top-env, `rot-x, Function(`rot-x, rotate-x))
+add-binding(top-env, `rot-y, Function(`rot-y, rotate-y))
+add-binding(top-env, `rot-z, Function(`rot-z, rotate-z))
+add-binding(top-env, `reflect-x, Function(`reflect-x, reflect-x))
+add-binding(top-env, `reflect-y, Function(`reflect-y, reflect-y))
+add-binding(top-env, `reflect-z, Function(`reflect-z, reflect-z))
+add-binding(top-env, `reflect-xy, Function(`reflect-xy, reflect-xy))
+add-binding(top-env, `reflect-xz, Function(`reflect-xz, reflect-xz))
+add-binding(top-env, `reflect-yz, Function(`reflect-yz, reflect-yz))
+add-binding(top-env, `offset, Function(`offset, offset))
+add-binding(top-env, `clearance, Function(`clearance, clearance))
+add-binding(top-env, `blend, Function(`blend, blend))
+add-binding(top-env, `morph, Function(`morph, morph))
+add-binding(top-env, `extrude, Function(`extrude, extrude-z))
+add-binding(top-env, `cyl, Function(`cyl, cylinder-z))
+add-binding(top-env, `cone, Function(`cone, cone-z))
+add-binding(top-env, `pyr, Function(`pyr, pyramid-z))
+add-binding(top-env, `torus, Function(`torus, torus-z))
