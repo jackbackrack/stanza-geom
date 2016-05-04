@@ -343,6 +343,10 @@ public defn cube (d:Node) -> Node :
 public defn cylinder-z (d:Node, h:Node) -> Node :
   extrude-z(h, circle(d))
 
+public defn capsule-z (d:Node, h:Node) -> Node :
+  val r = lit(0.5) * h
+  cylinder-z(d, h) | move-z(r, { sphere(d) }) | move-z((- r), { sphere(d) })
+
 public defn cone-z (d:Node, h:Node) -> Node :
   taper-xy-z(h, lit(1.0), lit(0.0), {cylinder-z(d, h)})
 
