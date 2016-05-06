@@ -23,14 +23,20 @@ extern ao_halt: () -> ptr<?>
 extern printf: (ptr<?>, ? ...) -> int
 extern free: (ptr<?>) -> int
 
-public lostanza deftype Tree :
+public lostanza deftype Tree <: Geom :
   value: ptr<?>
+
+defmethod print (o:OutputStream, t:Tree) :
+  print-all(o, ["Tree()"])
 
 public lostanza deftype Store :
   value: ptr<?>
 
-public lostanza deftype Node :
+public lostanza deftype Node <: Geom :
   value: ptr<?>
+
+defmethod print (o:OutputStream, t:Node) :
+  print-all(o, ["Node()"])
 
 public lostanza defn new-store () -> ref<Store> :
   return new Store{call-c store_new()}
@@ -314,13 +320,8 @@ public defn convex (pts:Tuple<[Node, Node]>) -> Node :
       edge(x+, y+, x-, y-)
   reduce(fn (a:Node, b:Node): max(a, b), edges)
 
-public defn circle-n (d:Node, n:Int) -> Node :
-  val r = lit(0.5) * d
-  val points = 
-    for i in 0 to n seq :
-      val a = to-double(i) * 2.0 * 3.1415 / to-double(n)
-      [r * lit(sin(a)), r * lit(cos(a))]
-  convex(to-tuple(points))
+public defn to-exp (contour:Contour) -> Tuple<[Node, Node]> :
+  to-tuple(map(fn (p): [lit(to-double(x(p))), lit(to-double(y(p)))], points(contour)))
 
 public defn triangle (x0:Node, y0:Node, x1:Node, y1:Node, x2:Node, y2:Node) -> Node :
   convex([[x0, y0], [x1, y1], [x2, y2]])
@@ -357,13 +358,17 @@ public defn torus-z (D:Node, d:Node) -> Node :
   val dist = distance(x(), y())
   distance((D * lit(0.5)) - dist, z()) - (d * lit(0.5))
 
-public defn jit (f:() -> Node) -> Tree :
+public defn jit (f:() -> Geom) -> Geom :
   let-var *store* = new-store() :
     let-var *x* = fab-x() :
       let-var *y* = fab-y() :
         let-var *z* = fab-z() :
-          val root = f()
-          val tree = new-tree(*store*, root)
+          val g = f()
+          val res = 
+            match(g) :
+              (root:Node) :
+                new-tree(*store*, root)
+              (geom) : geom
           del(*store*)
-          tree
+          res
 

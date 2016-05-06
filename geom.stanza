@@ -6,6 +6,8 @@ defpackage geom:
   import collections
   import utils
 
+public deftype Geom
+
 public defn ensure-index-in-bounds (i:Int, n:Int) :
    if i < 0 or i >= n :
       fatal("Index (%_) out of bounds." % [i])
@@ -19,77 +21,78 @@ public defn ensure-non-negative-length (n:Int) :
 
 ;;; VECS
 
-;; public lostanza deftype Vf <: Array<Float> :
-;;   length: long
-;;   elts:   float ...
-;; 
-;; public lostanza defn Vf (n:ref<Int>, x:ref<Float>) -> ref<Vf> :
-;;   #if-not-defined(OPTIMIZE) :
-;;     ensure-non-negative-length(n)
-;;   val l = n.value
-;;   val a = new Vf{l}
-;;   val c = x.value
-;;   for (var i:long = 0, i < l, i = i + 1) :
-;;     a.elts[i] = c
-;;   return a
-;; 
-;; public defn Vf (n:Int) -> Vf :
-;;   Vf(n, 0.0f)
-;; 
-;; lostanza defn vf-get (v:ref<Vf>, i:ref<Int>) -> ref<Float> :
-;;   #if-not-defined(OPTIMIZE) :
-;;      ensure-index-in-bounds(i, length(v))
-;;   return new Float{v.elts[i.value]}
-;;   
-;; lostanza defn vf-set (v:ref<Vf>, i:ref<Int>, x:ref<Float>) -> ref<False> :
-;;   #if-not-defined(OPTIMIZE) :
-;;      ensure-index-in-bounds(i, length(v))
-;;   v.elts[i.value] = x.value
-;;   return false
-;;   
-;; lostanza defn vf-length (v:ref<Vf>) -> ref<Int> :
-;;   return new Int{v.length as int}
-;;   
-;; defmethod get (a:Vf, i:Int) -> Float : vf-get(a, i)
-;; defmethod set (a:Vf, i:Int, c:Float) -> False : vf-set(a, i, c)
-;; defmethod length (a:Vf) -> Int : vf-length(a)
-;; 
-;; defmethod print (o:OutputStream, v:Vf) :
-;;   print-all(o, ["Vf(" length(v) ")"])
+public lostanza deftype Vf <: Array<Float> & Geom :
+  length: long
+  elts:   float ...
+
+public lostanza defn Vf (n:ref<Int>, x:ref<Float>) -> ref<Vf> :
+  #if-not-defined(OPTIMIZE) :
+    ensure-non-negative-length(n)
+  val l = n.value
+  val a = new Vf{l}
+  val c = x.value
+  for (var i:long = 0, i < l, i = i + 1) :
+    a.elts[i] = c
+  return a
+
+public defn Vf (n:Int) -> Vf :
+  Vf(n, 0.0f)
+
+lostanza defn vf-get (v:ref<Vf>, i:ref<Int>) -> ref<Float> :
+  #if-not-defined(OPTIMIZE) :
+     ensure-index-in-bounds(i, length(v))
+  return new Float{v.elts[i.value]}
+  
+lostanza defn vf-set (v:ref<Vf>, i:ref<Int>, x:ref<Float>) -> ref<False> :
+  #if-not-defined(OPTIMIZE) :
+     ensure-index-in-bounds(i, length(v))
+  v.elts[i.value] = x.value
+  return false
+  
+lostanza defn vf-length (v:ref<Vf>) -> ref<Int> :
+  return new Int{v.length as int}
+  
+defmethod get (a:Vf, i:Int) -> Float : vf-get(a, i)
+defmethod set (a:Vf, i:Int, c:Float) -> False : vf-set(a, i, c)
+defmethod length (a:Vf) -> Int : vf-length(a)
+
+defmethod print (o:OutputStream, v:Vf) :
+  print-all(o, ["Vf(" length(v) ")"])
 
 ;;; V3i
 
-public defstruct V3i <: Array<Int> :
-  x: Int
-  y: Int
-  z: Int
+;; public defstruct V3i <: Array<Int> :
+;;   x : Int
+;;   y : Int
+;;   z : Int
 
-;; public lostanza deftype V3i <: Array<Int> :
-;;   x: int
-;;   y: int
-;;   z: int
-;; 
-;; public lostanza defn V3i (x:ref<Int>, y:ref<Int>, z:ref<Int>) -> ref<V3i> :
-;;   return new V3i{x.value, y.value, z.value}
-;; 
-;; public lostanza defn x (v:ref<V3i>) -> ref<Int> :
-;;   return new Int{v.x}
-;; 
-;; public lostanza defn y (v:ref<V3i>) -> ref<Int> :
-;;   return new Int{v.y}
-;; 
-;; public lostanza defn z (v:ref<V3i>) -> ref<Int> :
-;;   return new Int{v.z}
+public lostanza deftype V3i <: Array<Int> & Geom :
+  x: int
+  y: int
+  z: int
+
+public lostanza defn V3i (x:ref<Int>, y:ref<Int>, z:ref<Int>) -> ref<V3i> :
+  return new V3i{x.value, y.value, z.value}
+
+public lostanza defn x (v:ref<V3i>) -> ref<Int> :
+  return new Int{v.x}
+
+public lostanza defn y (v:ref<V3i>) -> ref<Int> :
+  return new Int{v.y}
+
+public lostanza defn z (v:ref<V3i>) -> ref<Int> :
+  return new Int{v.z}
 
 public defn V3i (x:Int, y:Int) -> V3i :
   V3i(x, y, 0)
 
-;; public lostanza defn v3i-get (v:ref<V3i>, i:ref<Int>) -> ref<Int> :
-;;   #if-not-defined(OPTIMIZE) :
-;;      ensure-index-in-bounds(i, new Int{3})
-;;   return new Int{addr!(v.x)[i.value]}
-;;   
-;; defmethod get (a:V3i, i:Int) -> Int : v3i-get(a, i)
+public lostanza defn v3i-get (v:ref<V3i>, i:ref<Int>) -> ref<Int> :
+  #if-not-defined(OPTIMIZE) :
+     ensure-index-in-bounds(i, new Int{3})
+  return new Int{addr!(v.x)[i.value]}
+  
+defmethod get (a:V3i, i:Int) -> Int : v3i-get(a, i)
+
 defmethod length (a:V3i) -> Int : 3
 
 defmethod equal? (v1:V3i, v2:V3i) :
@@ -130,42 +133,42 @@ public defn negate (a:V3i) -> V3i :
 
 ;;; V3f
 
-public defstruct V3f <: Array<Float> :
-  x: Float
-  y: Float
-  z: Float
+;; public defstruct V3f <: Array<Float> :
+;;   x: Float
+;;   y: Float
+;;   z: Float
 
-;; public lostanza deftype V3f <: Array<Float> :
-;;   x: float
-;;   y: float
-;;   z: float
-;; 
-;; public lostanza defn V3f (x:ref<Float>, y:ref<Float>, z:ref<Float>) -> ref<V3f> :
-;;   return new V3f{x.value, y.value, z.value}
-;; 
-;; public lostanza defn x (v:ref<V3f>) -> ref<Float> :
-;;   return new Float{v.x}
-;; 
-;; public lostanza defn y (v:ref<V3f>) -> ref<Float> :
-;;   return new Float{v.y}
-;; 
-;; public lostanza defn z (v:ref<V3f>) -> ref<Float> :
-;;   return new Float{v.z}
+public lostanza deftype V3f <: Array<Float> & Geom :
+  x: float
+  y: float
+  z: float
 
-public defn V3f (x:Float, y:Float) -> V3f :
+public lostanza defn V3f (x:ref<Float>, y:ref<Float>, z:ref<Float>) -> ref<V3f> :
+  return new V3f{x.value, y.value, z.value}
+
+public lostanza defn x (v:ref<V3f>) -> ref<Float> :
+  return new Float{v.x}
+
+public lostanza defn y (v:ref<V3f>) -> ref<Float> :
+  return new Float{v.y}
+
+public lostanza defn z (v:ref<V3f>) -> ref<Float> :
+  return new Float{v.z}
+
+public defn V2f (x:Float, y:Float) -> V3f :
   V3f(x, y, 0.0f)
 
-;; public lostanza defn v3f-get (v:ref<V3f>, i:ref<Int>) -> ref<Float> :
-;;   #if-not-defined(OPTIMIZE) :
-;;      ensure-index-in-bounds(i, new Int{3})
-;;   return new Float{addr!(v.x)[i.value]}
-;;   
-;; public defmethod get (a:V3f, i:Int) -> Float : v3f-get(a, i)
+public lostanza defn v3f-get (v:ref<V3f>, i:ref<Int>) -> ref<Float> :
+  #if-not-defined(OPTIMIZE) :
+     ensure-index-in-bounds(i, new Int{3})
+  return new Float{addr!(v.x)[i.value]}
+  
+public defmethod get (a:V3f, i:Int) -> Float : v3f-get(a, i)
 
-public defmethod get (a:V3f, i:Int) -> Float :
-  if i == 0 : x(a) 
-  else if i == 1 : y(a) 
-  else : z(a) 
+;; public defmethod get (a:V3f, i:Int) -> Float :
+;;   if i == 0 : x(a) 
+;;   else if i == 1 : y(a) 
+;;   else : z(a) 
 
 public defmethod length (a:V3f) -> Int : 3
 
@@ -221,42 +224,43 @@ public defn negate (a:V3f) -> V3f :
 
 ;;; V4f
 
-public defstruct V4f <: Array<Float> :
-  x: Float
-  y: Float
-  z: Float
-  a: Float
+;; public defstruct V4f <: Array<Float> :
+;;   x: Float
+;;   y: Float
+;;   z: Float
+;;   a: Float
 
-;; public lostanza deftype V4f <: Array<Float> :
-;;   x: float
-;;   y: float
-;;   z: float
-;;   a: float
-;; 
-;; public lostanza defn V4f (x:ref<Float>, y:ref<Float>, z:ref<Float>, a:ref<Float>) -> ref<V4f> :
-;;   return new V4f{x.value, y.value, z.value, a.value}
-;; 
-;; public lostanza defn x (v:ref<V4f>) -> ref<Float> :
-;;   return new Float{v.x}
-;; 
-;; public lostanza defn y (v:ref<V4f>) -> ref<Float> :
-;;   return new Float{v.y}
-;; 
-;; public lostanza defn z (v:ref<V4f>) -> ref<Float> :
-;;   return new Float{v.z}
-;; 
-;; public lostanza defn a (v:ref<V4f>) -> ref<Float> :
-;;   return new Float{v.a}
+public lostanza deftype V4f <: Array<Float> & Geom :
+  x: float
+  y: float
+  z: float
+  a: float
+
+public lostanza defn V4f (x:ref<Float>, y:ref<Float>, z:ref<Float>, a:ref<Float>) -> ref<V4f> :
+  return new V4f{x.value, y.value, z.value, a.value}
+
+public lostanza defn x (v:ref<V4f>) -> ref<Float> :
+  return new Float{v.x}
+
+public lostanza defn y (v:ref<V4f>) -> ref<Float> :
+  return new Float{v.y}
+
+public lostanza defn z (v:ref<V4f>) -> ref<Float> :
+  return new Float{v.z}
+
+public lostanza defn a (v:ref<V4f>) -> ref<Float> :
+  return new Float{v.a}
 
 public defn V4f (x:Float, y:Float, z:Float) -> V4f :
   V4f(x, y, z, 0.0f)
 
-;; public lostanza defn v4f-get (v:ref<V4f>, i:ref<Int>) -> ref<Float> :
-;;   #if-not-defined(OPTIMIZE) :
-;;      ensure-index-in-bounds(i, new Int{3})
-;;   return new Float{addr!(v.x)[i.value]}
-;;   
-;; public defmethod get (a:V4f, i:Int) -> Float : v4f-get(a, i)
+public lostanza defn v4f-get (v:ref<V4f>, i:ref<Int>) -> ref<Float> :
+  #if-not-defined(OPTIMIZE) :
+     ensure-index-in-bounds(i, new Int{3})
+  return new Float{addr!(v.x)[i.value]}
+  
+public defmethod get (a:V4f, i:Int) -> Float : v4f-get(a, i)
+
 public defmethod length (a:V4f) -> Int : 4
 
 defmethod equal? (v1:V4f, v2:V4f) :
@@ -265,9 +269,30 @@ defmethod equal? (v1:V4f, v2:V4f) :
 defmethod print (o:OutputStream, v:V4f) :
   print-all(o, ["V4f(", x(v) "," y(v) "," z(v) "," a(v) ")"])
 
+;;; V3d
+
+public lostanza deftype V3d <: Array<Double> & Geom :
+  x: double
+  y: double
+  z: double
+
+public lostanza defn V3d (x:ref<Double>, y:ref<Double>, z:ref<Double>) -> ref<V3d> :
+  return new V3d{x.value, y.value, z.value}
+
+public lostanza defn x (v:ref<V3d>) -> ref<Double> :
+  return new Double{v.x}
+
+public lostanza defn y (v:ref<V3d>) -> ref<Double> :
+  return new Double{v.y}
+
+public lostanza defn z (v:ref<V3d>) -> ref<Double> :
+  return new Double{v.z}
+
+public defn V3d (v:V3f) -> V3d : V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
+
 ;;; BOX
 
-public defstruct Box :
+public defstruct Box <: Geom :
   lo: V3f
   hi: V3f
 
@@ -291,7 +316,7 @@ public defn union (b0:Box, b1:Box) -> Box :
 
 ;;; MAT
 
-public lostanza deftype Mat44 <: Array<Float> :
+public lostanza deftype Mat44 <: Array<Float> & Geom :
   m00: float
   m01: float
   m02: float
@@ -469,7 +494,7 @@ public defn level (g:Half, point:V3f) -> Float :
 
 ;;; LINE
 
-public defstruct Line :
+public defstruct Line <: Geom :
   pos: V3f
   dir: V3f
 
@@ -487,43 +512,53 @@ public defn line-of (p0:V3f, p1:V3f) -> Line :
 ;;   ;; println-all(["CLOSEST POINT TO " x(pt) "," y(pt) " NORMAL " x(normal) "," y(normal) " ALIGN " align])
 ;;   Half(normal, (if align > 0.0f : 1.0f else : -1.0f) * len(pt))
 
-
 ;;; CONTOUR
 
-public defstruct Contour :
-  points: List<V3f>
+public defstruct Contour <: Geom :
+  points: Tuple<V3f>
 
 defmethod print (o:OutputStream, c:Contour) :
-  print("Contour(")
-  for (e in points(c), i in 0 to false) do :
-     if i > 0 : print(o, ",")
-     print(o, e)
-  print-all(o, ")")
+  print("Contour(%,)" % [points(c)])
 
+public defn circle-n (d:Float, n:Int) -> Contour :
+  val r = 0.5f * d
+  val points = 
+    for i in 0 to n seq :
+      val a = to-float(i) * 2.0f * 3.1415f / to-float(n)
+      V2f(r * sin(a), r * cos(a))
+  Contour(to-tuple(points))
+
+public defn to-polygon (c:Contour) -> Polygon :
+  Polygon([c])
+
+;;; STROKE
+
+public defstruct Stroke <: Geom :
+  points: Tuple<V3f>
+
+defmethod print (o:OutputStream, c:Stroke) :
+  print("Stroke(%,)" % [points(c)])
 
 ;;; POLYGON
 
-public defstruct Polygon :
-  contours: List<Contour>
+public defstruct Polygon <: Geom :
+  contours: Tuple<Contour>
 
 defmethod print (o:OutputStream, c:Polygon) :
-  print("Polygon(")
-  for (e in contours(c), i in 0 to false) do :
-     if i > 0 : print(o, ",")
-     print(o, e)
-  print-all(o, ")")
+  print("Polygon(%,)" % [contours(c)])
 
 ;;; POLYLINE
 
-public defstruct PolyLine :
+public defstruct PolyLine <: Geom :
+  ;; strokes: Tuple<Stroke>
   strokes: Tuple<Tuple<V3f>>
 
 defmethod print (o:OutputStream, c:PolyLine) :
-  print-all(["PolyLine(" strokes(c) ")"])
+  print("PolyLine(%,)" % [strokes(c)])
 
 public defn bbox (p:PolyLine) -> Box :
   if length(strokes(p)) == 0 :
-    Box(V3f(0.0f, 0.0f), V3f(0.0f, 0.0f))
+    Box(V2f(0.0f, 0.0f), V2f(0.0f, 0.0f))
   else :
     val inf = 1.0e6f
     val empty-box = Box(V3f(inf, inf, inf), V3f((- inf), (- inf), (- inf)))
@@ -538,7 +573,7 @@ public defn center (p:PolyLine) -> PolyLine :
   
 public defn center-x (p:PolyLine) -> PolyLine :
   val ctr = center(bbox(p))
-  val res = for s in strokes(p) map : for v in s map : V3f(x(v) - x(ctr), y(v))
+  val res = for s in strokes(p) map : for v in s map : V2f(x(v) - x(ctr), y(v))
   ;; println-all(["CTR " ctr " IN " p " OUT " res])
   PolyLine(res)
 
@@ -554,7 +589,7 @@ public defn offset (p:PolyLine, off:V3f) -> PolyLine :
 
 ;;; MESH
  
-public defstruct Mesh :
+public defstruct Mesh <: Geom :
   vertices: Tuple<V3f>
   indices:  Tuple<V3i>
 
@@ -589,7 +624,7 @@ defmethod print (o:OutputStream, m:Mesh) :
 
 ;;; QUAT
 
-public lostanza deftype Quat <: Array<Float> :
+public lostanza deftype Quat <: Array<Float> & Geom :
   x: float
   y: float
   z: float
