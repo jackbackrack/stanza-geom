@@ -1,0 +1,56 @@
+;; See license.txt for details about licensing.
+
+defpackage geom-gfx:
+  import core
+  import math
+  import collections
+  import geom
+  import gl
+
+public defn gl-vertex3 (v:V3f) : gl-vertex3f(x(v), y(v), z(v))
+
+public defmulti render (g:Geom) -> False
+
+public defn compile (g:Geom) -> DisplayList :
+  val dl = gl-gen-list()
+  gl-new-list(dl, GL-COMPILE)
+  render(g)
+  gl-end-list(dl)
+  dl
+
+defmethod render (p:V3f) -> False :
+  gl-begin(GL-POINTS)
+  gl-vertex3(p)
+  gl-end()
+
+defmethod render (box:Box) -> False :
+  gl-begin(GL-LINE-LOOP)
+  gl-vertex3(lo(box))
+  gl-vertex3(hi(box))
+  gl-end()
+
+defmethod render (poly:PolyLine) -> False :
+  for s in strokes(poly) do :
+    gl-begin(GL-LINE-STRIP)
+    for p in s do :
+      gl-vertex3(p)
+    gl-end()
+
+defmethod render (contour:Contour) -> False :
+  gl-begin(GL-LINE-LOOP)
+  for p in points(contour) do :
+    gl-vertex3(p)
+  gl-end()
+
+defmethod render (poly:Polygon) -> False :
+  for c in contours(poly) do :
+    render(c)
+
+defmethod render (mesh:Mesh) -> False :
+  for t in indices(mesh) do :
+    gl-begin(GL-LINE-LOOP)
+    gl-vertex3(vertices(mesh)[x(t)])
+    gl-vertex3(vertices(mesh)[y(t)])
+    gl-vertex3(vertices(mesh)[z(t)])
+    gl-end()
+
