@@ -433,7 +433,7 @@ public defn rot-mat44 (r:V3f, a:Float) -> Mat44 :
          m20,  m21,  m22, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f)
 
-public defn times (v:V3f, m:Mat44) -> V3f :
+public defn times (m:Mat44, v:V3f) -> V3f :
   val px = x(v) * m[0,0] + y(v) * m[1,0] + z(v) * m[2,0] + m[3,0]
   val py = x(v) * m[0,1] + y(v) * m[1,1] + z(v) * m[2,1] + m[3,1]
   val pz = x(v) * m[0,2] + y(v) * m[1,2] + z(v) * m[2,2] + m[3,2]
@@ -531,6 +531,9 @@ public defn circle-n (d:Float, n:Int) -> Contour :
 public defn to-polygon (c:Contour) -> Polygon :
   Polygon([c])
 
+public defn times (mat:Mat44, p:Contour) -> Contour :
+  Contour(for p in points(p) map : mat * p)
+
 ;;; STROKE
 
 public defstruct Stroke <: Geom :
@@ -539,6 +542,9 @@ public defstruct Stroke <: Geom :
 defmethod print (o:OutputStream, c:Stroke) :
   print("Stroke(%,)" % [points(c)])
 
+public defn times (mat:Mat44, p:Stroke) -> Stroke :
+  Stroke(for p in points(p) map : mat * p)
+
 ;;; POLYGON
 
 public defstruct Polygon <: Geom :
@@ -546,6 +552,9 @@ public defstruct Polygon <: Geom :
 
 defmethod print (o:OutputStream, c:Polygon) :
   print("Polygon(%,)" % [contours(c)])
+
+public defn times (mat:Mat44, p:Polygon) -> Polygon :
+  Polygon(for c in contours(p) map : mat * c)
 
 ;;; POLYLINE
 
@@ -565,27 +574,20 @@ public defn bbox (p:PolyLine) -> Box :
     val boxes = seq(reduce{union, empty-box, seq(Box, _)}, strokes(p))
     reduce(union, empty-box, boxes)
 
+public defn times (mat:Mat44, p:PolyLine) -> PolyLine :
+  PolyLine(for s in strokes(p) map : for v in s map : mat * v)
+
 public defn center (p:PolyLine) -> PolyLine :
-  val ctr = center(bbox(p))
-  val res = for s in strokes(p) map : map({ _ - ctr}, s)
-  ;; println-all(["CTR " ctr " IN " p " OUT " res])
-  PolyLine(res)
+  mov-mat44((- center(bbox(p)))) * p
   
 public defn center-x (p:PolyLine) -> PolyLine :
-  val ctr = center(bbox(p))
-  val res = for s in strokes(p) map : for v in s map : V2f(x(v) - x(ctr), y(v))
-  ;; println-all(["CTR " ctr " IN " p " OUT " res])
-  PolyLine(res)
+  mov-mat44(V2f((- x(center(bbox(p)))), 0.0f)) * p
 
 public defn mag (p:PolyLine, fac:V3f) -> PolyLine :
-  val res = for s in strokes(p) map : map({ _ * fac}, s)
-  ;; println-all(["CTR " ctr " IN " p " OUT " res])
-  PolyLine(res)
+  mag-mat44(fac) * p
 
 public defn offset (p:PolyLine, off:V3f) -> PolyLine :
-  val res = for s in strokes(p) map :
-    map(fn (e:V3f): off + e, s)
-  PolyLine(res)
+  mov-mat44(off) * p
 
 ;;; MESH
  
