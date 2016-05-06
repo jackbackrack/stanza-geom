@@ -1,0 +1,12 @@
+defpackage ao-gfx :
+  import core
+  import math
+  import collections
+  import ao
+  import gl
+  import geom-gfx
+
+defmethod render (tree:Tree) -> False :
+  ;; TODO MAKE PARAMETERIZABLE
+  render(tree-render-mesh(tree, -5.0, -5.0, -5.0, 5.0, 5.0, 5.0, 50.0))
+
