@@ -9,6 +9,8 @@ defpackage geom-gfx:
 
 public defn gl-vertex3 (v:V3f) : gl-vertex3f(x(v), y(v), z(v))
 
+public defn gl-vertex2 (v:V3f) : gl-vertex2f(x(v), y(v))
+
 public defmulti render (g:Geom) -> False
 
 public defn compile (g:Geom) -> DisplayList :
@@ -39,7 +41,7 @@ defmethod render (poly:PolyLine) -> False :
 defmethod render (contour:Contour) -> False :
   gl-begin(GL-LINE-LOOP)
   for p in points(contour) do :
-    gl-vertex3(p)
+    gl-vertex2(p)
   gl-end()
 
 defmethod render (poly:Polygon) -> False :
@@ -47,7 +49,7 @@ defmethod render (poly:Polygon) -> False :
     render(c)
 
 defmethod render (mesh:Mesh) -> False :
-  for t in indices(mesh) do :
+  for t in faces(mesh) do :
     gl-begin(GL-LINE-LOOP)
     gl-vertex3(vertices(mesh)[x(t)])
     gl-vertex3(vertices(mesh)[y(t)])

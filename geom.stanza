@@ -146,6 +146,9 @@ public lostanza deftype V3f <: Array<Float> & Geom :
 public lostanza defn V3f (x:ref<Float>, y:ref<Float>, z:ref<Float>) -> ref<V3f> :
   return new V3f{x.value, y.value, z.value}
 
+public defn V2f (x:Float, y:Float) -> V3f :
+  V3f(x, y, 0.0f)
+
 public lostanza defn x (v:ref<V3f>) -> ref<Float> :
   return new Float{v.x}
 
@@ -154,9 +157,6 @@ public lostanza defn y (v:ref<V3f>) -> ref<Float> :
 
 public lostanza defn z (v:ref<V3f>) -> ref<Float> :
   return new Float{v.z}
-
-public defn V2f (x:Float, y:Float) -> V3f :
-  V3f(x, y, 0.0f)
 
 public lostanza defn v3f-get (v:ref<V3f>, i:ref<Int>) -> ref<Float> :
   #if-not-defined(OPTIMIZE) :
@@ -186,6 +186,9 @@ public defn min (a:V3f) -> Float :
 
 public defn max (a:V3f) -> Float :
   max(x(a), max(y(a), z(a)))
+
+public defn abs (a:V3f) -> V3f :
+  V3f(abs(x(a)), abs(y(a)), abs(z(a)))
 
 public defn min (a:V3f, b:V3f) -> V3f :
   V3f(min(x(a), x(b)), min(y(a), y(b)), min(z(a), z(b)))
@@ -534,16 +537,21 @@ public defn to-polygon (c:Contour) -> Polygon :
 public defn times (mat:Mat44, p:Contour) -> Contour :
   Contour(for p in points(p) map : mat * p)
 
-;;; STROKE
+public defn segments (contour:Contour) -> Seq<[V3f, V3f]> :
+  val pts = points(contour)
+  for i in 0 to length(pts) seq :
+    [pts[i], pts[(i + 1) % length(pts)]]
 
-public defstruct Stroke <: Geom :
-  points: Tuple<V3f>
-
-defmethod print (o:OutputStream, c:Stroke) :
-  print("Stroke(%,)" % [points(c)])
-
-public defn times (mat:Mat44, p:Stroke) -> Stroke :
-  Stroke(for p in points(p) map : mat * p)
+;; ;;; STROKE
+;; 
+;; public defstruct Stroke <: Geom :
+;;   points: Tuple<V3f>
+;; 
+;; defmethod print (o:OutputStream, c:Stroke) :
+;;   print("Stroke(%,)" % [points(c)])
+;; 
+;; public defn times (mat:Mat44, p:Stroke) -> Stroke :
+;;   Stroke(for p in points(p) map : mat * p)
 
 ;;; POLYGON
 
@@ -555,6 +563,9 @@ defmethod print (o:OutputStream, c:Polygon) :
 
 public defn times (mat:Mat44, p:Polygon) -> Polygon :
   Polygon(for c in contours(p) map : mat * c)
+
+public defn segments (polygon:Polygon) -> Seq<[V3f, V3f]> :
+  cat-all(for c in contours(polygon) seq : segments(c))
 
 ;;; POLYLINE
 
@@ -581,7 +592,7 @@ public defn center (p:PolyLine) -> PolyLine :
   mov-mat44((- center(bbox(p)))) * p
   
 public defn center-x (p:PolyLine) -> PolyLine :
-  mov-mat44(V2f((- x(center(bbox(p)))), 0.0f)) * p
+  mov-mat44(V3f((- x(center(bbox(p)))), 0.0f, 0.0f)) * p
 
 public defn mag (p:PolyLine, fac:V3f) -> PolyLine :
   mag-mat44(fac) * p
@@ -589,22 +600,28 @@ public defn mag (p:PolyLine, fac:V3f) -> PolyLine :
 public defn offset (p:PolyLine, off:V3f) -> PolyLine :
   mov-mat44(off) * p
 
+public defn segments (polyline:PolyLine) -> Seq<[V3f, V3f]> :
+  generate<[V3f, V3f]> :
+    for s in strokes(polyline) do :
+      for i in 0 to (length(s) - 1) do :
+        yield([s[i], s[i + 1]])
+
 ;;; MESH
  
 public defstruct Mesh <: Geom :
   vertices: Tuple<V3f>
-  indices:  Tuple<V3i>
+  faces:    Tuple<V3i>
 
 defmethod print (o:OutputStream, m:Mesh) :
-  print-all(o, ["Mesh(" vertices(m) "," indices(m) ")"])
+  print-all(o, ["Mesh(" vertices(m) "," faces(m) ")"])
 
 ;; ;; public defn triangulate (p: Polygon) :
 ;; ;;   val vertices = Vector<V3f>()
-;; ;;   val indices  = Vector<Int>()
+;; ;;   val faces  = Vector<Int>()
 ;; ;; 
 ;; ;;   defn vertex-callback (index: Int) :
 ;; ;;     ;; println("Vertex Callback")
-;; ;;     add(indices, index)
+;; ;;     add(faces, index)
 ;; ;; 
 ;; ;;   defn combine-callback (x:Float, y:Float, z:Float) -> Int :
 ;; ;;     ;; println("Combine Callback")
@@ -622,7 +639,7 @@ defmethod print (o:OutputStream, m:Mesh) :
 ;; ;;     call-c(triangulator_end_contour, tess-ptr)
 ;; ;;   call-c(triangulator_end_polygon, tess-ptr)
 ;; ;; 
-;; ;;   Mesh(vertices, indices)
+;; ;;   Mesh(vertices, faces)
 
 ;;; QUAT
 
