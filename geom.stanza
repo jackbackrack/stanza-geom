@@ -382,7 +382,7 @@ public defn mag-mat44 (s:V3f) -> Mat44 :
   Mat44(x(s), 0.0f, 0.0f, 0.0f,
         0.0f, y(s), 0.0f, 0.0f,
         0.0f, 0.0f, z(s), 0.0f,
-        1.0f, 1.0f, 1.0f, 1.0f)
+        0.0f, 0.0f, 0.0f, 1.0f)
 
 public defn mov-mat44 (t:V3f) -> Mat44 :
   Mat44( 1.0f, 0.0f, 0.0f, 0.0f,

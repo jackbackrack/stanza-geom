@@ -7,6 +7,7 @@ defpackage ao-eval :
    import eval
    import ao
    import glu
+   import font
 
 public defn eval-ao (s:String) -> Geom :
   val forms = read-all(s)
@@ -15,8 +16,8 @@ public defn eval-ao (s:String) -> Geom :
 
 ;;; TODO: TEMPORARY CHECKING UNTIL REPL MODE IMPLEMENTED IN COMPILER
 
-val VecFieldT = Type(`VecField, fn (x) : x is VecField, fn (x): x as VecField)
-add-binding(top-env, `VecField, VecFieldT)
+val Vec3FieldT = Type(`Vec3Field, fn (x) : x is Vec3Field, fn (x): x as Vec3Field)
+add-binding(top-env, `Vec3Field, Vec3FieldT)
 val FloFieldT = Type(`FloField, fn (x) : x is FloField, fn (x): x as FloField)
 add-binding(top-env, `FloField, FloFieldT)
 val FloFieldThunkT = Type(`FloFieldThunk, fn (x) : x is (() -> FloField), fn (x): x as (() -> FloField))
@@ -73,6 +74,9 @@ public defn geom-eval-top-env () :
   add-binding(top-env, `triangulate, triangulate)
   add-binding(top-env, `circle-n, circle-n)
   add-binding(top-env, `to-polygon, to-polygon)
+  add-binding(top-env, `*font*, *font*)
+  add-binding(top-env, `get-glyph, get-glyph)
+  add-binding(top-env, `polyline, polyline)
 
 public defn ao-eval-top-env () :
   geom-eval-top-env()
@@ -83,8 +87,8 @@ public defn ao-eval-top-env () :
   add-binding(top-env, `x, checked-function(fab-x, []))
   add-binding(top-env, `y, checked-function(fab-y, []))
   add-binding(top-env, `z, checked-function(fab-z, []))
-  add-binding(top-env, `VecField, checked-function(VecField, [FloFieldT, FloFieldT, FloFieldT]))
-  add-binding(top-env, `V2n, checked-function(V2n, [FloFieldT, FloFieldT]))
+  add-binding(top-env, `Vec3Field, checked-function(Vec3Field, [FloFieldT, FloFieldT, FloFieldT]))
+  add-binding(top-env, `Vec2Field, checked-function(Vec2Field, [FloFieldT, FloFieldT]))
   add-binding(top-env, `diff, checked-function(difference, [FloFieldT, FloFieldT]))
   add-binding(top-env, `bit-and, checked-function(bit-and, [FloFieldT, FloFieldT]))
   add-binding(top-env, `bit-or, checked-function(bit-or, [FloFieldT, FloFieldT]))
@@ -112,8 +116,8 @@ public defn ao-eval-top-env () :
   add-binding(top-env, `to-field2, to-field2)
   add-binding(top-env, `convex, convex)
   add-binding(top-env, `cube, checked-function(cube, [FloFieldT]))
-  add-binding(top-env, `box, checked-function(box, [VecFieldT]))
-  add-binding(top-env, `round-box, checked-function(round-box, [VecFieldT, FloFieldT]))
+  add-binding(top-env, `box, checked-function(box, [Vec3FieldT]))
+  add-binding(top-env, `round-box, checked-function(round-box, [Vec3FieldT, FloFieldT]))
   add-binding(top-env, `sphere, checked-function(sphere, [FloFieldT]))
   add-binding(top-env, `mov, checked-function(move, [FloFieldT, FloFieldT, FloFieldT, FloFieldThunkT]))
   add-binding(top-env, `mov-x, checked-function(move-x, [FloFieldT, FloFieldThunkT]))
@@ -145,8 +149,9 @@ public defn ao-eval-top-env () :
   add-binding(top-env, `extrude, checked-function(extrude-z, [FloFieldT, FloFieldT]))
   add-binding(top-env, `cyl, checked-function(cylinder-z, [FloFieldT, FloFieldT]))
   add-binding(top-env, `capsule-z, checked-function(capsule-z, [FloFieldT, FloFieldT]))
-  add-binding(top-env, `capsule, checked-function(capsule, [VecFieldT, VecFieldT, FloFieldT]))
+  add-binding(top-env, `capsule, checked-function(capsule, [Vec3FieldT, Vec3FieldT, FloFieldT]))
   add-binding(top-env, `thicken, thicken)
   add-binding(top-env, `cone, checked-function(cone-z, [FloFieldT, FloFieldT]))
   add-binding(top-env, `pyr, checked-function(pyramid-z, [FloFieldT, FloFieldT]))
   add-binding(top-env, `torus, checked-function(torus-z, [FloFieldT, FloFieldT]))
+

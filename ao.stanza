@@ -3,6 +3,7 @@ defpackage ao :
   import math
   import collections
   import geom
+  import font
 
 extern store_new: () -> ptr<?>
 extern store_delete: (ptr<?>) -> int
@@ -153,110 +154,110 @@ public defn clamp (n:FloField, mn:FloField, mx:FloField) -> FloField :
 
 public val pi = 3.1414
 
-public deftype VecField
-public defmulti x (v:VecField) -> FloField
-public defmulti y (v:VecField) -> FloField
-public defmulti z (v:VecField) -> FloField
+public deftype Vec3Field
+public defmulti x (v:Vec3Field) -> FloField
+public defmulti y (v:Vec3Field) -> FloField
+public defmulti z (v:Vec3Field) -> FloField
 
-public defn VecField (x:FloField, y:FloField, z:FloField) :
-  new VecField :
+public defn Vec3Field (x:FloField, y:FloField, z:FloField) :
+  new Vec3Field :
     defmethod x (this) : x
     defmethod y (this) : y
     defmethod z (this) : z
 
-public defn VecField (n:FloField) -> VecField :
-  VecField(n, n, n)
+public defn Vec3Field (n:FloField) -> Vec3Field :
+  Vec3Field(n, n, n)
 
-defmethod print (o:OutputStream, v:VecField) :
-  print(o, "VecField(%_, %_, %_)" % [x(v), y(v), z(v)])
+defmethod print (o:OutputStream, v:Vec3Field) :
+  print(o, "Vec3Field(%_, %_, %_)" % [x(v), y(v), z(v)])
 
-public deftype V2n <: VecField
+public deftype Vec2Field <: Vec3Field
 
-public defn V2n (x:FloField, y:FloField) :
-  new V2n :
+public defn Vec2Field (x:FloField, y:FloField) :
+  new Vec2Field :
     defmethod x (this) : x
     defmethod y (this) : y
     defmethod z (this) : lit(0.0)
 
-defmethod print (o:OutputStream, v:V2n) :
-  print(o, "V2n(%_, %_)" % [x(v), y(v)])
+defmethod print (o:OutputStream, v:Vec2Field) :
+  print(o, "Vec2Field(%_, %_)" % [x(v), y(v)])
 
-public defn V2n (n:FloField) -> V2n :
-  V2n(n, n)
+public defn Vec2Field (n:FloField) -> Vec2Field :
+  Vec2Field(n, n)
 
-public defn xy (v:VecField) -> V2n :
-  V2n(x(v), y(v))
+public defn xy (v:Vec3Field) -> Vec2Field :
+  Vec2Field(x(v), y(v))
 
-public defn yz (v:VecField) -> V2n :
-  V2n(y(v), z(v))
+public defn yz (v:Vec3Field) -> Vec2Field :
+  Vec2Field(y(v), z(v))
 
-public defn xz (v:VecField) -> V2n :
-  V2n(x(v), z(v))
+public defn xz (v:Vec3Field) -> Vec2Field :
+  Vec2Field(x(v), z(v))
 
-public defn abs (a:VecField) -> VecField :
-  VecField(abs(x(a)), abs(y(a)), abs(z(a)))
+public defn abs (a:Vec3Field) -> Vec3Field :
+  Vec3Field(abs(x(a)), abs(y(a)), abs(z(a)))
 
-public defn max (a:VecField, b:FloField) -> VecField :
-  VecField(max(x(a), b), max(y(a), b), max(z(a), b))
+public defn max (a:Vec3Field, b:FloField) -> Vec3Field :
+  Vec3Field(max(x(a), b), max(y(a), b), max(z(a), b))
 
-public defn plus (a:VecField, b:VecField) -> VecField :
-  VecField(x(a) + x(b), y(a) + y(b), z(a) + z(b))
+public defn plus (a:Vec3Field, b:Vec3Field) -> Vec3Field :
+  Vec3Field(x(a) + x(b), y(a) + y(b), z(a) + z(b))
 
-public defn minus (a:VecField, b:VecField) -> VecField :
-  VecField(x(a) - x(b), y(a) - y(b), z(a) - z(b))
+public defn minus (a:Vec3Field, b:Vec3Field) -> Vec3Field :
+  Vec3Field(x(a) - x(b), y(a) - y(b), z(a) - z(b))
 
-public defn negate (a:VecField) -> VecField :
-  VecField((- x(a)), (- y(a)), (- z(a)))
+public defn negate (a:Vec3Field) -> Vec3Field :
+  Vec3Field((- x(a)), (- y(a)), (- z(a)))
 
-public defn times (s:FloField, v:VecField) -> VecField :
-  VecField(s * x(v), s * y(v), s * z(v))
+public defn times (s:FloField, v:Vec3Field) -> Vec3Field :
+  Vec3Field(s * x(v), s * y(v), s * z(v))
 
-public defn times (a:VecField, b:VecField) -> VecField :
-  VecField(x(a) * x(b), y(a) * y(b), z(a) * z(b))
+public defn times (a:Vec3Field, b:Vec3Field) -> Vec3Field :
+  Vec3Field(x(a) * x(b), y(a) * y(b), z(a) * z(b))
 
-public defn dot (a:VecField, b:VecField) -> FloField :
+public defn dot (a:Vec3Field, b:Vec3Field) -> FloField :
   x(a) * x(b) + y(a) * y(b) + z(a) * z(b)
 
-public defn len (v:VecField) -> FloField :
+public defn len (v:Vec3Field) -> FloField :
   sqrt(dot(v, v))
 
-public defn normalize (v:VecField) -> VecField :
+public defn normalize (v:Vec3Field) -> Vec3Field :
   v / len(v)
 
-public defn divide (a:VecField, b:FloField) -> VecField :
-  VecField(x(a) / b, y(a) / b, z(a) / b)
+public defn divide (a:Vec3Field, b:FloField) -> Vec3Field :
+  Vec3Field(x(a) / b, y(a) / b, z(a) / b)
 
-public defn divide (a:VecField, b:VecField) -> VecField :
-  VecField(x(a) / x(b), y(a) / y(b), z(a) / z(b))
+public defn divide (a:Vec3Field, b:Vec3Field) -> Vec3Field :
+  Vec3Field(x(a) / x(b), y(a) / y(b), z(a) / z(b))
 
-public defn modulo (a:VecField, b:VecField) -> VecField :
-  VecField(y(a) * z(b) - z(a) * y(b),
+public defn modulo (a:Vec3Field, b:Vec3Field) -> Vec3Field :
+  Vec3Field(y(a) * z(b) - z(a) * y(b),
       z(a) * x(b) - x(a) * z(b),
       x(a) * y(b) - y(a) * x(b))
 
-var *pt* = VecField(fab-x(), fab-y(), fab-z())
+var *pt* = Vec3Field(fab-x(), fab-y(), fab-z())
 
-public defn pt () -> VecField : *pt*
+public defn pt () -> Vec3Field : *pt*
 public defn x () -> FloField : x(pt())
 public defn y () -> FloField : y(pt())
 public defn z () -> FloField : z(pt())
 
-public defn with-xyz (npt:VecField, f:()->FloField) -> FloField :
+public defn with-xyz (npt:Vec3Field, f:()->FloField) -> FloField :
   let-var *pt* = npt :
     f()
 
 public defn with-xyz (nx:FloField, ny:FloField, nz:FloField, f:()->FloField) -> FloField :
-  with-xyz(VecField(nx, ny, nz), f)
+  with-xyz(Vec3Field(nx, ny, nz), f)
 
-public defn move (dp:VecField, f:()->FloField) -> FloField :
+public defn move (dp:Vec3Field, f:()->FloField) -> FloField :
   with-xyz(pt() - dp, f)
 
 ;; public defn move (dx:FloField, dy:FloField, f:()->FloField) -> FloField :
 ;;   move(dx, dy, lit(0.0), f)
 
-public defn move-x (dx:FloField, f:() -> FloField) -> FloField : move(VecField(dx, lit(0.0), lit(0.0)), f)
-public defn move-y (dy:FloField, f:() -> FloField) -> FloField : move(VecField(lit(0.0), dy, lit(0.0)), f)
-public defn move-z (dz:FloField, f:() -> FloField) -> FloField : move(VecField(lit(0.0), lit(0.0), dz), f)
+public defn move-x (dx:FloField, f:() -> FloField) -> FloField : move(Vec3Field(dx, lit(0.0), lit(0.0)), f)
+public defn move-y (dy:FloField, f:() -> FloField) -> FloField : move(Vec3Field(lit(0.0), dy, lit(0.0)), f)
+public defn move-z (dz:FloField, f:() -> FloField) -> FloField : move(Vec3Field(lit(0.0), lit(0.0), dz), f)
 
 public defn rotate-x (a:FloField, s:()->FloField) -> FloField :
   val [ca, sa] = [cos(a), sin(a)]
@@ -288,7 +289,7 @@ public defn reflect-xz (s:()->FloField) -> FloField :
 public defn reflect-yz (s:()->FloField) -> FloField :
   with-xyz(x(), z(), y(), s)
 
-public defn scale (fac:VecField, s:()->FloField) -> FloField :
+public defn scale (fac:Vec3Field, s:()->FloField) -> FloField :
   with-xyz(pt() / fac, s)
 
 public defn scale1 (sa:FloField, s:()->FloField) -> FloField :
@@ -388,33 +389,33 @@ public defn rect (w:FloField, h:FloField) -> FloField :
 public defn square (d:FloField) -> FloField :
   rect(d, d)
 
-public defn edge (v0:V2n, v1:V2n) -> FloField :
+public defn edge (v0:Vec2Field, v1:Vec2Field) -> FloField :
   (y(v1) - y(v0)) * (x() - x(v0)) - (x(v1) - x(v0)) * (y() - y(v0))
 
-public defn convex (pts:Tuple<V2n>) -> FloField :
+public defn convex (pts:Tuple<Vec2Field>) -> FloField :
   val edges = for i in 0 to length(pts) seq :
                 edge(pts[i], pts[(i + 1) % length(pts)])
   reduce(fn (a:FloField, b:FloField): max(a, b), edges)
 
-public defn to-field (v:V3f) -> VecField :
-  VecField(lit(x(v)), lit(y(v)), lit(z(v)))
+public defn to-field (v:V3f) -> Vec3Field :
+  Vec3Field(lit(x(v)), lit(y(v)), lit(z(v)))
 
-public defn to-field2 (v:V3f) -> V2n :
-  V2n(lit(x(v)), lit(y(v)))
+public defn to-field2 (v:V3f) -> Vec2Field :
+  Vec2Field(lit(x(v)), lit(y(v)))
 
-public defn to-field2 (segment:[V3f, V3f]) -> [V2n, V2n] :
+public defn to-field2 (segment:[V3f, V3f]) -> [Vec2Field, Vec2Field] :
   [to-field2(segment[0]), to-field2(segment[1])]
 
-public defn to-field (segment:[V3f, V3f]) -> [VecField, VecField] :
+public defn to-field (segment:[V3f, V3f]) -> [Vec3Field, Vec3Field] :
   [to-field(segment[0]), to-field(segment[1])]
 
-public defn to-field2 (contour:Contour) -> Seq<[V2n, V2n]> :
+public defn to-field2 (contour:Contour) -> Seq<[Vec2Field, Vec2Field]> :
   for s in segments(contour) seq : to-field2(s)
 
-public defn to-field (p:PolyLine) -> Seq<[VecField, VecField]> :
+public defn to-field (p:PolyLine) -> Seq<[Vec3Field, Vec3Field]> :
   for s in segments(p) seq : to-field(s)
 
-public defn to-field2 (p:PolyLine) -> Seq<[V2n, V2n]> :
+public defn to-field2 (p:PolyLine) -> Seq<[Vec2Field, Vec2Field]> :
   for s in segments(p) seq : to-field2(s)
 
 public defn to-field2 (m:Mesh) -> FloField :
@@ -422,7 +423,11 @@ public defn to-field2 (m:Mesh) -> FloField :
   union(for face in faces(m) seq :
           triangle(to-field2(verts[face[0]]), to-field2(verts[face[1]]), to-field2(verts[face[2]])))
 
-public defn triangle (a:V2n, b:V2n, c:V2n) -> FloField :
+public defn to-field2 (g:Glyph) -> Seq<[Vec2Field, Vec2Field]> :
+  println-all(["POLYLINE: " polyline(g)])
+  to-field2(polyline(g))
+
+public defn triangle (a:Vec2Field, b:Vec2Field, c:Vec2Field) -> FloField :
   convex([a, b, c])
 
 defn extrude-z (zmin:FloField, zmax:FloField, shape:FloField) -> FloField :
@@ -443,24 +448,24 @@ defn cube (w:FloField, h:FloField, d:FloField) -> FloField :
 public defn cube (d:FloField) -> FloField :
   cube(d, d, d)
 
-public defn box (dims:VecField) -> FloField :
+public defn box (dims:Vec3Field) -> FloField :
   val d = abs(pt()) - lit(0.5) * dims
   min(max(x(d),max(y(d),z(d))),lit(0.0)) + len(max(d,lit(0.0)))
 
-public defn round-box (dims:VecField, r:FloField) -> FloField :
+public defn round-box (dims:Vec3Field, r:FloField) -> FloField :
   len(max(abs(pt()) - lit(0.5) * dims, lit(0.0))) - r
 
 public defn cylinder-z (d:FloField, h:FloField) -> FloField :
   extrude-z(h, circle(d))
 
-public defn capsule (a:VecField, b:VecField, r:FloField) -> FloField :
-  val p = match(a): ((v:V2n) : xy(pt()) (v:VecField) : pt())
+public defn capsule (a:Vec3Field, b:Vec3Field, r:FloField) -> FloField :
+  val p = match(a): ((v:Vec2Field) : xy(pt()) (v:Vec3Field) : pt())
   val pa = p - a
   val ba = b - a
   val h  = clamp(dot(pa, ba) / dot(ba, ba), lit(0.0), lit(1.0))
   len(pa - h * ba) - r
 
-public defn thicken (segments:Seqable<[VecField, VecField]>, r:FloField) -> FloField :
+public defn thicken (segments:Seqable<[Vec3Field, Vec3Field]>, r:FloField) -> FloField :
   val caps = for [v0, v1] in segments seq : capsule(v0, v1, r)
   reduce(fn (a:FloField, b:FloField): a | b, caps)
 
@@ -475,11 +480,11 @@ public defn pyramid-z (d:FloField, h:FloField) -> FloField :
   taper-xy-z(h, lit(0.0), lit(1.0), {extrude-z(h, rect(d, d))})
 
 public defn torus-z (D:FloField, d:FloField) -> FloField :
-  len(V2n((D * lit(0.5)) - len(xy(pt())), z())) - (d * lit(0.5))
+  len(Vec2Field((D * lit(0.5)) - len(xy(pt())), z())) - (d * lit(0.5))
 
 public defn jit (f:() -> Geom) -> Geom :
   let-var *store* = new-store() :
-    let-var *pt* = VecField(fab-x(), fab-y(), fab-z()) :
+    let-var *pt* = Vec3Field(fab-x(), fab-y(), fab-z()) :
       val g = f()
       val res = 
         match(g) :
