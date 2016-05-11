@@ -131,6 +131,27 @@ public defn minus (a:V3i, b:V3i) -> V3i :
 public defn negate (a:V3i) -> V3i :
   V3i((- x(a)), (- y(a)), (- z(a)))
 
+;;; Interval 
+
+public lostanza deftype Interval <: Geom & Equalable :
+  lo: float
+  hi: float
+
+public lostanza defn Interval (lo:ref<Float>, hi:ref<Float>) -> ref<Interval> :
+  return new Interval{lo.value, hi.value}
+
+public lostanza defn lo (i:ref<Interval>) -> ref<Float> :
+  return new Float{i.lo}
+
+public lostanza defn hi (i:ref<Interval>) -> ref<Float> :
+  return new Float{i.hi}
+
+defmethod equal? (i1:Interval, i2:Interval) :
+  lo(i1) == lo(i2) and hi(i1) == hi(i2)
+
+defmethod print (o:OutputStream, i:Interval) :
+  print-all(o, ["Interval(", lo(i), ",", hi(i) ")"])
+
 ;;; V3f
 
 ;; public defstruct V3f <: Array<Float> :
@@ -311,11 +332,43 @@ public defn center (b:Box) -> V3f :
 public defn dims (b:Box) -> V3f :
   hi(b) - lo(b)
 
+public defn corners (b:Box) -> Tuple<V3f> :
+  val [l, h] = [lo(b), hi(b)]
+  [V3f(x(l), y(l), z(l)),
+   V3f(x(l), y(l), z(h)), 
+   V3f(x(l), y(h), z(l)), 
+   V3f(x(l), y(h), z(h)), 
+   V3f(x(h), y(l), z(l)), 
+   V3f(x(h), y(l), z(h)),
+   V3f(x(h), y(h), z(l)), 
+   V3f(x(h), y(h), z(h))]
+
+public defn dims-to-box (dims:V3f) -> Box :
+  val hdims = 0.5f * dims
+  Box((- hdims), hdims)
+
 public defn union (b:Box, v:V3f) -> Box :
   Box(min(lo(b), v), max(hi(b), v))
 
 public defn union (b0:Box, b1:Box) -> Box :
   Box(min(lo(b0), lo(b1)), max(hi(b0), hi(b1)))
+
+public defn bit-or (b0:Box, b1:Box) -> Box :
+  union(b0, b1)
+
+public defn bit-and (b0:Box, b1:Box) -> Box :
+  Box(max(lo(b0), lo(b1)), min(hi(b0), hi(b1)))
+
+public defn inf-box () -> Box:
+  val [min-inf, max-inf] = [FLOAT-MIN, FLOAT-MAX]
+  Box(V3f(min-inf, min-inf, min-inf), V3f(max-inf, max-inf, max-inf))
+
+public defn fatten (b:Box, r:Float) -> Box :
+  val rvec = r * V3f(1.0f, 1.0f, 1.0f)
+  Box(lo(b) - rvec, hi(b) + rvec)
+
+public defn times (mat:Mat44, b:Box) -> Box :
+  reduce(union, map(Box{ mat * _ }, corners(b)))
 
 ;;; MAT
 
@@ -372,11 +425,33 @@ defmethod print (o:OutputStream, m:Mat44) :
      print(o, m[i])
   print-all(o, ")")
 
+public defn reflect-xy-mat44 () -> Mat44 :
+  Mat44( 0.0f,  1.0f,  0.0f,  0.0f,
+         1.0f,  0.0f,  0.0f,  0.0f,
+         0.0f,  0.0f,  1.0f,  0.0f,
+         0.0f,  0.0f,  0.0f,  1.0f)
+ 
+public defn reflect-xz-mat44 () -> Mat44 :
+  Mat44( 0.0f,  0.0f,  1.0f,  0.0f,
+         0.0f,  1.0f,  0.0f,  0.0f,
+         1.0f,  0.0f,  0.0f,  0.0f,
+         0.0f,  0.0f,  0.0f,  1.0f)
+ 
+public defn reflect-yz-mat44 () -> Mat44 :
+  Mat44( 1.0f,  0.0f,  0.0f,  0.0f,
+         0.0f,  0.0f,  1.0f,  0.0f,
+         0.0f,  1.0f,  0.0f,  0.0f,
+         0.0f,  0.0f,  0.0f,  1.0f)
+ 
+public defn shear-x-y-mat44 (ymin:Float, ymax:Float, dx0:Float, dx1:Float) -> Mat44 :
+  ;; TODO
+  mag-mat44(1.0f)
+ 
 public defn mag-mat44 (s:Float) -> Mat44 :
-   Mat44(   s, 0.0f, 0.0f, 0.0f,
-         0.0f,    s, 0.0f, 0.0f,
-         0.0f, 0.0f,    s, 0.0f,
-         0.0f, 0.0f, 0.0f, 1.0f)
+  Mat44(   s, 0.0f, 0.0f, 0.0f,
+        0.0f,    s, 0.0f, 0.0f,
+        0.0f, 0.0f,    s, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f)
  
 public defn mag-mat44 (s:V3f) -> Mat44 :
   Mat44(x(s), 0.0f, 0.0f, 0.0f,
@@ -523,13 +598,13 @@ public defstruct Contour <: Geom :
 defmethod print (o:OutputStream, c:Contour) :
   print("Contour(%,)" % [points(c)])
 
-public defn circle-n (d:Float, n:Int) -> Contour :
+public defn circle-n (d:Float, n:Int) -> Polygon :
   val r = 0.5f * d
   val points = 
     for i in 0 to n seq :
       val a = to-float(i) * 2.0f * 3.1415f / to-float(n)
       V2f(r * sin(a), r * cos(a))
-  Contour(to-tuple(points))
+  to-polygon(Contour(to-tuple(points)))
 
 public defn to-polygon (c:Contour) -> Polygon :
   Polygon([c])
@@ -557,6 +632,9 @@ public defn segments (contour:Contour) -> Seq<[V3f, V3f]> :
 
 public defstruct Polygon <: Geom :
   contours: Tuple<Contour>
+
+public defn points (p:Polygon) -> Tuple<V3f> :
+  to-tuple $ cat-all(for c in contours(p) seq : points(c))
 
 defmethod print (o:OutputStream, c:Polygon) :
   print("Polygon(%,)" % [contours(c)])

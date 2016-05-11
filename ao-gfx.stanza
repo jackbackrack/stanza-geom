@@ -4,9 +4,12 @@ defpackage ao-gfx :
   import collections
   import ao
   import gl
+  import geom
   import geom-gfx
 
 defmethod render (tree:Tree) -> False :
   ;; TODO MAKE PARAMETERIZABLE
-  render(tree-render-mesh(tree, -5.0, -5.0, -5.0, 5.0, 5.0, 5.0, 50.0))
+  val mesh = tree-render-mesh(tree, -5.0, -5.0, -5.0, 5.0, 5.0, 5.0, 50.0)
+  println-all(["MESH: V = " length(vertices(mesh)) " F = " length(faces(mesh))])
+  render(mesh)
 

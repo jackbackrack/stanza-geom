@@ -2,6 +2,7 @@ defpackage ao :
   import core
   import math
   import collections
+  import utils
   import geom
   import font
 
@@ -13,6 +14,9 @@ extern token_z: (ptr<?>) -> ptr<?>
 extern token_const: (ptr<?>, float) -> ptr<?>
 extern token_unary: (ptr<?>, int, ptr<?>) -> ptr<?>
 extern token_binary: (ptr<?>, int, ptr<?>, ptr<?>) -> ptr<?>
+extern token_affine_vec: (ptr<?>, ptr<float>) -> int
+extern matrix_invert: (ptr<float>, ptr<float>, ptr<float>) -> int
+extern tree_eval_interval: (ptr<?>, ptr<float>, ptr<float>, ptr<float>) -> int
 extern opcode_enum: (ptr<?>) -> int
 extern tree_new: (ptr<?>, ptr<?>) -> ptr<?>
 extern tree_export_mesh: (ptr<?>, ptr<?>, float, float, float, float, float, float, float) -> ptr<?>
@@ -33,11 +37,39 @@ defmethod print (o:OutputStream, t:Tree) :
 public lostanza deftype Store :
   value: ptr<?>
 
-public lostanza deftype FloField <: Geom :
+lostanza deftype Node :
   value: ptr<?>
 
-defmethod print (o:OutputStream, t:FloField) :
-  print-all(o, ["FloField()"])
+defmethod print (o:OutputStream, t:Node) :
+  print-all(o, ["Node()"])
+
+public defstruct FloField :
+  node: Node
+  op: String
+  args: List
+
+defmethod print (s:OutputStream, f:FloField) :
+  print(s, "%_(%,)" % [op(f), args(f)])
+
+val $inf-box = Box(V3f(FLOAT-MIN, FLOAT-MIN, FLOAT-MIN), V3f(FLOAT-MAX, FLOAT-MAX, FLOAT-MAX))
+
+public deftype Shape <: Geom
+public defmulti fabber (s:Shape) -> ((Vec3Field) -> FloField)
+public defmulti bounds (s:Shape) -> Box
+
+public defn Shape (fabber:(Vec3Field) -> FloField, bounds:Box) :
+  new Shape :
+    defmethod fabber (this) : fabber
+    defmethod bounds (this) : bounds
+
+defmethod print (s:OutputStream, o:Shape) :
+  print-all(s, ["Shape(" bounds(o) ")"])
+
+defn fab (s:Shape, p:Vec3Field) -> FloField :
+  fabber(s)(p)
+
+public defn Shape (s:Shape, bounds:Box) :
+  Shape(fabber(s), bounds)
 
 public lostanza defn new-store () -> ref<Store> :
   return new Store{call-c store_new()}
@@ -46,8 +78,8 @@ public lostanza defn del (s:ref<Store>) -> ref<False> :
   call-c store_delete(s.value)
   return false
 
-public lostanza defn new-tree (s:ref<Store>, t:ref<FloField>) -> ref<Tree> :
-  return new Tree{call-c tree_new(s.value, t.value)}
+public lostanza defn new-tree (s:ref<Store>, r:ref<FloField>) -> ref<Tree> :
+  return new Tree{call-c tree_new(s.value, node(r).value)}
 
 public lostanza defn tree-export-mesh (t:ref<Tree>, filename:ref<String>, xmin:ref<Double>, ymin:ref<Double>, zmin:ref<Double>, xmax:ref<Double>, ymax:ref<Double>, zmax:ref<Double>, res:ref<Double>) -> ref<False> :
   call-c tree_export_mesh(t.value, addr!(filename.chars), xmin.value as float, xmax.value as float, ymin.value as float, ymax.value as float, zmin.value as float, zmax.value as float, res.value as float)
@@ -113,41 +145,43 @@ public var *store* = new-store()
 defn current-store () -> Store : *store*
 
 public lostanza defn fab-x () -> ref<FloField> :
-  return new FloField{call-c token_x(current-store().value)}
+  return FloField(new Node{call-c token_x(current-store().value)}, String("X"), List())
 public lostanza defn fab-y () -> ref<FloField> :
-  return new FloField{call-c token_y(current-store().value)}
+  return FloField(new Node{call-c token_y(current-store().value)}, String("Y"), List())
 public lostanza defn fab-z () -> ref<FloField> :
-  return new FloField{call-c token_z(current-store().value)}
+  return FloField(new Node{call-c token_z(current-store().value)}, String("Z"), List())
 public lostanza defn lit (f:ref<Float>) -> ref<FloField> :
-  return new FloField{call-c token_const(current-store().value, f.value)}
+  return FloField(new Node{call-c token_const(current-store().value, f.value)}, String("LIT"), List(f))
 public lostanza defn lit (f:ref<Double>) -> ref<FloField> :
   return lit(to-float(f))
-public lostanza defn unary (op:ref<Int>, t:ref<FloField>) -> ref<FloField> :
-  return new FloField{call-c token_unary(current-store().value, op.value, t.value)}
-public lostanza defn binary (op:ref<Int>, t1:ref<FloField>, t2:ref<FloField>) -> ref<FloField> :
-  return new FloField{call-c token_binary(current-store().value, op.value, t1.value, t2.value)}
-public lostanza defn op (name:ref<String>) -> ref<Int> :
+public lostanza defn opcode (name:ref<String>) -> ref<Int> :
   return new Int{call-c opcode_enum(addr!(name.chars))}
+public lostanza defn unary (op:ref<String>, t:ref<FloField>) -> ref<FloField> :
+  return FloField(new Node{call-c token_unary(current-store().value, opcode(op).value, node(t).value)}, op, List(t))
+public lostanza defn binary (op:ref<String>, t1:ref<FloField>, t2:ref<FloField>) -> ref<FloField> :
+  return FloField(new Node{call-c token_binary(current-store().value, opcode(op).value, node(t1).value, node(t2).value)}, op, List(t1, t2))
+public defn min-lit () : lit(FLOAT-MIN)
+public defn max-lit () : lit(FLOAT-MAX)
 
-public defn modulo (x:FloField, y:FloField) -> FloField : binary(op("mod"), x, y)
-public defn times (x:FloField, y:FloField) -> FloField : binary(op("mul"), x, y)
-public defn nan-fill (x:FloField, y:FloField) -> FloField : binary(op("nan-fill"), x, y)
-public defn min (x:FloField, y:FloField) -> FloField : binary(op("min"), x, y)
-public defn max (x:FloField, y:FloField) -> FloField : binary(op("max"), x, y)
-public defn divide (x:FloField, y:FloField) -> FloField : binary(op("div"), x, y)
-public defn plus (x:FloField, y:FloField) -> FloField : binary(op("add"), x, y)
-public defn minus (x:FloField, y:FloField) -> FloField : binary(op("sub"), x, y)
-public defn atan2 (x:FloField, y:FloField) -> FloField : binary(op("atan2"), x, y)
-public defn sqrt (x:FloField) -> FloField : unary(op("sqrt"), x)
-public defn sqr (x:FloField) -> FloField : unary(op("square"), x)
-public defn abs (x:FloField) -> FloField : unary(op("abs"), x)
-public defn sin (x:FloField) -> FloField : unary(op("sin"), x)
-public defn cos (x:FloField) -> FloField : unary(op("cos"), x)
-public defn tan (x:FloField) -> FloField : unary(op("tan"), x)
-public defn asin (x:FloField) -> FloField : unary(op("asin"), x)
-public defn acos (x:FloField) -> FloField : unary(op("acos"), x)
-public defn exp (x:FloField) -> FloField : unary(op("exp"), x)
-public defn negate (x:FloField) -> FloField : unary(op("neg"), x)
+public defn modulo (x:FloField, y:FloField) -> FloField : binary("mod", x, y)
+public defn times (x:FloField, y:FloField) -> FloField : binary("mul", x, y)
+public defn nan-fill (x:FloField, y:FloField) -> FloField : binary("nan-fill", x, y)
+public defn min (x:FloField, y:FloField) -> FloField : binary("min", x, y)
+public defn max (x:FloField, y:FloField) -> FloField : binary("max", x, y)
+public defn divide (x:FloField, y:FloField) -> FloField : binary("div", x, y)
+public defn plus (x:FloField, y:FloField) -> FloField : binary("add", x, y)
+public defn minus (x:FloField, y:FloField) -> FloField : binary("sub", x, y)
+public defn atan2 (x:FloField, y:FloField) -> FloField : binary("atan2", x, y)
+public defn sqrt (x:FloField) -> FloField : unary("sqrt", x)
+public defn sqr (x:FloField) -> FloField : unary("square", x)
+public defn abs (x:FloField) -> FloField : unary("abs", x)
+public defn sin (x:FloField) -> FloField : unary("sin", x)
+public defn cos (x:FloField) -> FloField : unary("cos", x)
+public defn tan (x:FloField) -> FloField : unary("tan", x)
+public defn asin (x:FloField) -> FloField : unary("asin", x)
+public defn acos (x:FloField) -> FloField : unary("acos", x)
+public defn exp (x:FloField) -> FloField : unary("exp", x)
+public defn negate (x:FloField) -> FloField : unary("neg", x)
 
 public defn clamp (n:FloField, mn:FloField, mx:FloField) -> FloField :
   min(mx, max(mn, n))
@@ -164,6 +198,9 @@ public defn Vec3Field (x:FloField, y:FloField, z:FloField) :
     defmethod x (this) : x
     defmethod y (this) : y
     defmethod z (this) : z
+
+public defn lit (v:V3f) -> Vec3Field :
+  Vec3Field(lit(x(v)), lit(y(v)), lit(z(v)))
 
 public defn Vec3Field (n:FloField) -> Vec3Field :
   Vec3Field(n, n, n)
@@ -199,6 +236,15 @@ public defn abs (a:Vec3Field) -> Vec3Field :
 
 public defn max (a:Vec3Field, b:FloField) -> Vec3Field :
   Vec3Field(max(x(a), b), max(y(a), b), max(z(a), b))
+
+public defn max (a:Vec3Field, b:Vec3Field) -> Vec3Field :
+  Vec3Field(max(x(a), x(b)), max(y(a), y(b)), max(z(a), z(b)))
+
+public defn min (a:Vec3Field, b:FloField) -> Vec3Field :
+  Vec3Field(min(x(a), b), min(y(a), b), min(z(a), b))
+
+public defn min (a:Vec3Field, b:Vec3Field) -> Vec3Field :
+  Vec3Field(min(x(a), x(b)), min(y(a), y(b)), min(z(a), z(b)))
 
 public defn plus (a:Vec3Field, b:Vec3Field) -> Vec3Field :
   Vec3Field(x(a) + x(b), y(a) + y(b), z(a) + z(b))
@@ -242,255 +288,303 @@ public defn x () -> FloField : x(pt())
 public defn y () -> FloField : y(pt())
 public defn z () -> FloField : z(pt())
 
-public defn with-xyz (npt:Vec3Field, f:()->FloField) -> FloField :
-  let-var *pt* = npt :
-    f()
+public defn with-xyz (mat:Mat44, f:(Vec3Field) -> Vec3Field, s:Shape) -> Shape :
+  Shape(fn (p): fab(s, f(p)), mat * bounds(s))
 
-public defn with-xyz (nx:FloField, ny:FloField, nz:FloField, f:()->FloField) -> FloField :
-  with-xyz(Vec3Field(nx, ny, nz), f)
+public defn move (dp:V3f, s:Shape) -> Shape :
+  with-xyz(mov-mat44(dp), fn (p): p - lit(dp), s)
 
-public defn move (dp:Vec3Field, f:()->FloField) -> FloField :
-  with-xyz(pt() - dp, f)
-
-;; public defn move (dx:FloField, dy:FloField, f:()->FloField) -> FloField :
+;; public defn move (dx:FloField, dy:FloField, f:Shape) -> FloField :
 ;;   move(dx, dy, lit(0.0), f)
 
-public defn move-x (dx:FloField, f:() -> FloField) -> FloField : move(Vec3Field(dx, lit(0.0), lit(0.0)), f)
-public defn move-y (dy:FloField, f:() -> FloField) -> FloField : move(Vec3Field(lit(0.0), dy, lit(0.0)), f)
-public defn move-z (dz:FloField, f:() -> FloField) -> FloField : move(Vec3Field(lit(0.0), lit(0.0), dz), f)
+public defn move-x (dx:Float, s:Shape) -> Shape : move(V3f(dx, 0.0f, 0.0f), s)
+public defn move-y (dy:Float, s:Shape) -> Shape : move(V3f(0.0f, dy, 0.0f), s)
+public defn move-z (dz:Float, s:Shape) -> Shape : move(V3f(0.0f, 0.0f, dz), s)
 
-public defn rotate-x (a:FloField, s:()->FloField) -> FloField :
+public defn rotate-x (a:Float, s:Shape) -> Shape :
   val [ca, sa] = [cos(a), sin(a)]
-  with-xyz(x(), ca * y() + sa * z(), (- sa) * y() + ca * z(), s)
+  with-xyz(rot-mat44(V3f(1.0f, 0.0f, 0.0f), a),
+           fn (p): Vec3Field(x(p), lit(ca) * y(p) + lit(sa) * z(p), lit((- sa)) * y(p) + lit(ca) * z(p)), s)
 
-public defn rotate-y (a:FloField, s:()->FloField) -> FloField :
+public defn rotate-y (a:Float, s:Shape) -> Shape :
   val [ca, sa] = [cos(a), sin(a)]
-  with-xyz(ca * x() + sa * z(), y(), (- sa) * x() + ca * z(), s)
+  with-xyz(rot-mat44(V3f(0.0f, 1.0f, 0.0f), a),
+           fn (p): Vec3Field(lit(ca) * x(p) + lit(sa) * z(p), y(p), lit((- sa)) * x(p) + lit(ca) * z(p)), s)
 
-public defn rotate-z (a:FloField, s:()->FloField) -> FloField :
+public defn rotate-z (a:Float, s:Shape) -> Shape :
   val [ca, sa] = [cos(a), sin(a)]
-  with-xyz(ca * x() + sa * y(), (- sa) * x() + ca * y(), z(), s)
+  with-xyz(rot-mat44(V3f(0.0f, 0.0f, 1.0f), a),
+           fn (p): Vec3Field(lit(ca) * x(p) + lit(sa) * y(p), lit((- sa)) * x(p) + lit(ca) * y(p), z(p)), s)
 
-public defn reflect-x (s:()->FloField) -> FloField :
-  with-xyz((- x()), y(), z(), s)
+public defn reflect-x (s:Shape) -> Shape :
+  with-xyz(mag-mat44(V3f(-1.0f, 1.0f, 1.0f)), fn (p): Vec3Field((- x(p)), y(p), z(p)), s)
 
-public defn reflect-y (s:()->FloField) -> FloField :
-  with-xyz(x(), (- y()), z(), s)
+public defn reflect-y (s:Shape) -> Shape :
+  with-xyz(mag-mat44(V3f( 1.0f,-1.0f, 1.0f)), fn (p): Vec3Field(x(p), (- y(p)), z(p)), s)
 
-public defn reflect-z (s:()->FloField) -> FloField :
-  with-xyz(x(), y(), (- z()), s)
+public defn reflect-z (s:Shape) -> Shape :
+  with-xyz(mag-mat44(V3f( 1.0f, 1.0f,-1.0f)), fn (p): Vec3Field(x(p), y(p), (- z(p))), s)
 
-public defn reflect-xy (s:()->FloField) -> FloField :
-  with-xyz(y(), x(), z(), s)
+public defn reflect-xy (s:Shape) -> Shape :
+  with-xyz(reflect-xy-mat44(), fn (p): Vec3Field(y(p), x(p), z(p)), s)
 
-public defn reflect-xz (s:()->FloField) -> FloField :
-  with-xyz(z(), y(), x(), s)
+public defn reflect-xz (s:Shape) -> Shape :
+  with-xyz(reflect-xz-mat44(), fn (p): Vec3Field(z(p), y(p), x(p)), s)
 
-public defn reflect-yz (s:()->FloField) -> FloField :
-  with-xyz(x(), z(), y(), s)
+public defn reflect-yz (s:Shape) -> Shape :
+  with-xyz(reflect-yz-mat44(), fn (p): Vec3Field(x(p), z(p), y(p)), s)
 
-public defn scale (fac:Vec3Field, s:()->FloField) -> FloField :
-  with-xyz(pt() / fac, s)
+public defn scale (fac:Float, s:Shape) -> Shape :
+  with-xyz(mag-mat44(fac), fn (p): p / lit(fac), s)
 
-public defn scale1 (sa:FloField, s:()->FloField) -> FloField :
-  with-xyz(pt() / sa, s)
+public defn scale1 (sa:Float, s:Shape) -> Shape :
+  with-xyz(mag-mat44(sa), fn (p): p / lit(sa), s)
 
-public defn scale-x (sx:FloField, s:()->FloField) -> FloField :
-  with-xyz(x() / sx, y(), z(), s)
+public defn scale-x (sx:Float, s:Shape) -> Shape :
+  with-xyz(mag-mat44(V3f(sx, 1.0f, 1.0f)), fn (p): Vec3Field(x(p) / lit(sx), y(p), z(p)), s)
 
-public defn scale-y (sy:FloField, s:()->FloField) -> FloField :
-  with-xyz(x(), y() / sy, z(), s)
+public defn scale-y (sy:Float, s:Shape) -> Shape :
+  with-xyz(mag-mat44(V3f(1.0f, sy, 1.0f)), fn (p): Vec3Field(x(p), y(p) / lit(sy), z(p)), s)
 
-public defn scale-z (sz:FloField, s:()->FloField) -> FloField :
-  with-xyz(x(), y(), z() / sz, s)
+public defn scale-z (sz:Float, s:Shape) -> Shape :
+  with-xyz(mag-mat44(V3f(1.0f, 1.0f, sz)), fn (p): Vec3Field(x(p), y(p), z(p) / lit(sz)), s)
 
-defn shear-x-y (ymin:FloField, ymax:FloField, dx0:FloField, dx1:FloField, s:()->FloField) -> FloField :
-  val f = (y() - ymin) / (ymax - y())
-  with-xyz(x() - dx0 * (lit(1.0) - f) - dx1 * f, y(), z(), s)
+defn shear-x-y (ymin:Float, ymax:Float, dx0:Float, dx1:Float, s:Shape) -> Shape :
+  val f = (y() - lit(ymin)) / (lit(ymax) - y())
+  with-xyz(shear-x-y-mat44(ymin, ymax, dx0, dx1),
+           fn (p): Vec3Field(x(p) - lit(dx0) * (lit(1.0) - f) - lit(dx1) * f, y(p), z(p)), s)
 
-public defn shear-x-y (h:FloField, dx0:FloField, dx1:FloField, s:()->FloField) -> FloField :
+public defn shear-x-y (h:Float, dx0:Float, dx1:Float, s:Shape) -> Shape :
   shear-x-y(dim-min(h), dim-max(h), dx0, dx1, s)
 
-defn taper-x-y (ymin:FloField, ymax:FloField, s0:FloField, s1:FloField, s:()->FloField) -> FloField :
+defn taper-x-y (ymin:Float, ymax:Float, s0:Float, s1:Float, s:Shape) -> Shape :
   val dy = ymax - ymin
   val ds = s1 - s0
-  val sc = dy / ((s1 * (y() - ymin)) - (s0 * (y() - ymax)))
-  with-xyz(x() * sc, y(), z(), s)
+  val sc = lit(dy) / ((lit(s1) * (y() - lit(ymin))) - (lit(s0) * (y() - lit(ymax))))
+  with-xyz(mag-mat44(1.0f), fn (p): Vec3Field(x(p) * sc, y(p), z(p)), s)
 
-defn taper-xy-z (zmin:FloField, zmax:FloField, s0:FloField, s1:FloField, s:()->FloField) -> FloField :
+defn taper-xy-z (zmin:Float, zmax:Float, s0:Float, s1:Float, s:Shape) -> Shape :
   val dz = zmax - zmin
-  val sc = dz / ((s1 * (z() - zmin)) - (s0 * (z() - zmax)))
-  with-xyz(x() * sc, y() * sc, z(), s)
+  val sc = lit(dz) / ((lit(s1) * (z() - lit(zmin))) - (lit(s0) * (z() - lit(zmax))))
+  with-xyz(mag-mat44(1.0f), fn (p): Vec3Field(x(p) * sc, y(p) * sc, z(p)), s)
 
-public defn taper-xy-z (h:FloField, s0:FloField, s1:FloField, s:()->FloField) -> FloField :
+public defn taper-xy-z (h:Float, s0:Float, s1:Float, s:Shape) -> Shape :
   taper-xy-z(dim-min(h), dim-max(h), s0, s1, s)
 
-public defn revolve-y (s:()->FloField) -> FloField :
-  with-xyz(sqrt(sqr(x()) + sqr(z())), y(), z(), s)
+public defn revolve-y (s:Shape) -> Shape :
+  with-xyz(mag-mat44(1.0f), fn (p): Vec3Field(sqrt(sqr(x(p)) + sqr(z(p))), y(p), z(p)), s)
 
-public defn revolve-x (s:()->FloField) -> FloField :
-  with-xyz(x(), sqrt(sqr(y()) + sqr(z())), z(), s)
+public defn revolve-x (s:Shape) -> Shape :
+  with-xyz(mag-mat44(1.0f), fn (p): Vec3Field(x(p), sqrt(sqr(y(p)) + sqr(z(p))), z(p)), s)
 
-public defn circle (d:FloField) -> FloField :
-  len(xy(pt())) - (d * lit(0.5))
+public defn circle (d:Float) -> Shape :
+  val r = d * 0.5f
+  Shape(fn (p): len(xy(p)) - lit(r), Box(V3f((- r), (- r), FLOAT-MIN), V3f(r, r, FLOAT-MAX)))
 
 ;; public defn circle (x:FloField, y:FloField, r:FloField) -> FloField :
 ;;   move(x, y, {circle(r)})
 
-public defn sphere (d:FloField) -> FloField :
-  len(pt()) - (d * lit(0.5))
+public defn sphere (d:Float) -> Shape :
+  val r = d * 0.5f
+  Shape(fn (p): len(p) - lit(r), Box(V3f((- r), (- r), (- r)), V3f(r, r, r)))
 
 ;; public defn sphere (x:FloField, y:FloField, z:FloField, r:FloField) -> FloField :
 ;;   move(x, y, z, {circle(r)})
 
-public defn bit-or (a:FloField, b:FloField) -> FloField :
-  min(a, b)
+public defn bit-or (a:Shape, b:Shape) -> Shape :
+  Shape(fn (p): min(fab(a, p), fab(b, p)), bounds(a) | bounds(b))
 
-public defn union (args:Seqable<FloField>) -> FloField :
+public defn union (args:Seqable<Shape>) -> Shape :
   reduce(bit-or, args)
 
-public defn bit-and (a:FloField, b:FloField) -> FloField :
-  max(a, b)
+public defn bit-and (a:Shape, b:Shape) -> Shape :
+  Shape(fn (p): max(fab(a, p), fab(b, p)), bounds(a) & bounds(b))
 
-public defn intersection (args:Seqable<FloField>) -> FloField :
+public defn intersection (args:Seqable<Shape>) -> Shape :
   reduce(bit-and, args)
 
-public defn difference (a:FloField, b:FloField) -> FloField :
-  max(a, (- b))
+public defn invert (s:Shape) -> Shape :
+  Shape(fn (p): (- fab(s, p)), $inf-box)
 
-public defn difference (a:FloField, args:Seqable<FloField>) -> FloField :
-  difference(a, union(args))
+public defn rem (a:Shape, b:Shape) -> Shape :
+  Shape(a & invert(b), $inf-box)
 
-public defn offset (s:FloField, o:FloField) -> FloField : s - o
+public defn rem (a:Shape, args:Seqable<Shape>) -> Shape :
+  rem(a, union(args))
+
+public defn offset (s:Shape, o:Float) -> Shape :
+  Shape(fn (p): fab(s, p) - lit(o), fatten(bounds(s), o))
   
-public defn clearance (a:FloField, b:FloField, o:FloField) -> FloField :
-  max(a, (- offset(b, o)))
+public defn clearance (a:Shape, b:Shape, o:Float) -> Shape :
+  Shape(a & invert(offset(b, o)), $inf-box)
   
-public defn shell (s:FloField, o:FloField) -> FloField :
+public defn shell (s:Shape, o:Float) -> Shape :
   clearance(s, s, o)
   
-public defn blend (a:FloField, b:FloField, m:FloField) -> FloField :
+public defn blend (a:Shape, b:Shape, m:FloField) -> Shape :
   val joint = a | b
-  val fillet = sqrt(abs(a) + sqrt(abs(b))) - m
+  val fillet = Shape(fn (p): sqrt(abs(fab(a, p)) + sqrt(abs(fab(b, p)))) - m, $inf-box)
   joint | fillet
   
-public defn morph (a:FloField, b:FloField, m:FloField) -> FloField :
-  a * (lit(1.0) - m) + b * m
+public defn morph (a:Shape, b:Shape, m:FloField) -> Shape :
+  Shape(fn (p): fab(a, p) * (lit(1.0) - m) + fab(b, p) * m, bounds(a) | bounds(b))
   
-defn rect (xmin:FloField, ymin:FloField, xmax:FloField, ymax:FloField) -> FloField :
-  max(max(xmin - x(), x() - xmax), max(ymin - y(), y() - ymax))
+defn rect (xmin:Float, ymin:Float, xmax:Float, ymax:Float) -> Shape :
+  val b = Box(V3f(xmin, ymin, FLOAT-MIN), V3f(xmax, ymax, FLOAT-MAX))
+  Shape(fn (p): max(max(lit(xmin) - x(p), x(p) - lit(xmax)), max(lit(ymin) - y(p), y(p) - lit(ymax))),
+        Box(V3f(xmin, ymin, FLOAT-MIN), V3f(xmax, ymax, FLOAT-MAX)))
 
-public defn dim-min (d:FloField) -> FloField : d * lit(-0.5)
-public defn dim-max (d:FloField) -> FloField : d * lit(0.5)
+public defn dim-min (d:Float) -> Float : d * -0.5f
+public defn dim-max (d:Float) -> Float : d *  0.5f
 
-public defn rect (w:FloField, h:FloField) -> FloField :
+public defn rect (w:Float, h:Float) -> Shape :
   rect(dim-min(w), dim-min(h), dim-max(w), dim-max(h))
 
-public defn square (d:FloField) -> FloField :
+public defn square (d:Float) -> Shape :
   rect(d, d)
 
-public defn edge (v0:Vec2Field, v1:Vec2Field) -> FloField :
-  (y(v1) - y(v0)) * (x() - x(v0)) - (x(v1) - x(v0)) * (y() - y(v0))
+public defn edge (v0:V3f, v1:V3f) -> Shape :
+  Shape(fn (p): lit(y(v1) - y(v0)) * (x(p) - lit(x(v0))) - lit(x(v1) - x(v0)) * (y(p) - lit(y(v0))),
+        Box(v0) | Box(v1))
 
-public defn convex (pts:Tuple<Vec2Field>) -> FloField :
+public defn convex (pts:Tuple<V3f>) -> Shape :
   val edges = for i in 0 to length(pts) seq :
                 edge(pts[i], pts[(i + 1) % length(pts)])
-  reduce(fn (a:FloField, b:FloField): max(a, b), edges)
+  reduce(fn (a:Shape, b:Shape): a | b, edges)
 
-public defn to-field (v:V3f) -> Vec3Field :
-  Vec3Field(lit(x(v)), lit(y(v)), lit(z(v)))
-
-public defn to-field2 (v:V3f) -> Vec2Field :
-  Vec2Field(lit(x(v)), lit(y(v)))
-
-public defn to-field2 (segment:[V3f, V3f]) -> [Vec2Field, Vec2Field] :
-  [to-field2(segment[0]), to-field2(segment[1])]
-
-public defn to-field (segment:[V3f, V3f]) -> [Vec3Field, Vec3Field] :
-  [to-field(segment[0]), to-field(segment[1])]
-
-public defn to-field2 (contour:Contour) -> Seq<[Vec2Field, Vec2Field]> :
-  for s in segments(contour) seq : to-field2(s)
-
-public defn to-field (p:PolyLine) -> Seq<[Vec3Field, Vec3Field]> :
-  for s in segments(p) seq : to-field(s)
-
-public defn to-field2 (p:PolyLine) -> Seq<[Vec2Field, Vec2Field]> :
-  for s in segments(p) seq : to-field2(s)
-
-public defn to-field2 (m:Mesh) -> FloField :
+public defn to-field2 (m:Mesh) -> Shape :
   val verts = vertices(m)
   union(for face in faces(m) seq :
-          triangle(to-field2(verts[face[0]]), to-field2(verts[face[1]]), to-field2(verts[face[2]])))
+          triangle(verts[face[0]], verts[face[1]], verts[face[2]]))
 
-public defn to-field2 (g:Glyph) -> Seq<[Vec2Field, Vec2Field]> :
-  println-all(["POLYLINE: " polyline(g)])
-  to-field2(polyline(g))
-
-public defn triangle (a:Vec2Field, b:Vec2Field, c:Vec2Field) -> FloField :
+public defn triangle (a:V3f, b:V3f, c:V3f) -> Shape :
   convex([a, b, c])
 
-defn extrude-z (zmin:FloField, zmax:FloField, shape:FloField) -> FloField :
-   max(shape, max(zmin - z(), z() - zmax))
+defn extrude-z (zmin:Float, zmax:Float, shape:Shape) -> Shape :
+  val b = bounds(shape)
+  Shape(fn (p): max(fab(shape, p), max(lit(zmin) - z(p), z(p) - lit(zmax))),
+        Box(V3f(x(lo(b)), y(lo(b)), zmin), V3f(x(hi(b)), y(hi(b)), zmax)))
 
-public defn extrude-z (h:FloField, shape:FloField) -> FloField :
+public defn extrude-z (h:Float, shape:Shape) -> Shape :
   extrude-z(dim-min(h), dim-max(h), shape)
 
 ;;; DEPRECATE
-defn cube (xmin:FloField, ymin:FloField, zmin:FloField, xmax:FloField, ymax:FloField, zmax:FloField) -> FloField :
+defn cube (xmin:Float, ymin:Float, zmin:Float, xmax:Float, ymax:Float, zmax:Float) -> Shape :
   extrude-z(zmin, zmax, rect(xmin, ymin, xmax, ymax))
 
 ;;; DEPRECATE
-defn cube (w:FloField, h:FloField, d:FloField) -> FloField :
+defn cube (w:Float, h:Float, d:Float) -> Shape :
   cube(dim-min(w), dim-min(h), dim-min(d), dim-max(w), dim-max(h), dim-max(d))
 
-;;; DEPRECATE
-public defn cube (d:FloField) -> FloField :
+public defn cube (d:Float) -> Shape :
   cube(d, d, d)
 
-public defn box (dims:Vec3Field) -> FloField :
-  val d = abs(pt()) - lit(0.5) * dims
-  min(max(x(d),max(y(d),z(d))),lit(0.0)) + len(max(d,lit(0.0)))
+public defn box (dims:V3f) -> Shape :
+  defn fab (p) :
+    val d = abs(p) - lit(0.5f * dims)
+    min(max(x(d),max(y(d),z(d))),lit(0.0)) + len(max(d,lit(0.0)))  
+  Shape(fab, dims-to-box(dims))
 
-public defn round-box (dims:Vec3Field, r:FloField) -> FloField :
-  len(max(abs(pt()) - lit(0.5) * dims, lit(0.0))) - r
+public defn round-box (dims:V3f, r:Float) -> Shape :
+  Shape(fn (p): len(max(abs(p) - lit(0.5) * lit(dims), lit(0.0))) - lit(r), dims-to-box(dims))
 
-public defn cylinder-z (d:FloField, h:FloField) -> FloField :
+public defn cylinder-z (d:Float, h:Float) -> Shape :
   extrude-z(h, circle(d))
 
-public defn capsule (a:Vec3Field, b:Vec3Field, r:FloField) -> FloField :
-  val p = match(a): ((v:Vec2Field) : xy(pt()) (v:Vec3Field) : pt())
-  val pa = p - a
-  val ba = b - a
-  val h  = clamp(dot(pa, ba) / dot(ba, ba), lit(0.0), lit(1.0))
-  len(pa - h * ba) - r
+public defn capsule (a:V3f, b:V3f, d:Float) -> Shape :
+  val r  = 0.5f * d
+  defn fab (p) :
+    val pa = p - lit(a)
+    val ba = b - a
+    val h  = clamp(dot(pa, lit(ba)) / lit(dot(ba, ba)), lit(0.0), lit(1.0))
+    len(pa - h * lit(ba)) - lit(r)
+  Shape(fab, fatten(Box(a, a) | Box(b, b), r))
 
-public defn thicken (segments:Seqable<[Vec3Field, Vec3Field]>, r:FloField) -> FloField :
-  val caps = for [v0, v1] in segments seq : capsule(v0, v1, r)
-  reduce(fn (a:FloField, b:FloField): a | b, caps)
+public defn capsule2 (a:V3f, b:V3f, d:Float) -> Shape :
+  val r  = 0.5f * d
+  defn fab (p) :
+    val pa = xy(p) - lit(a)
+    val ba = b - a
+    val h  = clamp(dot(pa, lit(ba)) / lit(dot(ba, ba)), lit(0.0), lit(1.0))
+    len(pa - h * lit(ba)) - lit(r)
+  Shape(fab, fatten(Box(a, a) | Box(b, b), r))
 
-public defn capsule-z (d:FloField, h:FloField) -> FloField :
-  val r = lit(0.5) * h
-  cylinder-z(d, h) | move-z(r, { sphere(d) }) | move-z((- r), { sphere(d) })
+public defn thicken (segments:Seqable<[V3f, V3f]>, d:Float) -> Shape :
+  val caps = for [v0, v1] in segments seq : capsule(v0, v1, d)
+  reduce(fn (a:Shape, b:Shape): a | b, caps)
 
-public defn cone-z (d:FloField, h:FloField) -> FloField :
-  taper-xy-z(h, lit(1.0), lit(0.0), {cylinder-z(d, h)})
+public defn widen (segments:Seqable<[V3f, V3f]>, d:Float) -> Shape :
+  val caps = for [v0, v1] in segments seq : capsule2(v0, v1, d)
+  reduce(fn (a:Shape, b:Shape): a | b, caps)
 
-public defn pyramid-z (d:FloField, h:FloField) -> FloField :
-  taper-xy-z(h, lit(0.0), lit(1.0), {extrude-z(h, rect(d, d))})
+public defn capsule-z (d:Float, h:Float) -> Shape :
+  val r = 0.5f * h
+  cylinder-z(d, h) | move-z(r, sphere(d)) | move-z((- r), sphere(d))
 
-public defn torus-z (D:FloField, d:FloField) -> FloField :
-  len(Vec2Field((D * lit(0.5)) - len(xy(pt())), z())) - (d * lit(0.5))
+public defn cone-z (d:Float, h:Float) -> Shape :
+  Shape(taper-xy-z(h, 1.0f, 0.0f, cylinder-z(d, h)),
+        dims-to-box(V3f(d, d, h)))
 
-public defn jit (f:() -> Geom) -> Geom :
+public defn pyramid-z (d:Float, h:Float) -> Shape :
+  Shape(taper-xy-z(h, 0.0f, 1.0f, extrude-z(h, rect(d, d))),
+        dims-to-box(V3f(d, d, h)))
+
+public defn torus-z (D:Float, d:Float) -> Shape :
+  Shape(fn (p): len(Vec2Field(lit(D * 0.5f) - len(xy(p)), z())) - lit(d * 0.5f),
+        dims-to-box(V3f(D + d, D + d, d)))
+
+;; public deftype FillField <: Shape
+;; public defn FillField (a:Float) :
+;;   new FillField :
+;;     defmethod node (this) : node
+;;     defmethod bounds (this) : xxx
+;; 
+;; public deftype PercentField <: Shape
+;; public defmulti percent (l:Percent) -> Float
+;; public defn PercentField (p:Float, c:Shape) :
+;;   new PercentField :
+;;     defmethod percent (this) : p
+;;     defmethod node (this) : node(c)
+;;     defmethod bounds (this) : xxx
+;; 
+;; defn percentages-remainder (shapes:IndexedCollection<Shape>) -> Float :
+;;   var tot = 100.0f
+;;   var n   = length(shapes)
+;;   for (shape in shapes, i in 0 to false) do :
+;;     match(child) :
+;;       (p:Percent) :
+;;         tot = tot - percent(p)
+;;         n   = n - 1
+;;       (o:Lay) : n = n
+;;   tot / to-float(n)
+;; 
+;; defn percent-of (l:Shape, default:Float) -> Float :
+;;   match(l) :
+;;     (p:Percent) : percent(p)
+;;     (o:Shape) :   default
+;; 
+;; public deftype YBox <: Shape
+;; public defn YBox (shapes:Tuple<Shape>) :
+;;   new YBox :
+;;     defmethod bounds (this) : ...
+;;     defmethod node (this) :
+;;       val rem = percentages-remainder(this)
+;;       var tot-fac = 0.0f
+;;       val children = 
+;;         for (child in shapes, i in 0 to false) seq :
+;;           val now-fac = percent-of(child, rem) / 100.0f
+;;           val now-h   = now-fac * h
+;;           mov-y(h / 2.0f - (tot-fac + now-fac / 2.0f) * h, child)
+;;           tot-fac = tot-fac + now-fac
+
+public defn jit (g:Geom) -> Geom :
   let-var *store* = new-store() :
-    let-var *pt* = Vec3Field(fab-x(), fab-y(), fab-z()) :
-      val g = f()
-      val res = 
-        match(g) :
-          (root:FloField) :
-            new-tree(*store*, root)
-          (geom) : geom
-      del(*store*)
-      res
-
+    val res = 
+      match(g) :
+        (root:Shape) :
+          val e = fab(root, Vec3Field(fab-x(), fab-y(), fab-z()))
+          println-all(["E = " e])
+          new-tree(*store*, e)
+        (geom) : geom
+    del(*store*)
+    res
