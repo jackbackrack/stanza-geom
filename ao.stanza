@@ -3,6 +3,7 @@ defpackage ao :
   import math
   import collections
   import utils
+  import glu
   import geom
   import font
 
@@ -291,27 +292,27 @@ public defn z () -> FloField : z(pt())
 public defn with-xyz (mat:Mat44, f:(Vec3Field) -> Vec3Field, s:Shape) -> Shape :
   Shape(fn (p): fab(s, f(p)), mat * bounds(s))
 
-public defn move (dp:V3f, s:Shape) -> Shape :
+public defn mov (dp:V3f, s:Shape) -> Shape :
   with-xyz(mov-mat44(dp), fn (p): p - lit(dp), s)
 
-;; public defn move (dx:FloField, dy:FloField, f:Shape) -> FloField :
-;;   move(dx, dy, lit(0.0), f)
+;; public defn mov (dx:FloField, dy:FloField, f:Shape) -> FloField :
+;;   mov(dx, dy, lit(0.0), f)
 
-public defn move-x (dx:Float, s:Shape) -> Shape : move(V3f(dx, 0.0f, 0.0f), s)
-public defn move-y (dy:Float, s:Shape) -> Shape : move(V3f(0.0f, dy, 0.0f), s)
-public defn move-z (dz:Float, s:Shape) -> Shape : move(V3f(0.0f, 0.0f, dz), s)
+public defn mov-x (dx:Float, s:Shape) -> Shape : mov(V3f(dx, 0.0f, 0.0f), s)
+public defn mov-y (dy:Float, s:Shape) -> Shape : mov(V3f(0.0f, dy, 0.0f), s)
+public defn mov-z (dz:Float, s:Shape) -> Shape : mov(V3f(0.0f, 0.0f, dz), s)
 
-public defn rotate-x (a:Float, s:Shape) -> Shape :
+public defn rot-x (a:Float, s:Shape) -> Shape :
   val [ca, sa] = [cos(a), sin(a)]
   with-xyz(rot-mat44(V3f(1.0f, 0.0f, 0.0f), a),
            fn (p): Vec3Field(x(p), lit(ca) * y(p) + lit(sa) * z(p), lit((- sa)) * y(p) + lit(ca) * z(p)), s)
 
-public defn rotate-y (a:Float, s:Shape) -> Shape :
+public defn rot-y (a:Float, s:Shape) -> Shape :
   val [ca, sa] = [cos(a), sin(a)]
   with-xyz(rot-mat44(V3f(0.0f, 1.0f, 0.0f), a),
            fn (p): Vec3Field(lit(ca) * x(p) + lit(sa) * z(p), y(p), lit((- sa)) * x(p) + lit(ca) * z(p)), s)
 
-public defn rotate-z (a:Float, s:Shape) -> Shape :
+public defn rot-z (a:Float, s:Shape) -> Shape :
   val [ca, sa] = [cos(a), sin(a)]
   with-xyz(rot-mat44(V3f(0.0f, 0.0f, 1.0f), a),
            fn (p): Vec3Field(lit(ca) * x(p) + lit(sa) * y(p), lit((- sa)) * x(p) + lit(ca) * y(p), z(p)), s)
@@ -334,19 +335,19 @@ public defn reflect-xz (s:Shape) -> Shape :
 public defn reflect-yz (s:Shape) -> Shape :
   with-xyz(reflect-yz-mat44(), fn (p): Vec3Field(x(p), z(p), y(p)), s)
 
-public defn scale (fac:Float, s:Shape) -> Shape :
+public defn mag (fac:Float, s:Shape) -> Shape :
   with-xyz(mag-mat44(fac), fn (p): p / lit(fac), s)
 
-public defn scale1 (sa:Float, s:Shape) -> Shape :
+public defn mag1 (sa:Float, s:Shape) -> Shape :
   with-xyz(mag-mat44(sa), fn (p): p / lit(sa), s)
 
-public defn scale-x (sx:Float, s:Shape) -> Shape :
+public defn mag-x (sx:Float, s:Shape) -> Shape :
   with-xyz(mag-mat44(V3f(sx, 1.0f, 1.0f)), fn (p): Vec3Field(x(p) / lit(sx), y(p), z(p)), s)
 
-public defn scale-y (sy:Float, s:Shape) -> Shape :
+public defn mag-y (sy:Float, s:Shape) -> Shape :
   with-xyz(mag-mat44(V3f(1.0f, sy, 1.0f)), fn (p): Vec3Field(x(p), y(p) / lit(sy), z(p)), s)
 
-public defn scale-z (sz:Float, s:Shape) -> Shape :
+public defn mag-z (sz:Float, s:Shape) -> Shape :
   with-xyz(mag-mat44(V3f(1.0f, 1.0f, sz)), fn (p): Vec3Field(x(p), y(p), z(p) / lit(sz)), s)
 
 defn shear-x-y (ymin:Float, ymax:Float, dx0:Float, dx1:Float, s:Shape) -> Shape :
@@ -382,14 +383,14 @@ public defn circle (d:Float) -> Shape :
   Shape(fn (p): len(xy(p)) - lit(r), Box(V3f((- r), (- r), FLOAT-MIN), V3f(r, r, FLOAT-MAX)))
 
 ;; public defn circle (x:FloField, y:FloField, r:FloField) -> FloField :
-;;   move(x, y, {circle(r)})
+;;   mov(x, y, {circle(r)})
 
 public defn sphere (d:Float) -> Shape :
   val r = d * 0.5f
   Shape(fn (p): len(p) - lit(r), Box(V3f((- r), (- r), (- r)), V3f(r, r, r)))
 
 ;; public defn sphere (x:FloField, y:FloField, z:FloField, r:FloField) -> FloField :
-;;   move(x, y, z, {circle(r)})
+;;   mov(x, y, z, {circle(r)})
 
 public defn bit-or (a:Shape, b:Shape) -> Shape :
   Shape(fn (p): min(fab(a, p), fab(b, p)), bounds(a) | bounds(b))
@@ -457,20 +458,23 @@ public defn to-field2 (m:Mesh) -> Shape :
   union(for face in faces(m) seq :
           triangle(verts[face[0]], verts[face[1]], verts[face[2]]))
 
+public defn to-field2 (p:Polygon) -> Shape :
+  to-field2(triangulate(p))
+
 public defn triangle (a:V3f, b:V3f, c:V3f) -> Shape :
   convex([a, b, c])
 
-defn extrude-z (zmin:Float, zmax:Float, shape:Shape) -> Shape :
+defn extrude (zmin:Float, zmax:Float, shape:Shape) -> Shape :
   val b = bounds(shape)
   Shape(fn (p): max(fab(shape, p), max(lit(zmin) - z(p), z(p) - lit(zmax))),
         Box(V3f(x(lo(b)), y(lo(b)), zmin), V3f(x(hi(b)), y(hi(b)), zmax)))
 
-public defn extrude-z (h:Float, shape:Shape) -> Shape :
-  extrude-z(dim-min(h), dim-max(h), shape)
+public defn extrude (h:Float, shape:Shape) -> Shape :
+  extrude(dim-min(h), dim-max(h), shape)
 
 ;;; DEPRECATE
 defn cube (xmin:Float, ymin:Float, zmin:Float, xmax:Float, ymax:Float, zmax:Float) -> Shape :
-  extrude-z(zmin, zmax, rect(xmin, ymin, xmax, ymax))
+  extrude(zmin, zmax, rect(xmin, ymin, xmax, ymax))
 
 ;;; DEPRECATE
 defn cube (w:Float, h:Float, d:Float) -> Shape :
@@ -488,8 +492,8 @@ public defn box (dims:V3f) -> Shape :
 public defn round-box (dims:V3f, r:Float) -> Shape :
   Shape(fn (p): len(max(abs(p) - lit(0.5) * lit(dims), lit(0.0))) - lit(r), dims-to-box(dims))
 
-public defn cylinder-z (d:Float, h:Float) -> Shape :
-  extrude-z(h, circle(d))
+public defn cylinder (d:Float, h:Float) -> Shape :
+  extrude(h, circle(d))
 
 public defn capsule (a:V3f, b:V3f, d:Float) -> Shape :
   val r  = 0.5f * d
@@ -517,19 +521,19 @@ public defn widen (segments:Seqable<[V3f, V3f]>, d:Float) -> Shape :
   val caps = for [v0, v1] in segments seq : capsule2(v0, v1, d)
   reduce(fn (a:Shape, b:Shape): a | b, caps)
 
-public defn capsule-z (d:Float, h:Float) -> Shape :
+public defn capsule (d:Float, h:Float) -> Shape :
   val r = 0.5f * h
-  cylinder-z(d, h) | move-z(r, sphere(d)) | move-z((- r), sphere(d))
+  cylinder(d, h) | mov-z(r, sphere(d)) | mov-z((- r), sphere(d))
 
-public defn cone-z (d:Float, h:Float) -> Shape :
-  Shape(taper-xy-z(h, 1.0f, 0.0f, cylinder-z(d, h)),
+public defn cone (d:Float, h:Float) -> Shape :
+  Shape(taper-xy-z(h, 1.0f, 0.0f, cylinder(d, h)),
         dims-to-box(V3f(d, d, h)))
 
-public defn pyramid-z (d:Float, h:Float) -> Shape :
-  Shape(taper-xy-z(h, 0.0f, 1.0f, extrude-z(h, rect(d, d))),
+public defn pyramid (d:Float, h:Float) -> Shape :
+  Shape(taper-xy-z(h, 0.0f, 1.0f, extrude(h, rect(d, d))),
         dims-to-box(V3f(d, d, h)))
 
-public defn torus-z (D:Float, d:Float) -> Shape :
+public defn torus (D:Float, d:Float) -> Shape :
   Shape(fn (p): len(Vec2Field(lit(D * 0.5f) - len(xy(p)), z())) - lit(d * 0.5f),
         dims-to-box(V3f(D + d, D + d, d)))
 
