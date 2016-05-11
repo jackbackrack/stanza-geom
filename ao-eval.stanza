@@ -12,7 +12,6 @@ defpackage ao-eval :
 public defn eval-ao (s:String) -> Geom :
   val forms = read-all(s)
   val es = unwrap-all(parse(forms))
-  ;; jit({ eval-begin(top-env, es) } )
   jit(eval-begin(top-env, es))
 
 ;;; TODO: TEMPORARY CHECKING UNTIL REPL MODE IMPLEMENTED IN COMPILER

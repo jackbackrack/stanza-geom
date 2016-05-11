@@ -451,7 +451,7 @@ public defn edge (v0:V3f, v1:V3f) -> Shape :
 public defn convex (pts:Tuple<V3f>) -> Shape :
   val edges = for i in 0 to length(pts) seq :
                 edge(pts[i], pts[(i + 1) % length(pts)])
-  reduce(fn (a:Shape, b:Shape): a | b, edges)
+  reduce(fn (a:Shape, b:Shape): a & b, edges)
 
 public defn to-field2 (m:Mesh) -> Shape :
   val verts = vertices(m)
