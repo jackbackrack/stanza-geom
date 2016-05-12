@@ -558,22 +558,26 @@ public defn space-z (gdim:Float, shape:Shape) : mag1(gdim / z(dims(bounds(shape)
 
 public defn empty () -> Shape : Shape(lit{FLOAT-MAX}, $inf-box)
 
-defn boxit (shapes:Collection<Shape>, dim:(V3f) -> Float, mov:(Float, Shape) -> Shape) -> Shape :
+defn boxit (ishapes:Seqable<Shape>, dim:(V3f) -> Float, mov:(Float, Shape) -> Shape, dir:Float) -> Shape :
+  val shapes = to-tuple(ishapes)
   val tot = reduce(plus, for shape in shapes seq : dim(dims(bounds(shape))))
   var tot-fac = 0.0f
   val children = 
     generate<Shape> :
       for (child in shapes, i in 0 to false) do :
         val now-fac = dim(dims(bounds(child))) / tot
-        yield(mov(tot / 2.0f - (tot-fac + now-fac / 2.0f) * tot, child))
+        yield(mov(dir * (tot / 2.0f - (tot-fac + now-fac / 2.0f) * tot), child))
         tot-fac = tot-fac + now-fac
   union(children)
 
-public defn box-x (shapes:Collection<Shape>) -> Shape : boxit(shapes, x, mov-x)
+public defn box-x (shapes:Seqable<Shape>) -> Shape :
+  boxit(shapes, x, mov-x, -1.0f)
 
-public defn box-y (shapes:Collection<Shape>) -> Shape : boxit(shapes, y, mov-y)
+public defn box-y (shapes:Seqable<Shape>) -> Shape :
+  boxit(shapes, y, mov-y,  1.0f)
 
-public defn box-z (shapes:Collection<Shape>) -> Shape : boxit(shapes, z, mov-z)
+public defn box-z (shapes:Seqable<Shape>) -> Shape :
+  boxit(shapes, z, mov-z,  1.0f)
 
 public defn jit (g:Geom) -> Geom :
   let-var *store* = new-store() :
