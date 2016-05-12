@@ -441,6 +441,15 @@ public defn dim-max (d:Float) -> Float : d *  0.5f
 public defn rect (w:Float, h:Float) -> Shape :
   rect(dim-min(w), dim-min(h), dim-max(w), dim-max(h))
 
+defn to-degrees (a:Float) -> Float :
+  a * 180.0f / to-float(pi)
+
+public defn rect (v0:V3f, v1:V3f, d:Float) -> Shape :
+  val v = v1 - v0
+  val a = atan2(y(v),x(v))
+  println-all(["A = " to-degrees(a)])
+  mov(0.5f * (v0 + v1), rot-z(a, rect(magnitude(v) + d, d)))
+
 public defn square (d:Float) -> Shape :
   rect(d, d)
 
@@ -504,6 +513,10 @@ public defn capsule (a:V3f, b:V3f, d:Float) -> Shape :
     len(pa - h * lit(ba)) - lit(r)
   Shape(fab, fatten(Box(a, a) | Box(b, b), r))
 
+public defn capsule (d:Float, h:Float) -> Shape :
+  val r = 0.5f * h
+  cylinder(d, h) | mov-z(r, sphere(d)) | mov-z((- r), sphere(d))
+
 public defn capsule2 (a:V3f, b:V3f, d:Float) -> Shape :
   val r  = 0.5f * d
   defn fab (p) :
@@ -513,17 +526,12 @@ public defn capsule2 (a:V3f, b:V3f, d:Float) -> Shape :
     len(pa - h * lit(ba)) - lit(r)
   Shape(fab, fatten(Box(a, a) | Box(b, b), r))
 
-public defn thicken (segments:Seqable<[V3f, V3f]>, d:Float) -> Shape :
-  val caps = for [v0, v1] in segments seq : capsule(v0, v1, d)
+public defn thicken (segments:Seqable<[V3f, V3f]>, f:(V3f, V3f, Float) -> Shape, d:Float) -> Shape :
+  val caps = for [v0, v1] in segments seq : f(v0, v1, d)
   reduce(fn (a:Shape, b:Shape): a | b, caps)
 
-public defn widen (segments:Seqable<[V3f, V3f]>, d:Float) -> Shape :
-  val caps = for [v0, v1] in segments seq : capsule2(v0, v1, d)
-  reduce(fn (a:Shape, b:Shape): a | b, caps)
-
-public defn capsule (d:Float, h:Float) -> Shape :
-  val r = 0.5f * h
-  cylinder(d, h) | mov-z(r, sphere(d)) | mov-z((- r), sphere(d))
+public defn thicken (g:PolyLine|Contour|Polygon, f:(V3f, V3f, Float) -> Shape, d:Float) -> Shape :
+  thicken(segments(g), f, d)
 
 public defn cone (d:Float, h:Float) -> Shape :
   Shape(taper-xy-z(h, 1.0f, 0.0f, cylinder(d, h)),
@@ -537,49 +545,35 @@ public defn torus (D:Float, d:Float) -> Shape :
   Shape(fn (p): len(Vec2Field(lit(D * 0.5f) - len(xy(p)), z())) - lit(d * 0.5f),
         dims-to-box(V3f(D + d, D + d, d)))
 
-;; public deftype FillField <: Shape
-;; public defn FillField (a:Float) :
-;;   new FillField :
-;;     defmethod node (this) : node
-;;     defmethod bounds (this) : xxx
-;; 
-;; public deftype PercentField <: Shape
-;; public defmulti percent (l:Percent) -> Float
-;; public defn PercentField (p:Float, c:Shape) :
-;;   new PercentField :
-;;     defmethod percent (this) : p
-;;     defmethod node (this) : node(c)
-;;     defmethod bounds (this) : xxx
-;; 
-;; defn percentages-remainder (shapes:IndexedCollection<Shape>) -> Float :
-;;   var tot = 100.0f
-;;   var n   = length(shapes)
-;;   for (shape in shapes, i in 0 to false) do :
-;;     match(child) :
-;;       (p:Percent) :
-;;         tot = tot - percent(p)
-;;         n   = n - 1
-;;       (o:Lay) : n = n
-;;   tot / to-float(n)
-;; 
-;; defn percent-of (l:Shape, default:Float) -> Float :
-;;   match(l) :
-;;     (p:Percent) : percent(p)
-;;     (o:Shape) :   default
-;; 
-;; public deftype YBox <: Shape
-;; public defn YBox (shapes:Tuple<Shape>) :
-;;   new YBox :
-;;     defmethod bounds (this) : ...
-;;     defmethod node (this) :
-;;       val rem = percentages-remainder(this)
-;;       var tot-fac = 0.0f
-;;       val children = 
-;;         for (child in shapes, i in 0 to false) seq :
-;;           val now-fac = percent-of(child, rem) / 100.0f
-;;           val now-h   = now-fac * h
-;;           mov-y(h / 2.0f - (tot-fac + now-fac / 2.0f) * h, child)
-;;           tot-fac = tot-fac + now-fac
+public defn space (gdims:V3f, shape:Shape) :
+  val gratio = gdims / dims(bounds(shape))
+  val fac    = min(gratio)
+  mag1(fac, shape)
+
+public defn space-x (gdim:Float, shape:Shape) : mag1(gdim / x(dims(bounds(shape))), shape)
+
+public defn space-y (gdim:Float, shape:Shape) : mag1(gdim / y(dims(bounds(shape))), shape)
+
+public defn space-z (gdim:Float, shape:Shape) : mag1(gdim / z(dims(bounds(shape))), shape)
+
+public defn empty () -> Shape : Shape(lit{FLOAT-MAX}, $inf-box)
+
+defn boxit (shapes:Collection<Shape>, dim:(V3f) -> Float, mov:(Float, Shape) -> Shape) -> Shape :
+  val tot = reduce(plus, for shape in shapes seq : dim(dims(bounds(shape))))
+  var tot-fac = 0.0f
+  val children = 
+    generate<Shape> :
+      for (child in shapes, i in 0 to false) do :
+        val now-fac = dim(dims(bounds(child))) / tot
+        yield(mov(tot / 2.0f - (tot-fac + now-fac / 2.0f) * tot, child))
+        tot-fac = tot-fac + now-fac
+  union(children)
+
+public defn box-x (shapes:Collection<Shape>) -> Shape : boxit(shapes, x, mov-x)
+
+public defn box-y (shapes:Collection<Shape>) -> Shape : boxit(shapes, y, mov-y)
+
+public defn box-z (shapes:Collection<Shape>) -> Shape : boxit(shapes, z, mov-z)
 
 public defn jit (g:Geom) -> Geom :
   let-var *store* = new-store() :

@@ -217,11 +217,14 @@ public defn min (a:V3f, b:V3f) -> V3f :
 public defn max (a:V3f, b:V3f) -> V3f :
   V3f(max(x(a), x(b)), max(y(a), y(b)), max(z(a), z(b)))
 
-public defn len (a:V3f) -> Float :
+public defn magnitude (a:V3f) -> Float :
   sqrt(dot(a, a))
 
+public defn distance (v0:V3f, v1:V3f) -> Float :
+  magnitude(v1 - v0)
+
 public defn normalize (a:V3f) -> V3f :
-  a / len(a)
+  a / magnitude(a)
 
 public defn times (a:Float, b:V3f) -> V3f :
   V3f(a * x(b), a * y(b), a * z(b))
@@ -231,6 +234,9 @@ public defn times (a:V3f, b:V3f) -> V3f :
 
 public defn divide (a:V3f, b:Float) -> V3f :
   V3f(x(a) / b, y(a) / b, z(a) / b)
+
+public defn divide (a:V3f, b:V3f) -> V3f :
+  V3f(x(a) / x(b), y(a) / y(b), z(a) / z(b))
 
 public defn plus (a:V3f, b:V3f) -> V3f :
   V3f(x(a) + x(b), y(a) + y(b), z(a) + z(b))
@@ -510,6 +516,14 @@ public defn rot-mat44 (r:V3f, a:Float) -> Mat44 :
          m10,  m11,  m12, 0.0f,
          m20,  m21,  m22, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f)
+
+public defn rot2-mat44 (from:V3f, to:V3f) -> Mat44 :
+  val a = atan2(y(to), x(to)) - atan2(y(from), x(from))
+  val [c, s] = [cos(a), sin(a)]
+  Mat44(    c    s 0.0f 0.0f
+        (- s)    c 0.0f 0.0f
+         0.0f 0.0f 1.0f 0.0f
+         0.0f 0.0f 0.0f 1.0f)
 
 public defn times (m:Mat44, v:V3f) -> V3f :
   val px = x(v) * m[0,0] + y(v) * m[1,0] + z(v) * m[2,0] + m[3,0]
@@ -798,7 +812,7 @@ public defn click (a:ArcBall, new-pt:V3f) :
 public defn drag (a:ArcBall, new-pt:V3f, new-rot:Quat) -> Quat :
   en-vec-set(a, map-to-sphere(a, new-pt))
   val perp = st-vec(a) % en-vec(a)
-  if len(perp) > epsilon :
+  if magnitude(perp) > epsilon :
     Quat(x(perp), y(perp), z(perp), dot(st-vec(a), en-vec(a)))
   else :
     Quat(0.0f, 0.0f, 0.0f, 0.0f)

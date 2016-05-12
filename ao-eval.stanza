@@ -12,7 +12,9 @@ defpackage ao-eval :
 public defn eval-ao (s:String) -> Geom :
   val forms = read-all(s)
   val es = unwrap-all(parse(forms))
-  jit(eval-begin(top-env, es))
+  val g  = eval-begin(top-env, es)
+  println-all(["G = " g])
+  jit(g)
 
 ;;; TODO: TEMPORARY CHECKING UNTIL REPL MODE IMPLEMENTED IN COMPILER
 
@@ -39,6 +41,7 @@ public defn geom-eval-top-env () :
   add-binding(top-env, `circle-n, circle-n)
   add-binding(top-env, `to-polygon, to-polygon)
   add-binding(top-env, `*font*, *font*)
+  add-binding(top-env, `font-3x3, font-3x3)
   add-binding(top-env, `get-glyph, get-glyph)
   add-binding(top-env, `polyline, polyline)
 
@@ -117,8 +120,16 @@ public defn ao-eval-top-env () :
   add-binding(top-env, `capsule, capsule)
   add-binding(top-env, `capsule2, capsule2)
   add-binding(top-env, `thicken, thicken)
-  ;; add-binding(top-env, `widen, widen)
   add-binding(top-env, `cone, cone)
   add-binding(top-env, `pyr, pyramid)
   add-binding(top-env, `torus, torus)
+  add-binding(top-env, `space, space)
+  add-binding(top-env, `space-x, space-x)
+  add-binding(top-env, `space-y, space-y)
+  add-binding(top-env, `space-z, space-z)
+  add-binding(top-env, `space-z, space-z)
+  add-binding(top-env, `box-x, box-x)
+  add-binding(top-env, `box-y, box-y)
+  add-binding(top-env, `box-z, box-z)
+  add-binding(top-env, `empty, empty)
 
