@@ -302,17 +302,26 @@ public defn mov-x (dx:Float, s:Shape) -> Shape : mov(V3f(dx, 0.0f, 0.0f), s)
 public defn mov-y (dy:Float, s:Shape) -> Shape : mov(V3f(0.0f, dy, 0.0f), s)
 public defn mov-z (dz:Float, s:Shape) -> Shape : mov(V3f(0.0f, 0.0f, dz), s)
 
-public defn rot-x (a:Float, s:Shape) -> Shape :
+public defn degrees-to-radians (d:Float) -> Float :
+  d * 180.0f / to-float(pi)
+
+public defn radians-to-degrees (a:Float) -> Float :
+  a * 180.0f / to-float(pi)
+
+public defn rot-x (d:Float, s:Shape) -> Shape :
+  val a = degrees-to-radians(d)
   val [ca, sa] = [cos(a), sin(a)]
   with-xyz(rot-mat44(V3f(1.0f, 0.0f, 0.0f), a),
            fn (p): Vec3Field(x(p), lit(ca) * y(p) + lit(sa) * z(p), lit((- sa)) * y(p) + lit(ca) * z(p)), s)
 
-public defn rot-y (a:Float, s:Shape) -> Shape :
+public defn rot-y (d:Float, s:Shape) -> Shape :
+  val a = degrees-to-radians(d)
   val [ca, sa] = [cos(a), sin(a)]
   with-xyz(rot-mat44(V3f(0.0f, 1.0f, 0.0f), a),
            fn (p): Vec3Field(lit(ca) * x(p) + lit(sa) * z(p), y(p), lit((- sa)) * x(p) + lit(ca) * z(p)), s)
 
-public defn rot-z (a:Float, s:Shape) -> Shape :
+public defn rot-z (d:Float, s:Shape) -> Shape :
+  val a = degrees-to-radians(d)
   val [ca, sa] = [cos(a), sin(a)]
   with-xyz(rot-mat44(V3f(0.0f, 0.0f, 1.0f), a),
            fn (p): Vec3Field(lit(ca) * x(p) + lit(sa) * y(p), lit((- sa)) * x(p) + lit(ca) * y(p), z(p)), s)
@@ -441,13 +450,9 @@ public defn dim-max (d:Float) -> Float : d *  0.5f
 public defn rect (w:Float, h:Float) -> Shape :
   rect(dim-min(w), dim-min(h), dim-max(w), dim-max(h))
 
-defn to-degrees (a:Float) -> Float :
-  a * 180.0f / to-float(pi)
-
 public defn rect (v0:V3f, v1:V3f, d:Float) -> Shape :
   val v = v1 - v0
   val a = atan2(y(v),x(v))
-  println-all(["A = " to-degrees(a)])
   mov(0.5f * (v0 + v1), rot-z(a, rect(magnitude(v) + d, d)))
 
 public defn square (d:Float) -> Shape :

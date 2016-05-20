@@ -11,9 +11,11 @@ defpackage ao-eval :
 
 public defn eval-ao (s:String) -> Geom :
   val forms = read-all(s)
+  println-all(["FORMS: " forms])
   val es = unwrap-all(parse(forms))
+  println-all(["EXP: "   es])
   val g  = eval-begin(top-env, es)
-  println-all(["G = " g])
+  println-all(["G: " g])
   jit(g)
 
 ;;; TODO: TEMPORARY CHECKING UNTIL REPL MODE IMPLEMENTED IN COMPILER
