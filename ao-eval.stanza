@@ -15,7 +15,7 @@ public defn eval-ao (s:String) -> Geom :
   val es = unwrap-all(parse(forms))
   println-all(["EXP: "   es])
   val g  = eval-begin(top-env, es)
-  println-all(["G: " g])
+  ;; println-all(["G: " g])
   jit(g)
 
 ;;; TODO: TEMPORARY CHECKING UNTIL REPL MODE IMPLEMENTED IN COMPILER
@@ -134,4 +134,4 @@ public defn ao-eval-top-env () :
   add-binding(top-env, `box-y, box-y)
   add-binding(top-env, `box-z, box-z)
   add-binding(top-env, `empty, empty)
-
+  add-binding(top-env, `slice, slice)

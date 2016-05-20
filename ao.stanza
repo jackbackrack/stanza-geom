@@ -20,14 +20,26 @@ extern matrix_invert: (ptr<float>, ptr<float>, ptr<float>) -> int
 extern tree_eval_interval: (ptr<?>, ptr<float>, ptr<float>, ptr<float>) -> int
 extern opcode_enum: (ptr<?>) -> int
 extern tree_new: (ptr<?>, ptr<?>) -> ptr<?>
-extern tree_export_mesh: (ptr<?>, ptr<?>, float, float, float, float, float, float, float) -> ptr<?>
+extern tree_export_slice: (ptr<?>, ptr<?>, float, float, float, float, float, float) -> int
+extern tree_export_mesh: (ptr<?>, ptr<?>, float, float, float, float, float, float, float) -> int
 ;; extern tree_render_mesh: (ptr<?>, ptr<ptr<float>>, float, float, float, float, float, float, float) -> int
 extern tree_render_mesh: (ptr<?>, ptr<int>, ptr<ptr<float>>, ptr<int>, ptr<ptr<int>>, float, float, float, float, float, float, float) -> int
+extern tree_render_slice: (ptr<?>, float, float, float, float, float, float) -> ptr<ContoursStruct>
+extern contours_delete: (ptr<ContoursStruct>) -> int
 extern window_show_tree: (ptr<?>, ptr<?>, ptr<?>) -> ptr<?>
 extern ao_run: () -> ptr<?>
 extern ao_halt: () -> ptr<?>
 extern printf: (ptr<?>, ? ...) -> int
 extern free: (ptr<?>) -> int
+
+public lostanza deftype ContoursStruct :
+  xs : ptr<ptr<float>>
+  ys : ptr<ptr<float>>
+  sizes : ptr<int>
+  size : int
+
+public lostanza deftype Contours :
+  value: ptr<ContoursStruct>
 
 public lostanza deftype Tree <: Geom :
   value: ptr<?>
@@ -86,6 +98,10 @@ public lostanza defn tree-export-mesh (t:ref<Tree>, filename:ref<String>, xmin:r
   call-c tree_export_mesh(t.value, addr!(filename.chars), xmin.value as float, xmax.value as float, ymin.value as float, ymax.value as float, zmin.value as float, zmax.value as float, res.value as float)
   return false
 
+public lostanza defn tree-export-slice (t:ref<Tree>, filename:ref<String>, xmin:ref<Double>, ymin:ref<Double>, xmax:ref<Double>, ymax:ref<Double>, z:ref<Double>, res:ref<Double>) -> ref<False> :
+  call-c tree_export_slice(t.value, addr!(filename.chars), xmin.value as float, xmax.value as float, ymin.value as float, ymax.value as float, z.value as float, res.value as float)
+  return false
+
 ;; public lostanza deftype RenderMesh :
 ;;   length: int
 ;;   value: ptr<float>
@@ -126,6 +142,34 @@ public lostanza defn tree-render-mesh (t:ref<Tree>, xmin:ref<Double>, ymin:ref<D
   call-c free(out.verts)
   call-c free(out.tris)
   return mesh
+
+lostanza defn get-x (cs:ref<Contours>, c:ref<Int>, i:ref<Int>) -> ref<Float> :
+  return new Float{cs.value.xs[c.value][i.value]}
+
+lostanza defn get-y (cs:ref<Contours>, c:ref<Int>, i:ref<Int>) -> ref<Float> :
+  return new Float{cs.value.ys[c.value][i.value]}
+
+lostanza defn get-contour-size (cs:ref<Contours>, i:ref<Int>) -> ref<Int> :
+  return new Int{cs.value.sizes[i.value]}
+
+lostanza defn num-contours (cs:ref<Contours>) -> ref<Int> :
+  return new Int{cs.value.size}
+
+defn to-polygon (cs:Contours) -> Polygon :
+  val contours =
+    for ci in 0 to num-contours(cs) seq :
+      val points =
+        for j in 0 to get-contour-size(cs, ci) seq :
+          V2f(get-x(cs, ci, j), get-y(cs, ci, j))
+      Contour(to-tuple $ points)
+  Polygon(to-tuple $ contours)
+
+public lostanza defn tree-render-slice (t:ref<Tree>, xmin:ref<Double>, ymin:ref<Double>, xmax:ref<Double>, ymax:ref<Double>, z:ref<Double>, res:ref<Double>) -> ref<Polygon> :
+  val out = call-c tree_render_slice(t.value, xmin.value as float, xmax.value as float, ymin.value as float, ymax.value as float, z.value as float, res.value as float)
+  val contours = new Contours{out}
+  val poly = to-polygon(contours)
+  call-c contours_delete(out)
+  return poly
 
 public lostanza defn show (t:ref<Tree>, filename:ref<String>, name:ref<String>) -> ref<False> :
   call-c window_show_tree(addr!(filename.chars), addr!(name.chars), t.value)
@@ -595,3 +639,7 @@ public defn jit (g:Geom) -> Geom :
         (geom) : geom
     del(*store*)
     res
+
+public defn slice (s:Shape, z:Float) -> Polygon :
+  val tree = jit(s) as Tree
+  tree-render-slice(tree, -5.0, -5.0, 5.0, 5.0, to-double(z), 50.0)
