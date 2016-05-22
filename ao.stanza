@@ -640,6 +640,6 @@ public defn jit (g:Geom) -> Geom :
     del(*store*)
     res
 
-public defn slice (s:Shape, z:Float) -> Polygon :
+public defn slice (z:Float, s:Shape) -> Polygon :
   val tree = jit(s) as Tree
   tree-render-slice(tree, -5.0, -5.0, 5.0, 5.0, to-double(z), 50.0)
