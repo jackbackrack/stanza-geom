@@ -24,22 +24,19 @@ extern tree_export_slice: (ptr<?>, ptr<?>, float, float, float, float, float, fl
 extern tree_export_mesh: (ptr<?>, ptr<?>, float, float, float, float, float, float, float) -> int
 ;; extern tree_render_mesh: (ptr<?>, ptr<ptr<float>>, float, float, float, float, float, float, float) -> int
 extern tree_render_mesh: (ptr<?>, ptr<int>, ptr<ptr<float>>, ptr<int>, ptr<ptr<int>>, float, float, float, float, float, float, float) -> int
-extern tree_render_slice: (ptr<?>, float, float, float, float, float, float) -> ptr<ContoursStruct>
-extern contours_delete: (ptr<ContoursStruct>) -> int
+extern tree_render_slice: (ptr<?>, float, float, float, float, float, float) -> ptr<Contours>
+extern contours_delete: (ptr<Contours>) -> int
 extern window_show_tree: (ptr<?>, ptr<?>, ptr<?>) -> ptr<?>
 extern ao_run: () -> ptr<?>
 extern ao_halt: () -> ptr<?>
 extern printf: (ptr<?>, ? ...) -> int
 extern free: (ptr<?>) -> int
 
-public lostanza deftype ContoursStruct :
+public lostanza deftype Contours :
   xs : ptr<ptr<float>>
   ys : ptr<ptr<float>>
   sizes : ptr<int>
   size : int
-
-public lostanza deftype Contours :
-  value: ptr<ContoursStruct>
 
 public lostanza deftype Tree <: Geom :
   value: ptr<?>
@@ -144,16 +141,16 @@ public lostanza defn tree-render-mesh (t:ref<Tree>, xmin:ref<Double>, ymin:ref<D
   return mesh
 
 lostanza defn get-x (cs:ref<Contours>, c:ref<Int>, i:ref<Int>) -> ref<Float> :
-  return new Float{cs.value.xs[c.value][i.value]}
+  return new Float{cs.xs[c.value][i.value]}
 
 lostanza defn get-y (cs:ref<Contours>, c:ref<Int>, i:ref<Int>) -> ref<Float> :
-  return new Float{cs.value.ys[c.value][i.value]}
+  return new Float{cs.ys[c.value][i.value]}
 
 lostanza defn get-contour-size (cs:ref<Contours>, i:ref<Int>) -> ref<Int> :
-  return new Int{cs.value.sizes[i.value]}
+  return new Int{cs.sizes[i.value]}
 
 lostanza defn num-contours (cs:ref<Contours>) -> ref<Int> :
-  return new Int{cs.value.size}
+  return new Int{cs.size}
 
 defn to-polygon (cs:Contours) -> Polygon :
   val contours =
@@ -166,7 +163,7 @@ defn to-polygon (cs:Contours) -> Polygon :
 
 public lostanza defn tree-render-slice (t:ref<Tree>, xmin:ref<Double>, ymin:ref<Double>, xmax:ref<Double>, ymax:ref<Double>, z:ref<Double>, res:ref<Double>) -> ref<Polygon> :
   val out = call-c tree_render_slice(t.value, xmin.value as float, xmax.value as float, ymin.value as float, ymax.value as float, z.value as float, res.value as float)
-  val contours = new Contours{out}
+  val contours = new Contours{out.xs, out.ys, out.sizes, out.size}
   val poly = to-polygon(contours)
   call-c contours_delete(out)
   return poly
