@@ -142,3 +142,4 @@ public defn ao-eval-top-env () :
   add-binding(top-env, `empty, empty)
   add-binding(top-env, `triangle, triangle)
   add-binding(top-env, `slice, slice)
+  add-binding(top-env, `save, save)

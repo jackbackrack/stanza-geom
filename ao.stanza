@@ -91,12 +91,12 @@ public lostanza defn del (s:ref<Store>) -> ref<False> :
 public lostanza defn new-tree (s:ref<Store>, r:ref<FloField>) -> ref<Tree> :
   return new Tree{call-c tree_new(s.value, node(r).value)}
 
-public lostanza defn tree-export-mesh (t:ref<Tree>, filename:ref<String>, xmin:ref<Double>, ymin:ref<Double>, zmin:ref<Double>, xmax:ref<Double>, ymax:ref<Double>, zmax:ref<Double>, res:ref<Double>) -> ref<False> :
-  call-c tree_export_mesh(t.value, addr!(filename.chars), xmin.value as float, xmax.value as float, ymin.value as float, ymax.value as float, zmin.value as float, zmax.value as float, res.value as float)
+public lostanza defn tree-export-mesh (t:ref<Tree>, filename:ref<String>, box:ref<Box>, res:ref<Float>) -> ref<False> :
+  call-c tree_export_mesh(t.value, addr!(filename.chars), x(lo(box)).value, x(hi(box)).value, y(lo(box)).value, y(hi(box)).value, z(lo(box)).value, z(hi(box)).value, res.value)
   return false
 
-public lostanza defn tree-export-slice (t:ref<Tree>, filename:ref<String>, xmin:ref<Double>, ymin:ref<Double>, xmax:ref<Double>, ymax:ref<Double>, z:ref<Double>, res:ref<Double>) -> ref<False> :
-  call-c tree_export_slice(t.value, addr!(filename.chars), xmin.value as float, xmax.value as float, ymin.value as float, ymax.value as float, z.value as float, res.value as float)
+public lostanza defn tree-export-slice (t:ref<Tree>, filename:ref<String>, box:ref<Box>, res:ref<Float>) -> ref<False> :
+  call-c tree_export_slice(t.value, addr!(filename.chars), x(lo(box)).value, x(hi(box)).value, y(lo(box)).value, y(hi(box)).value, z(lo(box)).value, res.value)
   return false
 
 ;; public lostanza deftype RenderMesh :
@@ -132,9 +132,9 @@ defn to-mesh (rm:RenderMesh) -> Mesh :
       yield(V3f(get-vert-value(rm, voff + 0), get-vert-value(rm, voff + 1), get-vert-value(rm, voff + 2)))
   Mesh(to-tuple(verts), to-tuple(tris))
 
-public lostanza defn tree-render-mesh (t:ref<Tree>, xmin:ref<Double>, ymin:ref<Double>, zmin:ref<Double>, xmax:ref<Double>, ymax:ref<Double>, zmax:ref<Double>, res:ref<Double>) -> ref<Mesh> :
+public lostanza defn tree-render-mesh (t:ref<Tree>, box:ref<Box>, res:ref<Float>) -> ref<Mesh> :
   val out = new RenderMesh{0, 0L as ptr<float>, 0, 0L as ptr<int>}
-  val len = call-c tree_render_mesh(t.value, addr!(out.n-verts), addr!(out.verts), addr!(out.n-tris), addr!(out.tris), xmin.value as float, xmax.value as float, ymin.value as float, ymax.value as float, zmin.value as float, zmax.value as float, res.value as float)
+  val len = call-c tree_render_mesh(t.value, addr!(out.n-verts), addr!(out.verts), addr!(out.n-tris), addr!(out.tris), x(lo(box)).value, x(hi(box)).value, y(lo(box)).value, y(hi(box)).value, z(lo(box)).value, z(hi(box)).value, res.value)
   val mesh = to-mesh(out)
   call-c free(out.verts)
   call-c free(out.tris)
@@ -161,8 +161,8 @@ defn to-polygon (cs:Contours) -> Polygon :
       Contour(to-tuple $ points)
   Polygon(to-tuple $ contours)
 
-public lostanza defn tree-render-slice (t:ref<Tree>, xmin:ref<Double>, ymin:ref<Double>, xmax:ref<Double>, ymax:ref<Double>, z:ref<Double>, res:ref<Double>) -> ref<Polygon> :
-  val out = call-c tree_render_slice(t.value, xmin.value as float, xmax.value as float, ymin.value as float, ymax.value as float, z.value as float, res.value as float)
+public lostanza defn tree-render-slice (t:ref<Tree>, box:ref<Box>, res:ref<Float>) -> ref<Polygon> :
+  val out = call-c tree_render_slice(t.value, x(lo(box)).value, x(hi(box)).value, y(lo(box)).value, y(hi(box)).value, z(lo(box)).value, res.value)
   val contours = new Contours{out.xs, out.ys, out.sizes, out.size}
   val poly = to-polygon(contours)
   call-c contours_delete(out)
@@ -639,4 +639,12 @@ public defn jit (g:Geom) -> Geom :
 
 public defn slice (z:Float, s:Shape) -> Polygon :
   val tree = jit(s) as Tree
-  tree-render-slice(tree, -5.0, -5.0, 5.0, 5.0, to-double(z), 50.0)
+  tree-render-slice(tree, Box(V3f(-5.0f, -5.0f, z), V3f(5.0f, 5.0f, z)), 50.0f)
+
+public defn save (z:Float, filename:String, s:Shape) -> False :
+  val tree = jit(s) as Tree
+  tree-export-slice(tree, filename, Box(V3f(-5.0f, -5.0f, z), V3f(5.0f, 5.0f, z)), 50.0f)
+
+public defn save (filename:String, s:Shape) -> False :
+  val tree = jit(s) as Tree
+  tree-export-mesh(tree, filename, Box(V3f(-5.0f, -5.0f, -5.0f), V3f(5.0f, 5.0f, 5.0f)), 50.0f)

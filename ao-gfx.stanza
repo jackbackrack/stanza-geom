@@ -9,7 +9,7 @@ defpackage ao-gfx :
 
 defmethod render (tree:Tree) -> False :
   ;; TODO MAKE PARAMETERIZABLE
-  val mesh = tree-render-mesh(tree, -5.0, -5.0, -5.0, 5.0, 5.0, 5.0, 50.0)
+  val mesh = tree-render-mesh(tree, Box(V3f(-5.0f, -5.0f, -5.0f), V3f(5.0f, 5.0f, 5.0f)), 50.0f)
   println-all(["MESH: V = " length(vertices(mesh)) " F = " length(faces(mesh))])
   render(mesh)
 
