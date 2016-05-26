@@ -340,7 +340,7 @@ public defn degrees-to-radians (d:Float) -> Float :
   d * 180.0f / to-float(pi)
 
 public defn radians-to-degrees (a:Float) -> Float :
-  a * 180.0f / to-float(pi)
+  a * to-float(pi) / 180.0f
 
 public defn rot-x (d:Float, s:Shape) -> Shape :
   val a = degrees-to-radians(d)
@@ -489,7 +489,7 @@ public defn rect (w:Float, h:Float) -> Shape :
 public defn rect (v0:V3f, v1:V3f, d:Float) -> Shape :
   val v = v1 - v0
   val a = atan2(y(v),x(v))
-  mov(0.5f * (v0 + v1), rot-z(a, rect(magnitude(v) + d, d)))
+  mov(0.5f * (v0 + v1), rot-z(radians-to-degrees(a), rect(magnitude(v) + d, d)))
 
 public defn square (d:Float) -> Shape :
   rect(d, d)
