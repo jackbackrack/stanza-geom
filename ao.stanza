@@ -323,13 +323,6 @@ public defn modulo (a:Vec3Field, b:Vec3Field) -> Vec3Field :
       z(a) * x(b) - x(a) * z(b),
       x(a) * y(b) - y(a) * x(b))
 
-var *pt* = Vec3Field(fab-x(), fab-y(), fab-z())
-
-public defn pt () -> Vec3Field : *pt*
-public defn x () -> FloField : x(pt())
-public defn y () -> FloField : y(pt())
-public defn z () -> FloField : z(pt())
-
 public defn with-xyz (mat:Mat44, f:(Vec3Field) -> Vec3Field, s:Shape) -> Shape :
   Shape(fn (p): fab(s, f(p)), mat * bounds(s))
 
@@ -401,9 +394,10 @@ public defn mag-z (sz:Float, s:Shape) -> Shape :
   with-xyz(mag-mat44(V3f(1.0f, 1.0f, sz)), fn (p): Vec3Field(x(p), y(p), z(p) / lit(sz)), s)
 
 defn shear-x-y (ymin:Float, ymax:Float, dx0:Float, dx1:Float, s:Shape) -> Shape :
-  val f = (y() - lit(ymin)) / (lit(ymax) - y())
-  with-xyz(shear-x-y-mat44(ymin, ymax, dx0, dx1),
-           fn (p): Vec3Field(x(p) - lit(dx0) * (lit(1.0) - f) - lit(dx1) * f, y(p), z(p)), s)
+  defn xf (p) :
+    val f = (y(p) - lit(ymin)) / (lit(ymax) - y(p))
+    Vec3Field(x(p) - lit(dx0) * (lit(1.0) - f) - lit(dx1) * f, y(p), z(p))  
+  with-xyz(shear-x-y-mat44(ymin, ymax, dx0, dx1), xf, s)
 
 public defn shear-x-y (h:Float, dx0:Float, dx1:Float, s:Shape) -> Shape :
   shear-x-y(dim-min(h), dim-max(h), dx0, dx1, s)
@@ -589,7 +583,7 @@ public defn pyramid (d:Float, h:Float) -> Shape :
         dims-to-box(V3f(d, d, h)))
 
 public defn torus (D:Float, d:Float) -> Shape :
-  Shape(fn (p): len(Vec2Field(lit(D * 0.5f) - len(xy(p)), z())) - lit(d * 0.5f),
+  Shape(fn (p): len(Vec2Field(lit(D * 0.5f) - len(xy(p)), z(p))) - lit(d * 0.5f),
         dims-to-box(V3f(D + d, D + d, d)))
 
 public defn space (gdims:V3f, shape:Shape) :
