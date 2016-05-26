@@ -423,6 +423,11 @@ public defn revolve-y (s:Shape) -> Shape :
 public defn revolve-x (s:Shape) -> Shape :
   with-xyz(mag-mat44(1.0f), fn (p): Vec3Field(x(p), sqrt(sqr(y(p)) + sqr(z(p))), z(p)), s)
 
+public defn xy (z:Float, s:Shape) -> Shape :
+  with-xyz(mag-mat44(1.0f), fn (p): Vec3Field(x(p), y(p), lit(z)), s)
+
+public defn xy (s:Shape) -> Shape : xy(0.0f, s)
+
 public defn circle (d:Float) -> Shape :
   val r = d * 0.5f
   Shape(fn (p): len(xy(p)) - lit(r), Box(V3f((- r), (- r), FLOAT-MIN), V3f(r, r, FLOAT-MAX)))
@@ -626,7 +631,7 @@ public defn jit (g:Geom) -> Geom :
       match(g) :
         (root:Shape) :
           val e = fab(root, Vec3Field(fab-x(), fab-y(), fab-z()))
-          println-all(["E = " e])
+          ;; println-all(["E = " e])
           new-tree(*store*, e)
         (geom) : geom
     del(*store*)
