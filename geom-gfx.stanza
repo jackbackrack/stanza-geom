@@ -7,9 +7,15 @@ defpackage geom-gfx:
   import geom
   import gl
 
+extern glLoadMatrixf: (ptr<float>) -> int
+
 public defn gl-vertex3 (v:V3f) : gl-vertex3f(x(v), y(v), z(v))
 
 public defn gl-vertex2 (v:V3f) : gl-vertex2f(x(v), y(v))
+
+public defn gl-translate3 (v:V3f) : gl-translatef(x(v), y(v), z(v))
+
+public defn gl-translate2 (v:V3f) : gl-translatef(x(v), y(v), 0.0f)
 
 public defmulti render (g:Geom) -> False
 
@@ -55,4 +61,8 @@ defmethod render (mesh:Mesh) -> False :
     gl-vertex3(vertices(mesh)[y(t)])
     gl-vertex3(vertices(mesh)[z(t)])
     gl-end()
+
+public lostanza defn gl-load-matrix (m:ref<Mat44>) -> ref<False> :
+  call-c glLoadMatrixf(addr!(m.m00))
+  return false
 

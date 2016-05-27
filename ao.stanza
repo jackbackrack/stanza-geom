@@ -406,25 +406,25 @@ defn taper-x-y (ymin:Float, ymax:Float, s0:Float, s1:Float, s:Shape) -> Shape :
   defn xf (p) :
     val sc = lit(ymax - ymin) / ((lit(s1) * (y(p) - lit(ymin))) - (lit(s0) * (y(p) - lit(ymax))))
     Vec3Field(x(p) * sc, y(p), z(p))
-  with-xyz(mag-mat44(1.0f), xf, s)
+  with-xyz(id-mat44(), xf, s)
 
 defn taper-xy-z (zmin:Float, zmax:Float, s0:Float, s1:Float, s:Shape) -> Shape :
   defn xf (p) :
     val sc = lit(zmax - zmin) / ((lit(s1) * (z(p) - lit(zmin))) - (lit(s0) * (z(p) - lit(zmax))))
     Vec3Field(x(p) * sc, y(p) * sc, z(p))
-  with-xyz(mag-mat44(1.0f), xf, s)
+  with-xyz(id-mat44(), xf, s)
 
 public defn taper-xy-z (h:Float, s0:Float, s1:Float, s:Shape) -> Shape :
   taper-xy-z(dim-min(h), dim-max(h), s0, s1, s)
 
 public defn revolve-y (s:Shape) -> Shape :
-  with-xyz(mag-mat44(1.0f), fn (p): Vec3Field(sqrt(sqr(x(p)) + sqr(z(p))), y(p), z(p)), s)
+  with-xyz(id-mat44(), fn (p): Vec3Field(sqrt(sqr(x(p)) + sqr(z(p))), y(p), z(p)), s)
 
 public defn revolve-x (s:Shape) -> Shape :
-  with-xyz(mag-mat44(1.0f), fn (p): Vec3Field(x(p), sqrt(sqr(y(p)) + sqr(z(p))), z(p)), s)
+  with-xyz(id-mat44(), fn (p): Vec3Field(x(p), sqrt(sqr(y(p)) + sqr(z(p))), z(p)), s)
 
 public defn xy (z:Float, s:Shape) -> Shape :
-  with-xyz(mag-mat44(1.0f), fn (p): Vec3Field(x(p), y(p), lit(z)), s)
+  with-xyz(id-mat44(), fn (p): Vec3Field(x(p), y(p), lit(z)), s)
 
 public defn xy (s:Shape) -> Shape : xy(0.0f, s)
 

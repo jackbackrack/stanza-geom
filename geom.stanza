@@ -451,8 +451,10 @@ public defn reflect-yz-mat44 () -> Mat44 :
  
 public defn shear-x-y-mat44 (ymin:Float, ymax:Float, dx0:Float, dx1:Float) -> Mat44 :
   ;; TODO
-  mag-mat44(1.0f)
+  id-mat44()
  
+public defn id-mat44 () -> Mat44 : mag-mat44(1.0f)
+
 public defn mag-mat44 (s:Float) -> Mat44 :
   Mat44(   s, 0.0f, 0.0f, 0.0f,
         0.0f,    s, 0.0f, 0.0f,
@@ -506,10 +508,10 @@ public defn rot-mat44 (r:V3f, a:Float) -> Mat44 :
 
   val m10 = u[0] * u[1] * (1.0f - c) - u[2] * s
   val m11 = u[1] * u[1] * (1.0f - c) + c
-  val m12 = u[1] * u[2] * (1.0f - c) + u[0] * s
+  val m12 = u[2] * u[1] * (1.0f - c) + u[0] * s
 
-  val m20 = u[0] * u[2] * (1.0f - c) + u[1] * s
-  val m21 = u[1] * u[2] * (1.0f - c) - u[0] * s
+  val m20 = u[0] * u[2] * (1.0f - c) - u[1] * s
+  val m21 = u[1] * u[2] * (1.0f - c) + u[0] * s
   val m22 = u[2] * u[2] * (1.0f - c) + c
 
   Mat44( m00,  m01,  m02, 0.0f,
@@ -533,7 +535,7 @@ public defn times (m:Mat44, v:V3f) -> V3f :
   V3f(px / pw, py / pw, pz / pw)
 
 public defn times (a:Mat44, b:Mat44) -> Mat44 :
-  val res = mag-mat44(1.0f)
+  val res = id-mat44()
   for i in 0 to 4 do :
     for j in 0 to 4 do :
       var sum: Float = 0.0f
@@ -744,6 +746,15 @@ public lostanza deftype Quat <: Array<Float> & Geom :
 public lostanza defn Quat (x:ref<Float>, y:ref<Float>, z:ref<Float>, w:ref<Float>) -> ref<Quat> :
   return new Quat{x.value, y.value, z.value, w.value}
 
+public defn Quat (axis:V3f, rads:Float) -> Quat :
+  val angle = rads / 2.0f
+  val sin-angle = sin(angle)
+  val n = normalize(axis)
+  Quat(x(n) * sin-angle, y(n) * sin-angle, z(n) * sin-angle, cos(angle))
+
+public defn Quat () -> Quat :
+  Quat(V3f(1.0f, 0.0f, 0.0f), 0.0f)
+
 public lostanza defn x (v:ref<Quat>) -> ref<Float> :
   return new Float{v.x}
 
@@ -756,6 +767,9 @@ public lostanza defn z (v:ref<Quat>) -> ref<Float> :
 public lostanza defn w (v:ref<Quat>) -> ref<Float> :
   return new Float{v.w}
 
+defmethod print (o:OutputStream, v:Quat) :
+  print-all(o, ["Quat(" x(v) "," y(v) "," z(v) "," w(v) ")"])
+
 public lostanza defn get (v:ref<Quat>, i:ref<Int>) -> ref<Float> :
   #if-not-defined(OPTIMIZE) :
      ensure-index-in-bounds(i, new Int{4})
@@ -763,6 +777,67 @@ public lostanza defn get (v:ref<Quat>, i:ref<Int>) -> ref<Float> :
   
 defmethod equal? (v1:Quat, v2:Quat) :
   x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) and w(v1) == w(v2) 
+
+public defn times (s:Float, q:Quat) -> Quat :
+  Quat(s * x(q), s * y(q), s * z(q), s * w(q))
+
+public defn divide (q:Quat, d:Float) -> Quat :
+  Quat(x(q) / d, y(q) / d, z(q) / d, w(q) / d)
+
+;; public defn times (q1:Quat, q2:Quat) -> Quat :
+;;   val a = (w(q1) + x(q1)) * (w(q2) + x(q2))
+;;   val b = (z(q1) - y(q1)) * (y(q2) - z(q2))
+;;   val c = (w(q1) - x(q1)) * (y(q2) + z(q2))
+;;   val d = (y(q1) + z(q1)) * (w(q2) - x(q2))
+;;   val e = (x(q1) + z(q1)) * (x(q2) + y(q2))
+;;   val f = (x(q1) - z(q1)) * (x(q2) - y(q2))
+;;   val g = (w(q1) + y(q1)) * (w(q2) - z(q2))
+;;   val h = (w(q1) - y(q1)) * (w(q2) + z(q2))
+;;   val w = b + ((- e) - f + g + h) / 2.0f
+;;   val x = a + (e + f + g + h) / 2.0f
+;;   val y = c + (e - f + g - h) / 2.0f
+;;   val z = d + (e - f - g + h) / 2.0f
+;;   Quat(x, y, z, w)
+
+public defn times (q1:Quat, q2:Quat) -> Quat :
+  Quat(y(q1) * z(q2) - z(q1) * y(q2) + w(q1) * x(q2) + x(q1) * w(q2),
+       z(q1) * x(q2) - x(q1) * z(q2) + w(q1) * y(q2) + y(q1) * w(q2),
+       x(q1) * y(q2) - y(q1) * x(q2) + w(q1) * z(q2) + z(q1) * w(q2),
+       w(q1) * w(q2) - (x(q1) * x(q2) + y(q1) * y(q2) + z(q1) * z(q2)))
+
+public defn dot (q1:Quat, q2:Quat) -> Float :
+  x(q1) * x(q2) + y(q1) * y(q2) + z(q1) * z(q2) + w(q1) * w(q2)
+
+public defn conjugate (q:Quat) -> Quat :
+  Quat((- x(q)), (- y(q)), (- z(q)), w(q))
+
+public defn negate (q:Quat) -> Quat :
+  conjugate(q) / dot(q, q)
+
+public defn len (q:Quat) -> Float :
+  sqrt(dot(q, q))
+
+public defn normalize (q:Quat) -> Quat :
+  q / len(q)
+
+val DELTA = 0.95f
+
+public defn slerp (src:Quat, dst0:Quat, t:Float) -> Quat :
+  val cosom0 = dot(src, dst0)
+  val [cosom, dst] =
+    if cosom0 < 0.0f :
+      [(- cosom0), -1.0f * dst0]
+    else :
+      [cosom0, dst0]
+  val [s0, s1] =
+    if (1.0f - cosom) > DELTA :
+      val omega = acos(cosom)
+      val sinom = sin(omega)
+      [sin((1.0f - t) * omega) / sinom, sin(t * omega) / sinom]
+    else :
+      [1.0f - t, t]
+  Quat(s0 * x(src) + s1 * x(dst), s0 * y(src) + s1 * y(dst),
+       s0 * z(src) + s1 * z(dst), s0 * w(src) + s1 * w(dst))
 
 public defn quat-to-mat44 (q:Quat) -> Mat44 :
   val n = x(q) * x(q) + y(q) * y(q) + z(q) * z(q) + w(q) * w(q)
@@ -773,7 +848,7 @@ public defn quat-to-mat44 (q:Quat) -> Mat44 :
   val [ yy,  yz,  zz] = [y(q) * ys, y(q) * zs, z(q) * zs]
   val [m00, m01, m02] = [1.0f - (yy + zz),        (wy - wz),        (xz + wy)]
   val [m10, m11, m12] = [       (xy + wz), 1.0f - (xx - zz),        (yz - wx)]
-  val [m20, m21, m22] = [1.0f - (yy + zz),        (yz + wx), 1.0f - (xx + yy)]
+  val [m20, m21, m22] = [       (xz + wy),        (yz + wx), 1.0f - (xx + yy)]
   Mat44( m00,  m01,  m02, 0.0f,
          m10,  m11,  m12, 0.0f,
          m20,  m21,  m22, 0.0f,
@@ -790,16 +865,32 @@ public defstruct ArcBall :
   adjust-height: Float with: (setter => adjust-height-set)
 
 public defn set-bounds (a:ArcBall, new-width:Float, new-height:Float) :
-  adjust-width-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
-  adjust-height-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
+  ;; adjust-width-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
+  ;; adjust-height-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
+  adjust-width-set(a, new-width)
+  adjust-height-set(a, new-height)
+
+defn clip (x:Float, mn:Float, mx:Float) -> Float :
+  min(mx, max(mn, x))
 
 public defn map-to-sphere (a:ArcBall, new-pt:V3f) -> V3f :
-  val temp-pt = V3f(x(new-pt) * adjust-width(a) - 1.0f, 1.0f - (y(new-pt) * adjust-height(a)), 0.0f)
-  val length  = dot(temp-pt, temp-pt)
-  if length > 1.0f :
-    (1.0f / sqrt(length)) * temp-pt
-  else :
-    V3f(x(temp-pt), y(temp-pt), sqrt(1.0f - length))
+  ;; val pt = V2f(x(new-pt) * adjust-width(a) - 1.0f, 1.0f - (y(new-pt) * adjust-height(a)))
+  val pt = V2f(clip(   2.0f * x(new-pt) / adjust-width(a)  - 1.0f,   -1.0f, 1.0f),
+               clip((-(2.0f * y(new-pt) / adjust-height(a) - 1.0f)), -1.0f, 1.0f))
+  println-all(["NEW-PT " new-pt " AW " adjust-width(a) " AH " adjust-height(a) " PT = " pt])
+  val len2 = dot(pt, pt)
+  val res = 
+    if len2 > 1.0f :
+      ;; (1.0f / sqrt(len2)) * pt
+      println("> 1.0f")
+      val len  = sqrt(len2)
+      val res  = V3f(x(pt), y(pt), 1.0f / len)
+      val rlen = sqrt(len2 + z(res) * z(res))
+      normalize(res / rlen)
+    else :
+      V3f(x(pt), y(pt), sqrt(1.0f - len2))
+  println-all(["RES = " res])
+  res
 
 public defn arc-ball (new-width:Float, new-height:Float) -> ArcBall :
   val res = ArcBall(V3f(0.0f, 0.0f, 0.0f), V3f(0.0f, 0.0f, 0.0f), 0.0f, 0.0f)
@@ -809,7 +900,7 @@ public defn arc-ball (new-width:Float, new-height:Float) -> ArcBall :
 public defn click (a:ArcBall, new-pt:V3f) :
   st-vec-set(a, map-to-sphere(a, new-pt))
 
-public defn drag (a:ArcBall, new-pt:V3f, new-rot:Quat) -> Quat :
+public defn drag (a:ArcBall, new-pt:V3f) -> Quat :
   en-vec-set(a, map-to-sphere(a, new-pt))
   val perp = st-vec(a) % en-vec(a)
   if magnitude(perp) > epsilon :
