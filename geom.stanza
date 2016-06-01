@@ -863,6 +863,9 @@ public defstruct ArcBall :
   en-vec: V3f with: (setter => en-vec-set)
   adjust-width: Float with: (setter => adjust-width-set)
   adjust-height: Float with: (setter => adjust-height-set)
+  quat : Quat with: (setter => set-quat)
+  base-quat : Quat with: (setter => set-base-quat)
+  rot : Mat44 with: (setter => set-rot)
 
 public defn set-bounds (a:ArcBall, new-width:Float, new-height:Float) :
   ;; adjust-width-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
@@ -877,33 +880,64 @@ public defn map-to-sphere (a:ArcBall, new-pt:V3f) -> V3f :
   ;; val pt = V2f(x(new-pt) * adjust-width(a) - 1.0f, 1.0f - (y(new-pt) * adjust-height(a)))
   val pt = V2f(clip(   2.0f * x(new-pt) / adjust-width(a)  - 1.0f,   -1.0f, 1.0f),
                clip((-(2.0f * y(new-pt) / adjust-height(a) - 1.0f)), -1.0f, 1.0f))
-  println-all(["NEW-PT " new-pt " AW " adjust-width(a) " AH " adjust-height(a) " PT = " pt])
+  ;; println-all(["NEW-PT " new-pt " AW " adjust-width(a) " AH " adjust-height(a) " PT = " pt])
   val len2 = dot(pt, pt)
   val res = 
     if len2 > 1.0f :
       ;; (1.0f / sqrt(len2)) * pt
-      println("> 1.0f")
+      ;; println("> 1.0f")
       val len  = sqrt(len2)
       val res  = V3f(x(pt), y(pt), 1.0f / len)
       val rlen = sqrt(len2 + z(res) * z(res))
       normalize(res / rlen)
     else :
       V3f(x(pt), y(pt), sqrt(1.0f - len2))
-  println-all(["RES = " res])
+  ;; println-all(["RES = " res])
   res
 
-public defn arc-ball (new-width:Float, new-height:Float) -> ArcBall :
-  val res = ArcBall(V3f(0.0f, 0.0f, 0.0f), V3f(0.0f, 0.0f, 0.0f), 0.0f, 0.0f)
+public defn ArcBall (new-width:Float, new-height:Float) -> ArcBall :
+  val res = ArcBall(V3f(0.0f, 0.0f, 0.0f), V3f(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, Quat(), Quat(), id-mat44())
   set-bounds(res, new-width, new-height)
   res
 
 public defn click (a:ArcBall, new-pt:V3f) :
   st-vec-set(a, map-to-sphere(a, new-pt))
 
+public defn reset! (a:ArcBall) :
+  set-rot(a, id-mat44())
+  set-quat(a, Quat())
+  set-base-quat(a, Quat())
+
 public defn drag (a:ArcBall, new-pt:V3f) -> Quat :
   en-vec-set(a, map-to-sphere(a, new-pt))
   val perp = st-vec(a) % en-vec(a)
-  if magnitude(perp) > epsilon :
-    Quat(x(perp), y(perp), z(perp), dot(st-vec(a), en-vec(a)))
-  else :
-    Quat(0.0f, 0.0f, 0.0f, 0.0f)
+  val q =
+    if magnitude(perp) > epsilon :
+      Quat(x(perp), y(perp), z(perp), dot(st-vec(a), en-vec(a)))
+    else :
+      Quat(0.0f, 0.0f, 0.0f, 0.0f)
+  set-quat(a, (- q) * base-quat(a))
+  set-rot(a, quat-to-mat44(quat(a)))
+  q
+    
+public defn complete-drag (a:ArcBall) :
+ set-base-quat(a, quat(a))
+
+public val MOV-AMOUNT = 2000.0f
+public val MAG-SCALE  = 0.008f
+public val MOV-SCALE  = 0.0001f
+
+public defstruct Transformation :
+  ball : ArcBall with: (setter => set-ball)
+  mag : Float with: (setter => set-mag)
+  mov : V3f with: (setter => set-mov)
+  last-x : Float with: (setter => set-last-x)
+
+public defn mov! (xform:Transformation, amount:V3f) :
+  set-mov(xform, mov(xform) + MOV-SCALE * amount)
+
+public defn reset! (t:Transformation) :
+  reset!(ball(t))
+  set-mov(t, V2f(0.0f, 0.0f))
+  set-mag(t, 1.0f)
+  set-last-x(t, 0.0f)

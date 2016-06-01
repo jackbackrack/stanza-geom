@@ -66,3 +66,10 @@ public lostanza defn gl-load-matrix (m:ref<Mat44>) -> ref<False> :
   call-c glLoadMatrixf(addr!(m.m00))
   return false
 
+public defn render (t:Transformation) :
+  gl-matrix-mode(GL-PROJECTION)
+  gl-translate2(mov(t))
+  gl-matrix-mode(GL-MODELVIEW)
+  gl-load-matrix(rot(ball(t)))
+  gl-scalef(mag(t), mag(t), mag(t))
+
