@@ -8,6 +8,7 @@ defpackage geom-gfx:
   import gl
 
 extern glLoadMatrixf: (ptr<float>) -> int
+extern glMultMatrixf: (ptr<float>) -> int
 
 public defn gl-vertex3 (v:V3f) : gl-vertex3f(x(v), y(v), z(v))
 
@@ -66,10 +67,18 @@ public lostanza defn gl-load-matrix (m:ref<Mat44>) -> ref<False> :
   call-c glLoadMatrixf(addr!(m.m00))
   return false
 
-public defn render (t:Transformation) :
+public lostanza defn gl-mult-matrix (m:ref<Mat44>) -> ref<False> :
+  call-c glMultMatrixf(addr!(m.m00))
+  return false
+
+public defn render-begin (t:Transformation) :
   gl-matrix-mode(GL-PROJECTION)
   gl-translate2(mov(t))
   gl-matrix-mode(GL-MODELVIEW)
-  gl-load-matrix(rot(ball(t)))
+  gl-push-matrix()
+  gl-mult-matrix(rot(ball(t)))
   gl-scalef(mag(t), mag(t), mag(t))
+
+public defn render-end (t:Transformation) :
+  gl-pop-matrix()
 
