@@ -846,9 +846,9 @@ public defn quat-to-mat44 (q:Quat) -> Mat44 :
   val [ wx,  wy,  wz] = [w(q) * xs, w(q) * ys, w(q) * zs]
   val [ xx,  xy,  xz] = [x(q) * xs, x(q) * ys, x(q) * zs]
   val [ yy,  yz,  zz] = [y(q) * ys, y(q) * zs, z(q) * zs]
-  val [m00, m01, m02] = [1.0f - (yy + zz),        (wy - wz),        (xz + wy)]
-  val [m10, m11, m12] = [       (xy + wz), 1.0f - (xx - zz),        (yz - wx)]
-  val [m20, m21, m22] = [       (xz + wy),        (yz + wx), 1.0f - (xx + yy)]
+  val [m00, m01, m02] = [1.0f - (yy + zz),        (xy - wz),        (xz + wy)]
+  val [m10, m11, m12] = [       (xy + wz), 1.0f - (xx + zz),        (yz - wx)]
+  val [m20, m21, m22] = [       (xz - wy),        (yz + wx), 1.0f - (xx + yy)]
   Mat44( m00,  m01,  m02, 0.0f,
          m10,  m11,  m12, 0.0f,
          m20,  m21,  m22, 0.0f,
