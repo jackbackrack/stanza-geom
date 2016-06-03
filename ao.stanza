@@ -629,7 +629,7 @@ public defn jit (g:Geom) -> Geom :
       match(g) :
         (root:Shape) :
           val e = fab(root, Vec3Field(fab-x(), fab-y(), fab-z()))
-          println-all(["E = " e])
+          ;; println-all(["E = " e])
           new-tree(*store*, e)
         (geom) : geom
     del(*store*)
