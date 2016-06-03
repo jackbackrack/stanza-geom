@@ -26,6 +26,8 @@ val FloFieldT = Type(`FloField, fn (x) : x is FloField, fn (x): x as FloField)
 add-binding(top-env, `FloField, FloFieldT)
 val FloFieldThunkT = Type(`FloFieldThunk, fn (x) : x is (() -> FloField), fn (x): x as (() -> FloField))
 add-binding(top-env, `FloFieldThunk, FloFieldThunkT)
+val ShapeT = Type(`Shape, fn (x) : x is Shape, fn (x): x as Shape)
+add-binding(top-env, `Shape, ShapeT)
 
 public defn geom-eval-top-env () :
   eval-top-env()

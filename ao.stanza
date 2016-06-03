@@ -61,8 +61,6 @@ public defstruct FloField :
 defmethod print (s:OutputStream, f:FloField) :
   print(s, "%_(%,)" % [op(f), args(f)])
 
-val $inf-box = Box(V3f(FLOAT-MIN, FLOAT-MIN, FLOAT-MIN), V3f(FLOAT-MAX, FLOAT-MAX, FLOAT-MAX))
-
 public deftype Shape <: Geom
 public defmulti fabber (s:Shape) -> ((Vec3Field) -> FloField)
 public defmulti bounds (s:Shape) -> Box
@@ -455,10 +453,10 @@ public defn intersection (args:Seqable<Shape>) -> Shape :
   reduce(bit-and, args)
 
 public defn invert (s:Shape) -> Shape :
-  Shape(fn (p): (- fab(s, p)), $inf-box)
+  Shape(fn (p): (- fab(s, p)), inf-box())
 
 public defn rem (a:Shape, b:Shape) -> Shape :
-  Shape(a & invert(b), $inf-box)
+  Shape(a & invert(b), inf-box())
 
 public defn rem (a:Shape, args:Seqable<Shape>) -> Shape :
   rem(a, union(args))
@@ -467,14 +465,14 @@ public defn offset (s:Shape, o:Float) -> Shape :
   Shape(fn (p): fab(s, p) - lit(o), fatten(bounds(s), o))
   
 public defn clearance (a:Shape, b:Shape, o:Float) -> Shape :
-  Shape(a & invert(offset(b, o)), $inf-box)
+  Shape(a & invert(offset(b, o)), inf-box())
   
 public defn shell (s:Shape, o:Float) -> Shape :
   clearance(s, s, o)
   
 public defn blend (a:Shape, b:Shape, m:FloField) -> Shape :
   val joint = a | b
-  val fillet = Shape(fn (p): sqrt(abs(fab(a, p)) + sqrt(abs(fab(b, p)))) - m, $inf-box)
+  val fillet = Shape(fn (p): sqrt(abs(fab(a, p)) + sqrt(abs(fab(b, p)))) - m, inf-box())
   joint | fillet
   
 public defn morph (a:Shape, b:Shape, m:FloField) -> Shape :
@@ -602,7 +600,7 @@ public defn space-y (gdim:Float, shape:Shape) : mag1(gdim / y(dims(bounds(shape)
 
 public defn space-z (gdim:Float, shape:Shape) : mag1(gdim / z(dims(bounds(shape))), shape)
 
-public defn empty () -> Shape : Shape(lit{FLOAT-MAX}, $inf-box)
+public defn empty () -> Shape : Shape(lit{FLOAT-MAX}, min-box())
 
 defn boxit (ishapes:Seqable<Shape>, dim:(V3f) -> Float, mov:(Float, Shape) -> Shape, dir:Float) -> Shape :
   val shapes = to-tuple(ishapes)
@@ -631,7 +629,7 @@ public defn jit (g:Geom) -> Geom :
       match(g) :
         (root:Shape) :
           val e = fab(root, Vec3Field(fab-x(), fab-y(), fab-z()))
-          ;; println-all(["E = " e])
+          println-all(["E = " e])
           new-tree(*store*, e)
         (geom) : geom
     del(*store*)

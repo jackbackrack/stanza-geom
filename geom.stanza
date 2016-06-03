@@ -369,6 +369,10 @@ public defn inf-box () -> Box:
   val [min-inf, max-inf] = [FLOAT-MIN, FLOAT-MAX]
   Box(V3f(min-inf, min-inf, min-inf), V3f(max-inf, max-inf, max-inf))
 
+public defn min-box () -> Box:
+  val [min-inf, max-inf] = [FLOAT-MIN, FLOAT-MAX]
+  Box(V3f(max-inf, max-inf, max-inf), V3f(min-inf, min-inf, min-inf))
+
 public defn fatten (b:Box, r:Float) -> Box :
   val rvec = r * V3f(1.0f, 1.0f, 1.0f)
   Box(lo(b) - rvec, hi(b) + rvec)
@@ -503,8 +507,8 @@ public defn rot-mat44 (r:V3f, a:Float) -> Mat44 :
   val c = cos(a)
 
   val m00 = u[0] * u[0] * (1.0f - c) + c
-  val m01 = u[0] * u[1] * (1.0f - c) + u[2] * s
-  val m02 = u[0] * u[2] * (1.0f - c) - u[1] * s
+  val m01 = u[1] * u[0] * (1.0f - c) + u[2] * s
+  val m02 = u[2] * u[0] * (1.0f - c) - u[1] * s
 
   val m10 = u[0] * u[1] * (1.0f - c) - u[2] * s
   val m11 = u[1] * u[1] * (1.0f - c) + c
