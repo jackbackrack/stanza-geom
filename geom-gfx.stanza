@@ -10,6 +10,10 @@ defpackage geom-gfx:
 extern glLoadMatrixf: (ptr<float>) -> int
 extern glMultMatrixf: (ptr<float>) -> int
 
+public defn gl-color3 (v:V3f) : gl-color3f(x(v), y(v), z(v))
+
+public defn gl-color4 (v:V4f) : gl-color4f(x(v), y(v), z(v), a(v))
+
 public defn gl-vertex3 (v:V3f) : gl-vertex3f(x(v), y(v), z(v))
 
 public defn gl-vertex2 (v:V3f) : gl-vertex2f(x(v), y(v))
