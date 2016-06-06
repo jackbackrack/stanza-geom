@@ -8,6 +8,9 @@ defpackage geom:
 
 public deftype Geom
 
+public defstruct Msg <: Geom :
+  value : String
+
 public defn ensure-index-in-bounds (i:Int, n:Int) :
    if i < 0 or i >= n :
       fatal("Index (%_) out of bounds." % [i])

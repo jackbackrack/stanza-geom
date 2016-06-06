@@ -6,6 +6,8 @@ defpackage geom-gfx:
   import collections
   import geom
   import gl
+  import gfx
+  import font
 
 extern glLoadMatrixf: (ptr<float>) -> int
 extern glMultMatrixf: (ptr<float>) -> int
@@ -41,6 +43,9 @@ defmethod render (box:Box) -> False :
   gl-vertex3(lo(box))
   gl-vertex3(hi(box))
   gl-end()
+
+defmethod render (msg:Msg) -> False :
+  draw-text(2.0f, 2.0f, *font*, value(msg))
 
 defmethod render (poly:PolyLine) -> False :
   for s in strokes(poly) do :
