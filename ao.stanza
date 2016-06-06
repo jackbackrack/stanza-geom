@@ -382,6 +382,9 @@ public defn mag (fac:Float, s:Shape) -> Shape :
 public defn mag1 (sa:Float, s:Shape) -> Shape :
   with-xyz(mag-mat44(sa), fn (p): p / lit(sa), s)
 
+public defn mag (fac:V3f, s:Shape) -> Shape :
+  with-xyz(mag-mat44(fac), fn (p): p / lit(fac), s)
+
 public defn mag-x (sx:Float, s:Shape) -> Shape :
   with-xyz(mag-mat44(V3f(sx, 1.0f, 1.0f)), fn (p): Vec3Field(x(p) / lit(sx), y(p), z(p)), s)
 
@@ -456,10 +459,14 @@ public defn invert (s:Shape) -> Shape :
   Shape(fn (p): (- fab(s, p)), inf-box())
 
 public defn rem (a:Shape, b:Shape) -> Shape :
-  Shape(a & invert(b), inf-box())
+  Shape(a & invert(b), bounds(a))
 
 public defn rem (a:Shape, args:Seqable<Shape>) -> Shape :
   rem(a, union(args))
+
+public defn rem (shapes:Seqable<Shape>) -> Shape :
+  val s = to-seq(shapes)
+  rem(next(s), s)
 
 public defn offset (s:Shape, o:Float) -> Shape :
   Shape(fn (p): fab(s, p) - lit(o), fatten(bounds(s), o))
@@ -530,11 +537,14 @@ defn cube (xmin:Float, ymin:Float, zmin:Float, xmax:Float, ymax:Float, zmax:Floa
   extrude(zmin, zmax, rect(xmin, ymin, xmax, ymax))
 
 ;;; DEPRECATE
-defn cube (w:Float, h:Float, d:Float) -> Shape :
+public defn cube (w:Float, h:Float, d:Float) -> Shape :
   cube(dim-min(w), dim-min(h), dim-min(d), dim-max(w), dim-max(h), dim-max(d))
 
 public defn cube (d:Float) -> Shape :
   cube(d, d, d)
+
+public defn cube (xy:Float, z:Float) -> Shape :
+  cube(xy, xy, z)
 
 public defn box (dims:V3f) -> Shape :
   defn fab (p) :
@@ -594,34 +604,97 @@ public defn space (gdims:V3f, shape:Shape) :
   val fac    = min(gratio)
   mag1(fac, shape)
 
-public defn space-x (gdim:Float, shape:Shape) : mag1(gdim / x(dims(bounds(shape))), shape)
-
-public defn space-y (gdim:Float, shape:Shape) : mag1(gdim / y(dims(bounds(shape))), shape)
-
-public defn space-z (gdim:Float, shape:Shape) : mag1(gdim / z(dims(bounds(shape))), shape)
-
 public defn empty () -> Shape : Shape(lit{FLOAT-MAX}, min-box())
 
-defn boxit (ishapes:Seqable<Shape>, dim:(V3f) -> Float, mov:(Float, Shape) -> Shape, dir:Float) -> Shape :
+public defn space-x (gdim:Float, shape:Shape) : mag(V3f(gdim / x(dims(bounds(shape))), 0.0f, 0.0f), shape)
+public defn space-y (gdim:Float, shape:Shape) : mag(V3f(0.0f, gdim / y(dims(bounds(shape))), 0.0f), shape)
+public defn space-z (gdim:Float, shape:Shape) : mag(V3f(0.0f, 0.0f, gdim / z(dims(bounds(shape)))), shape)
+public defn space-x (gdim:Float) : space-x(gdim, empty())
+public defn space-y (gdim:Float) : space-y(gdim, empty())
+public defn space-z (gdim:Float) : space-z(gdim, empty())
+
+defn boxit (ishapes:Seqable<Shape>, dim:(V3f) -> Float, mov:(Float, Shape) -> Shape, dir:Float) -> Seq<Shape> :
   val shapes = to-tuple(ishapes)
   val tot = reduce(plus, for shape in shapes seq : dim(dims(bounds(shape))))
   var tot-fac = 0.0f
-  val children = 
-    generate<Shape> :
-      for (child in shapes, i in 0 to false) do :
-        val now-fac = dim(dims(bounds(child))) / tot
-        yield(mov(dir * (tot / 2.0f - (tot-fac + now-fac / 2.0f) * tot), child))
-        tot-fac = tot-fac + now-fac
-  union(children)
+  generate<Shape> :
+    for (child in shapes, i in 0 to false) do :
+      val now-fac = dim(dims(bounds(child))) / tot
+      yield(mov(dir * (tot / 2.0f - (tot-fac + now-fac / 2.0f) * tot), child))
+      tot-fac = tot-fac + now-fac
 
-public defn box-x (shapes:Seqable<Shape>) -> Shape :
+public defn box-x (shapes:Seqable<Shape>) -> Seq<Shape> :
   boxit(shapes, x, mov-x, -1.0f)
 
-public defn box-y (shapes:Seqable<Shape>) -> Shape :
+public defn box-y (shapes:Seqable<Shape>) -> Seq<Shape> :
   boxit(shapes, y, mov-y,  1.0f)
 
-public defn box-z (shapes:Seqable<Shape>) -> Shape :
+public defn box-z (shapes:Seqable<Shape>) -> Seq<Shape> :
   boxit(shapes, z, mov-z,  1.0f)
+
+public defn glue (shapes:Seqable<Shape>) -> Seq<Shape> :
+  generate<Shape> :
+    for (shape in shapes, i in 0 to false) do :
+      if i != 0: yield(Glue(1.0f))
+      yield(shape)
+
+public deftype Glue <: Shape
+public defmulti amount (g:Glue) -> Float
+
+public defn glue-amount (shape:Shape) -> Float :
+  match(shape) :
+    (g:Glue) : amount(g)
+    (s)      : 0.0f
+
+public defn Glue (amount:Float) :
+  new Glue :
+    defmethod fabber (this): fn (p:Vec3Field) : lit(FLOAT-MAX)
+    defmethod bounds (this): Box(V3f(0.0f, 0.0f, 0.0f), V3f(0.0f, 0.0f, 0.0f))
+    defmethod amount (this): amount
+
+defn assign-glue (ishapes:Seqable<Shape>, target:Float, space:(Float) -> Shape, dim:(V3f) -> Float) -> Seq<Shape> :
+  val shapes = to-tuple(ishapes)
+  val tot = reduce(plus, for shape in shapes seq : dim(dims(bounds(shape))))
+  val glue-tot = reduce(plus, for shape in shapes seq : glue-amount(shape))
+  val gap-tot = (target - tot)
+  for shape in shapes seq :
+    match(shape) :
+      (g:Glue) : space((amount(g) / glue-tot) * gap-tot)
+      (s)      : s
+
+public defn box-x (w:Float, shapes:Seqable<Shape>) -> Seq<Shape> :
+  box-x(assign-glue(shapes, w, space-x, x))
+
+public defn box-y (h:Float, shapes:Seqable<Shape>) -> Seq<Shape> :
+  box-y(assign-glue(shapes, h, space-y, y))
+
+public defn box-z (d:Float, shapes:Seqable<Shape>) -> Seq<Shape> :
+  box-z(assign-glue(shapes, d, space-z, z))
+
+defn align-it (ishapes:Seqable<Shape>, value:(Box) -> Float, mov:(Float, Shape) -> Shape) -> Seq<Shape> :
+  val shapes = to-tuple(ishapes)
+  val target = reduce(union, seq(bounds, shapes))
+  ;; val target = bounds(shapes[0])
+  for (child in shapes) seq :
+    mov(value(target) - value(bounds(child)), child)
+
+public defn align-min-x (shapes:Seqable<Shape>) -> Seq<Shape> :
+  align-it(shapes, { x(lo(_)) }, mov-x)
+
+public defn align-max-x (shapes:Seqable<Shape>) -> Seq<Shape> :
+  align-it(shapes, { x(hi(_)) }, mov-x)
+
+public defn align-min-y (shapes:Seqable<Shape>) -> Seq<Shape> :
+  align-it(shapes, { y(lo(_)) }, mov-y)
+
+public defn align-max-y (shapes:Seqable<Shape>) -> Seq<Shape> :
+  align-it(shapes, { y(hi(_)) }, mov-y)
+
+public defn align-min-z (shapes:Seqable<Shape>) -> Seq<Shape> :
+  align-it(shapes, { z(lo(_)) }, mov-z)
+
+public defn align-max-z (shapes:Seqable<Shape>) -> Seq<Shape> :
+  align-it(shapes, { z(hi(_)) }, mov-z)
 
 public defn jit (g:Geom) -> Geom :
   let-var *store* = new-store() :
