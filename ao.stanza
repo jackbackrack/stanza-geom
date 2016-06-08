@@ -632,11 +632,14 @@ public defn box-y (shapes:Seqable<Shape>) -> Seq<Shape> :
 public defn box-z (shapes:Seqable<Shape>) -> Seq<Shape> :
   boxit(shapes, z, mov-z,  1.0f)
 
-public defn glue (shapes:Seqable<Shape>) -> Seq<Shape> :
+public defn interleave (shapes:Seqable<Shape>, glue:Shape) -> Seq<Shape> :
   generate<Shape> :
     for (shape in shapes, i in 0 to false) do :
-      if i != 0: yield(Glue(1.0f))
+      if i != 0: yield(glue)
       yield(shape)
+
+public defn glue (shapes:Seqable<Shape>) -> Seq<Shape> :
+  interleave(shapes, Glue(1.0f))
 
 public deftype Glue <: Shape
 public defmulti amount (g:Glue) -> Float

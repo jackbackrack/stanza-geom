@@ -147,6 +147,7 @@ public defn ao-eval-top-env () :
   add-binding(top-env, `box-y, box-y)
   add-binding(top-env, `box-z, box-z)
   add-binding(top-env, `glue, glue)
+  add-binding(top-env, `interleave, interleave)
   add-binding(top-env, `align-min-x, align-min-x)
   add-binding(top-env, `align-max-x, align-max-x)
   add-binding(top-env, `align-min-y, align-min-y)
