@@ -101,6 +101,7 @@ public defn Block (layers:Collection<Layer>) :
     defmethod layers (this) : layers
 
 public defn Block (layers:Seq<Layer>) : Block(to-tuple $ layers)
+public defn Block (color:V4f, shape:Shape) : Block([Layer(color, shape)])
 
 public defmethod mov (dp:V3f, b:Block) -> Block :
   Block(to-tuple $ seq(mov{dp, _}, layers(b)))
@@ -113,6 +114,8 @@ public defn Layout (blocks:Collection<Block>) :
     defmethod pos (this) : center(bounds(this))
     defmethod bounds (this) : reduce(bit-or, for block in blocks seq: bounds(block))
     defmethod blocks (this) : blocks
+
+public defn Layout (blocks:Seq<Block>) : Layout(to-tuple $ blocks)
 
 public defmethod mov (dp:V3f, l:Layout) -> Layout :
   Layout(to-tuple $ seq(mov{dp, _}, blocks(l)))
