@@ -13,3 +13,20 @@ defmethod render (tree:Tree) -> False :
   println-all(["MESH: V = " length(vertices(mesh)) " F = " length(faces(mesh))])
   render(mesh)
 
+defmethod render (lay:TreeLayer) -> False :
+  gl-push-matrix()
+  gl-translate3(pos(lay))
+  gl-push-attrib(GL-CURRENT-BIT)
+  gl-color4(color(lay))
+  render(tree(lay))
+  gl-pop-attrib()
+  gl-pop-matrix()
+
+defmethod render (lay:TreeBlock) -> False :
+  for layer in layers(lay) do :
+    render(layer)
+
+defmethod render (lay:TreeLayout) -> False :
+  for block in blocks(lay) do :
+    render(block)
+

@@ -302,6 +302,10 @@ defmethod equal? (v1:V4f, v2:V4f) :
 defmethod print (o:OutputStream, v:V4f) :
   print-all(o, ["V4f(", x(v) "," y(v) "," z(v) "," a(v) ")"])
 
+public val RED   = V4f(1.0f, 0.0f, 0.0f, 1.0f)
+public val GREEN = V4f(0.0f, 1.0f, 0.0f, 1.0f)
+public val BLUE  = V4f(0.0f, 0.0f, 1.0f, 1.0f)
+
 ;;; V3d
 
 public lostanza deftype V3d <: Array<Double> & Geom :

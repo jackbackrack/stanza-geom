@@ -61,9 +61,77 @@ public defstruct FloField :
 defmethod print (s:OutputStream, f:FloField) :
   print(s, "%_(%,)" % [op(f), args(f)])
 
-public deftype Shape <: Geom
+public deftype Poseable <: Geom
+public defmulti bounds (p:Poseable) -> Box
+public defmulti mov<?T> (dp:V3f, p:?T&Poseable) -> T
+
+public defn mov-x<?T> (dx:Float, p:?T&Poseable) -> T : mov(V3f(dx, 0.0f, 0.0f), p)
+public defn mov-y<?T> (dy:Float, p:?T&Poseable) -> T : mov(V3f(0.0f, dy, 0.0f), p)
+public defn mov-z<?T> (dz:Float, p:?T&Poseable) -> T : mov(V3f(0.0f, 0.0f, dz), p)
+
+;;; ASSEMBLIES
+
+public deftype RealPoseable <: Poseable
+public defmulti pos (b:RealPoseable) -> V3f
+
+public deftype Layer <: RealPoseable
+public defmulti shape (l:Layer) -> Shape
+public defmulti color (l:Layer) -> V4f
+
+public defn Layer (bounds:Box, pos:V3f, color:V4f, shape:Shape) :
+  new Layer :
+    defmethod pos (this) : pos
+    defmethod bounds (this) : bounds
+    defmethod shape (this) : shape
+    defmethod color (this) : color
+
+public defn Layer (color:V4f, shape:Shape) :
+  Layer(bounds(shape), V3f(0.0f, 0.0f, 0.0f), color, shape)
+
+public defmethod mov (dp:V3f, p:Layer) -> Layer :
+  Layer(mov-mat44(dp) * bounds(p), pos(p) + dp, color(p), shape(p))
+
+public deftype Block <: RealPoseable
+public defmulti layers (b:Block) -> Collection<Layer>
+
+public defn Block (layers:Collection<Layer>) :
+  new Block :
+    defmethod pos (this) : center(bounds(this))
+    defmethod bounds (this) : reduce(bit-or, for layer in layers seq: bounds(layer))
+    defmethod layers (this) : layers
+
+public defn Block (layers:Seq<Layer>) : Block(to-tuple $ layers)
+
+public defmethod mov (dp:V3f, b:Block) -> Block :
+  Block(to-tuple $ seq(mov{dp, _}, layers(b)))
+
+public deftype Layout <: RealPoseable
+public defmulti blocks (l:Layout) -> Collection<Block>
+
+public defn Layout (blocks:Collection<Block>) :
+  new Layout :
+    defmethod pos (this) : center(bounds(this))
+    defmethod bounds (this) : reduce(bit-or, for block in blocks seq: bounds(block))
+    defmethod blocks (this) : blocks
+
+public defmethod mov (dp:V3f, l:Layout) -> Layout :
+  Layout(to-tuple $ seq(mov{dp, _}, blocks(l)))
+
+public defstruct TreeLayer <: Geom :
+  pos : V3f
+  color : V4f
+  tree : Tree
+
+public defstruct TreeBlock <: Geom :
+  layers : Collection<TreeLayer>
+
+public defstruct TreeLayout <: Geom :
+  blocks : Collection<TreeBlock>
+
+;;; SHAPE
+
+public deftype Shape <: Poseable
 public defmulti fabber (s:Shape) -> ((Vec3Field) -> FloField)
-public defmulti bounds (s:Shape) -> Box
 
 public defn Shape (fabber:(Vec3Field) -> FloField, bounds:Box) :
   new Shape :
@@ -324,15 +392,11 @@ public defn modulo (a:Vec3Field, b:Vec3Field) -> Vec3Field :
 public defn with-xyz (mat:Mat44, f:(Vec3Field) -> Vec3Field, s:Shape) -> Shape :
   Shape(fn (p): fab(s, f(p)), mat * bounds(s))
 
-public defn mov (dp:V3f, s:Shape) -> Shape :
+public defmethod mov (dp:V3f, s:Shape) -> Shape :
   with-xyz(mov-mat44(dp), fn (p): p - lit(dp), s)
 
 ;; public defn mov (dx:FloField, dy:FloField, f:Shape) -> FloField :
 ;;   mov(dx, dy, lit(0.0), f)
-
-public defn mov-x (dx:Float, s:Shape) -> Shape : mov(V3f(dx, 0.0f, 0.0f), s)
-public defn mov-y (dy:Float, s:Shape) -> Shape : mov(V3f(0.0f, dy, 0.0f), s)
-public defn mov-z (dz:Float, s:Shape) -> Shape : mov(V3f(0.0f, 0.0f, dz), s)
 
 public defn degrees-to-radians (d:Float) -> Float :
   d * 180.0f / to-float(pi)
@@ -613,41 +677,42 @@ public defn space-x (gdim:Float) : space-x(gdim, empty())
 public defn space-y (gdim:Float) : space-y(gdim, empty())
 public defn space-z (gdim:Float) : space-z(gdim, empty())
 
-defn boxit (ishapes:Seqable<Shape>, dim:(V3f) -> Float, mov:(Float, Shape) -> Shape, dir:Float) -> Seq<Shape> :
+public defmulti spacer<?T> (g:?T&Poseable, dims:V3f) -> T
+defmethod spacer (g:Layer, dims:V3f) : Layer(V4f(0.0f, 0.0f, 0.0f, 0.0f), spacer(empty(), dims))
+defmethod spacer (g:Shape, gdims:V3f) : mag(gdims / dims(bounds(g)), g)
+
+public defn spacer-x<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(gdim, 0.0f, 0.0f))
+public defn spacer-y<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(0.0f, gdim, 0.0f))
+public defn spacer-z<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(0.0f, 0.0f, gdim))
+
+defn boxit<?T> (ishapes:Seqable<?T&Poseable>, dim:(V3f) -> Float, mov:(Float, T) -> T, dir:Float) -> Seq<T> :
   val shapes = to-tuple(ishapes)
   val tot = reduce(plus, for shape in shapes seq : dim(dims(bounds(shape))))
   var tot-fac = 0.0f
-  generate<Shape> :
+  generate<T> :
     for (child in shapes, i in 0 to false) do :
       val now-fac = dim(dims(bounds(child))) / tot
       yield(mov(dir * (tot / 2.0f - (tot-fac + now-fac / 2.0f) * tot), child))
       tot-fac = tot-fac + now-fac
 
-public defn box-x (shapes:Seqable<Shape>) -> Seq<Shape> :
+public defn box-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   boxit(shapes, x, mov-x, -1.0f)
 
-public defn box-y (shapes:Seqable<Shape>) -> Seq<Shape> :
+public defn box-y<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   boxit(shapes, y, mov-y,  1.0f)
 
-public defn box-z (shapes:Seqable<Shape>) -> Seq<Shape> :
+public defn box-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   boxit(shapes, z, mov-z,  1.0f)
 
-public defn interleave (shapes:Seqable<Shape>, glue:Shape) -> Seq<Shape> :
-  generate<Shape> :
-    for (shape in shapes, i in 0 to false) do :
-      if i != 0: yield(glue)
-      yield(shape)
+public deftype AnyGlue <: Poseable
+public defmulti amount (g:AnyGlue) -> Float
 
-public defn glue (shapes:Seqable<Shape>) -> Seq<Shape> :
-  interleave(shapes, Glue(1.0f))
+public deftype Glue <: AnyGlue & Shape
 
-public deftype Glue <: Shape
-public defmulti amount (g:Glue) -> Float
-
-public defn glue-amount (shape:Shape) -> Float :
+public defn glue-amount<?T> (shape:?T&Poseable) -> Float :
   match(shape) :
-    (g:Glue) : amount(g)
-    (s)      : 0.0f
+    (g:AnyGlue) : amount(g)
+    (s)         : 0.0f
 
 public defn Glue (amount:Float) :
   new Glue :
@@ -655,61 +720,116 @@ public defn Glue (amount:Float) :
     defmethod bounds (this): Box(V3f(0.0f, 0.0f, 0.0f), V3f(0.0f, 0.0f, 0.0f))
     defmethod amount (this): amount
 
-defn assign-glue (ishapes:Seqable<Shape>, target:Float, space:(Float) -> Shape, dim:(V3f) -> Float) -> Seq<Shape> :
+public deftype RealGlue <: AnyGlue & RealPoseable
+defmulti glue (g:RealGlue) -> Glue
+
+defmethod bounds (g:RealGlue) : bounds(glue(g))
+defmethod amount (g:RealGlue) : amount(glue(g))
+defmethod pos (g:RealGlue) : V3f(0.0f, 0.0f, 0.0f)
+
+public deftype LayerGlue <: RealGlue & Layer
+
+public defn LayerGlue (glue:Glue) :
+  new LayerGlue :
+    defmethod glue (this) : glue
+    defmethod color (this): V4f(0.0f, 0.0f, 0.0f, 0.0f)
+
+public deftype BlockGlue <: RealGlue & Block
+
+public defn BlockGlue (glue:Glue) :
+  new BlockGlue :
+    defmethod glue (this) : glue
+
+public defn interleave<?T> (shapes:Seqable<?T&Poseable>, glue:T) -> Seq<T> :
+  generate<T> :
+    for (shape in shapes, i in 0 to false) do :
+      if i != 0: yield(glue)
+      yield(shape)
+
+;; public defn glue<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+;;   interleave(shapes, Glue(1.0f))
+
+defmulti glue-of<?T> (s:?T&Poseable, a:Float) -> T
+defmethod glue-of (s:Shape, a:Float) -> Shape : Glue(1.0f)
+defmethod glue-of (s:Layer, a:Float) -> Layer : LayerGlue(Glue(1.0f))
+
+public defn glue<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  generate<T> :
+    for (shape in shapes, i in 0 to false) do :
+      if i != 0: yield(glue-of(shape, 1.0f))
+      yield(shape)
+
+;; public defn glue<?T> (shapes:Seqable<?T&Poseable>, glue:T&Poseable) -> Seq<T> :
+;;   interleave(shapes, glue)
+
+defn assign-glue<?T> (ishapes:Seqable<?T&Poseable>, target:Float, space:(Float, T) -> T, dim:(V3f) -> Float) -> Seq<T> :
   val shapes = to-tuple(ishapes)
   val tot = reduce(plus, for shape in shapes seq : dim(dims(bounds(shape))))
   val glue-tot = reduce(plus, for shape in shapes seq : glue-amount(shape))
   val gap-tot = (target - tot)
   for shape in shapes seq :
     match(shape) :
-      (g:Glue) : space((amount(g) / glue-tot) * gap-tot)
-      (s)      : s
+      (g:AnyGlue&T) : space((amount(g) / glue-tot) * gap-tot, g)
+      (s)           : s
 
-public defn box-x (w:Float, shapes:Seqable<Shape>) -> Seq<Shape> :
-  box-x(assign-glue(shapes, w, space-x, x))
+public defn box-x<?T> (w:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  box-x(assign-glue(shapes, w, spacer-x, x))
 
-public defn box-y (h:Float, shapes:Seqable<Shape>) -> Seq<Shape> :
-  box-y(assign-glue(shapes, h, space-y, y))
+public defn box-y<?T> (h:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  box-y(assign-glue(shapes, h, spacer-y, y))
 
-public defn box-z (d:Float, shapes:Seqable<Shape>) -> Seq<Shape> :
-  box-z(assign-glue(shapes, d, space-z, z))
+public defn box-z<?T> (d:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  box-z(assign-glue(shapes, d, spacer-z, z))
 
-defn align-it (ishapes:Seqable<Shape>, value:(Box) -> Float, mov:(Float, Shape) -> Shape) -> Seq<Shape> :
+defn align-it<?T> (ishapes:Seqable<?T&Poseable>, value:(Box) -> Float, mov:(Float, T) -> T) -> Seq<T> :
   val shapes = to-tuple(ishapes)
   val target = reduce(union, seq(bounds, shapes))
   ;; val target = bounds(shapes[0])
   for (child in shapes) seq :
     mov(value(target) - value(bounds(child)), child)
 
-public defn align-min-x (shapes:Seqable<Shape>) -> Seq<Shape> :
+public defn align-min-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   align-it(shapes, { x(lo(_)) }, mov-x)
 
-public defn align-max-x (shapes:Seqable<Shape>) -> Seq<Shape> :
+public defn align-max-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   align-it(shapes, { x(hi(_)) }, mov-x)
 
-public defn align-min-y (shapes:Seqable<Shape>) -> Seq<Shape> :
+public defn align-min-y<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   align-it(shapes, { y(lo(_)) }, mov-y)
 
-public defn align-max-y (shapes:Seqable<Shape>) -> Seq<Shape> :
+public defn align-max-y<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   align-it(shapes, { y(hi(_)) }, mov-y)
 
-public defn align-min-z (shapes:Seqable<Shape>) -> Seq<Shape> :
+public defn align-min-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   align-it(shapes, { z(lo(_)) }, mov-z)
 
-public defn align-max-z (shapes:Seqable<Shape>) -> Seq<Shape> :
+public defn align-max-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   align-it(shapes, { z(hi(_)) }, mov-z)
 
-public defn jit (g:Geom) -> Geom :
+defn jit-shape (s:Shape) -> Tree :
   let-var *store* = new-store() :
-    val res = 
-      match(g) :
-        (root:Shape) :
-          val e = fab(root, Vec3Field(fab-x(), fab-y(), fab-z()))
-          ;; println-all(["E = " e])
-          new-tree(*store*, e)
-        (geom) : geom
+    val e = fab(s, Vec3Field(fab-x(), fab-y(), fab-z()))
+    ;; println-all(["E = " e])
+    val res = new-tree(*store*, e)
     del(*store*)
     res
+
+defn jit-layer (l:Layer) -> TreeLayer :
+  TreeLayer(pos(l), color(l), jit-shape(shape(l)))
+
+defn jit-block (b:Block) -> TreeBlock :
+  TreeBlock(to-tuple $ seq(jit-layer, layers(b)))
+
+defn jit-layout (l:Layout) -> TreeLayout :
+  TreeLayout(to-tuple $ seq(jit-block, blocks(l)))
+
+public defn jit (g:Geom) -> Geom :
+  match(g) :
+    (s:Shape) :  jit-shape(s)
+    (l:Layer) :  jit-layer(l)
+    (b:Block) :  jit-block(b)
+    (l:Layout) : jit-layout(l)
+    (geom) :     geom
 
 public defn slice (z:Float, s:Shape) -> Polygon :
   val tree = jit(s) as Tree
