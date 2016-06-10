@@ -117,7 +117,7 @@ public defn Layout (elts:Collection<Layoutable>) :
     defmethod bounds (this) : reduce(bit-or, for elt in elts seq: bounds(elt))
     defmethod blocks (this) : cat-all(seq(blocks, elts))
 
-public defn Layout (blocks:Seq<Block>) : Layout(to-tuple $ blocks)
+public defn Layout (blocks:Seq<Layoutable>) : Layout(to-tuple $ blocks)
 
 public defmethod mov (dp:V3f, l:Layout) -> Layout :
   Layout(to-tuple $ seq(mov{dp, _}, blocks(l)))
