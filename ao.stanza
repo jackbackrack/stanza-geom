@@ -72,9 +72,10 @@ public defn mov-z<?T> (dz:Float, p:?T&Poseable) -> T : mov(V3f(0.0f, 0.0f, dz), 
 ;;; ASSEMBLIES
 
 public deftype RealPoseable <: Poseable
-public defmulti pos (b:RealPoseable) -> V3f
+public defmulti layers (p:RealPoseable) -> Seqable<Layer>
 
 public deftype Layer <: RealPoseable
+public defmulti pos (l:Layer) -> V3f
 public defmulti shape (l:Layer) -> Shape
 public defmulti color (l:Layer) -> V4f
 
@@ -84,6 +85,7 @@ public defn Layer (bounds:Box, pos:V3f, color:V4f, shape:Shape) :
     defmethod bounds (this) : bounds
     defmethod shape (this) : shape
     defmethod color (this) : color
+    defmethod layers (this) : [this]
 
 public defn Layer (color:V4f, shape:Shape) :
   Layer(bounds(shape), V3f(0.0f, 0.0f, 0.0f), color, shape)
@@ -91,28 +93,28 @@ public defn Layer (color:V4f, shape:Shape) :
 public defmethod mov (dp:V3f, p:Layer) -> Layer :
   Layer(mov-mat44(dp) * bounds(p), pos(p) + dp, color(p), shape(p))
 
-public deftype Block <: RealPoseable
-public defmulti layers (b:Block) -> Collection<Layer>
+public deftype Layoutable <: RealPoseable
+public defmulti blocks (l:Layoutable) -> Seqable<Block>
+
+public deftype Block <: Layoutable
 
 public defn Block (layers:Collection<Layer>) :
   new Block :
-    defmethod pos (this) : center(bounds(this))
     defmethod bounds (this) : reduce(bit-or, for layer in layers seq: bounds(layer))
     defmethod layers (this) : layers
+    defmethod blocks (this) : [this]
 
 public defn Block (layers:Seq<Layer>) : Block(to-tuple $ layers)
 
 public defmethod mov (dp:V3f, b:Block) -> Block :
   Block(to-tuple $ seq(mov{dp, _}, layers(b)))
 
-public deftype Layout <: RealPoseable
-public defmulti blocks (l:Layout) -> Collection<Block>
+public deftype Layout <: Layoutable
 
-public defn Layout (blocks:Collection<Block>) :
+public defn Layout (elts:Collection<Layoutable>) :
   new Layout :
-    defmethod pos (this) : center(bounds(this))
-    defmethod bounds (this) : reduce(bit-or, for block in blocks seq: bounds(block))
-    defmethod blocks (this) : blocks
+    defmethod bounds (this) : reduce(bit-or, for elt in elts seq: bounds(elt))
+    defmethod blocks (this) : cat-all(seq(blocks, elts))
 
 public defmethod mov (dp:V3f, l:Layout) -> Layout :
   Layout(to-tuple $ seq(mov{dp, _}, blocks(l)))
@@ -725,7 +727,6 @@ defmulti glue (g:RealGlue) -> Glue
 
 defmethod bounds (g:RealGlue) : bounds(glue(g))
 defmethod amount (g:RealGlue) : amount(glue(g))
-defmethod pos (g:RealGlue) : V3f(0.0f, 0.0f, 0.0f)
 
 public deftype LayerGlue <: RealGlue & Layer
 
