@@ -305,6 +305,8 @@ defmethod print (o:OutputStream, v:V4f) :
 public val RED   = V4f(1.0f, 0.0f, 0.0f, 1.0f)
 public val GREEN = V4f(0.0f, 1.0f, 0.0f, 1.0f)
 public val BLUE  = V4f(0.0f, 0.0f, 1.0f, 1.0f)
+public val BLACK  = V4f(0.0f, 0.0f, 0.0f, 1.0f)
+public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
 
 ;;; V3d
 

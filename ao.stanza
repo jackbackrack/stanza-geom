@@ -562,6 +562,9 @@ defn rect (xmin:Float, ymin:Float, xmax:Float, ymax:Float) -> Shape :
 public defn dim-min (d:Float) -> Float : d * -0.5f
 public defn dim-max (d:Float) -> Float : d *  0.5f
 
+public defn dim-min (dim:V3f) -> V3f : V3f(dim-min(x(dim)), dim-min(z(dim)), dim-min(z(dim)))
+public defn dim-max (dim:V3f) -> V3f : V3f(dim-max(x(dim)), dim-max(z(dim)), dim-max(z(dim)))
+
 public defn rect (w:Float, h:Float) -> Shape :
   rect(dim-min(w), dim-min(h), dim-max(w), dim-max(h))
 
@@ -683,8 +686,10 @@ public defn space-y (gdim:Float) : space-y(gdim, empty())
 public defn space-z (gdim:Float) : space-z(gdim, empty())
 
 public defmulti spacer<?T> (g:?T&Poseable, dims:V3f) -> T
-defmethod spacer (g:Layer, dims:V3f) : Layer(V4f(0.0f, 0.0f, 0.0f, 0.0f), spacer(empty(), dims))
-defmethod spacer (g:Shape, gdims:V3f) : mag(gdims / dims(bounds(g)), g)
+defmethod spacer (g:Shape, gdims:V3f) : Shape(lit{FLOAT-MAX}, Box(dim-min(gdims), dim-max(gdims)))
+defmethod spacer (g:Layer, dims:V3f) : Layer(BLACK, spacer(empty(), dims))
+defmethod spacer (g:Block, dims:V3f) : Block(BLACK, spacer(empty(), dims))
+defmethod spacer (g:Layout, dims:V3f) : Layout([Block(BLACK, spacer(empty(), dims))])
 
 public defn spacer-x<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(gdim, 0.0f, 0.0f))
 public defn spacer-y<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(0.0f, gdim, 0.0f))
@@ -744,6 +749,12 @@ public defn BlockGlue (glue:Glue) :
   new BlockGlue :
     defmethod glue (this) : glue
 
+public deftype LayoutGlue <: RealGlue & Layout
+
+public defn LayoutGlue (glue:Glue) :
+  new LayoutGlue :
+    defmethod glue (this) : glue
+
 public defn interleave<?T> (shapes:Seqable<?T&Poseable>, glue:T) -> Seq<T> :
   generate<T> :
     for (shape in shapes, i in 0 to false) do :
@@ -756,6 +767,8 @@ public defn interleave<?T> (shapes:Seqable<?T&Poseable>, glue:T) -> Seq<T> :
 defmulti glue-of<?T> (s:?T&Poseable, a:Float) -> T
 defmethod glue-of (s:Shape, a:Float) -> Shape : Glue(1.0f)
 defmethod glue-of (s:Layer, a:Float) -> Layer : LayerGlue(Glue(1.0f))
+defmethod glue-of (s:Block, a:Float) -> Block : BlockGlue(Glue(1.0f))
+defmethod glue-of (s:Layout, a:Float) -> Layout : LayoutGlue(Glue(1.0f))
 
 public defn glue<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   generate<T> :
@@ -766,14 +779,14 @@ public defn glue<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
 ;; public defn glue<?T> (shapes:Seqable<?T&Poseable>, glue:T&Poseable) -> Seq<T> :
 ;;   interleave(shapes, glue)
 
-defn assign-glue<?T> (ishapes:Seqable<?T&Poseable>, target:Float, space:(Float, T) -> T, dim:(V3f) -> Float) -> Seq<T> :
+defn assign-glue<?T> (ishapes:Seqable<?T&Poseable>, target:Float, spacer:(Float, T) -> T, dim:(V3f) -> Float) -> Seq<T> :
   val shapes = to-tuple(ishapes)
   val tot = reduce(plus, for shape in shapes seq : dim(dims(bounds(shape))))
   val glue-tot = reduce(plus, for shape in shapes seq : glue-amount(shape))
   val gap-tot = (target - tot)
   for shape in shapes seq :
     match(shape) :
-      (g:AnyGlue&T) : space((amount(g) / glue-tot) * gap-tot, g)
+      (g:AnyGlue&T) : spacer((amount(g) / glue-tot) * gap-tot, g)
       (s)           : s
 
 public defn box-x<?T> (w:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
