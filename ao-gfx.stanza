@@ -12,6 +12,12 @@ defmethod render (tree:Tree) -> False :
   val mesh = tree-render-mesh(tree, Box(V3f(-5.0f, -5.0f, -5.0f), V3f(5.0f, 5.0f, 5.0f)), 50.0f)
   println-all(["MESH: V = " length(vertices(mesh)) " F = " length(faces(mesh))])
   render(mesh)
+  gl-push-attrib(GL-CURRENT-BIT)
+  gl-color3f(1.0f, 0.5f, 0.5f)
+  gl-point-size(10.0f)
+  for point in points(tree) do :
+    render(point)
+  gl-pop-attrib()
 
 defmethod render (lay:TreeLayer) -> False :
   gl-push-matrix()

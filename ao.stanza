@@ -40,6 +40,10 @@ public lostanza deftype Contours :
 
 public lostanza deftype Tree <: Geom :
   value: ptr<?>
+  points: ref<Tuple<V3f>>
+
+public lostanza defn points (t:ref<Tree>) -> ref<Tuple<V3f>> :
+  return t.points
 
 defmethod print (o:OutputStream, t:Tree) :
   print-all(o, ["Tree()"])
@@ -63,6 +67,7 @@ defmethod print (s:OutputStream, f:FloField) :
 
 public deftype Poseable <: Geom
 public defmulti bounds (p:Poseable) -> Box
+public defmulti points (p:Poseable) -> Tuple<V3f>
 public defmulti mov<?T> (dp:V3f, p:?T&Poseable) -> T
 
 public defn mov-x<?T> (dx:Float, p:?T&Poseable) -> T : mov(V3f(dx, 0.0f, 0.0f), p)
@@ -83,6 +88,7 @@ public defn Layer (bounds:Box, pos:V3f, color:V4f, shape:Shape) :
   new Layer :
     defmethod pos (this) : pos
     defmethod bounds (this) : bounds
+    defmethod points (this) : points(shape)
     defmethod shape (this) : shape
     defmethod color (this) : color
     defmethod layers (this) : [this]
@@ -103,6 +109,7 @@ public defn Block (layers:Collection<Layer>) :
     defmethod bounds (this) : reduce(bit-or, for layer in layers seq: bounds(layer))
     defmethod layers (this) : layers
     defmethod blocks (this) : [this]
+    defmethod points (this) : to-tuple $ cat-all $ seq(points, layers)
 
 public defn Block (layers:Seq<Layer>) : Block(to-tuple $ layers)
 public defn Block (color:V4f, shape:Shape) : Block([Layer(color, shape)])
@@ -116,6 +123,7 @@ public defn Layout (elts:Collection<Layoutable>) :
   new Layout :
     defmethod bounds (this) : reduce(bit-or, for elt in elts seq: bounds(elt))
     defmethod blocks (this) : cat-all(seq(blocks, elts))
+    defmethod points (this) : to-tuple $ cat-all $ seq(points, elts)
 
 public defn Layout (blocks:Seq<Layoutable>) : Layout(to-tuple $ blocks)
 
@@ -138,10 +146,30 @@ public defstruct TreeLayout <: Geom :
 public deftype Shape <: Poseable
 public defmulti fabber (s:Shape) -> ((Vec3Field) -> FloField)
 
-public defn Shape (fabber:(Vec3Field) -> FloField, bounds:Box) :
+public defn Shape (fabber:(Vec3Field) -> FloField, bounds:Box, points:Tuple<V3f>) :
   new Shape :
     defmethod fabber (this) : fabber
     defmethod bounds (this) : bounds
+    defmethod points (this) : points
+
+public defn Shape (fabber:(Vec3Field) -> FloField, bounds:Box) :
+  Shape(fabber, bounds, [])
+
+public defn add-points (s:Shape, points:Tuple<V3f>) :
+  Shape(fabber(s), bounds(s), points)
+
+public defn add-min-x-point (s:Shape) :
+  add-points(s, [V3f(x(lo(bounds(s))), 0.0f, 0.0f)])
+public defn add-max-x-point (s:Shape) :
+  add-points(s, [V3f(x(hi(bounds(s))), 0.0f, 0.0f)])
+public defn add-min-y-point (s:Shape) :
+  add-points(s, [V3f(0.0f, y(lo(bounds(s))), 0.0f)])
+public defn add-max-y-point (s:Shape) :
+  add-points(s, [V3f(0.0f, y(hi(bounds(s))), 0.0f)])
+public defn add-min-z-point (s:Shape) :
+  add-points(s, [V3f(0.0f, 0.0f, z(lo(bounds(s))))])
+public defn add-max-z-point (s:Shape) :
+  add-points(s, [V3f(0.0f, 0.0f, z(hi(bounds(s))))])
 
 defmethod print (s:OutputStream, o:Shape) :
   print-all(s, ["Shape(" bounds(o) ")"])
@@ -149,8 +177,11 @@ defmethod print (s:OutputStream, o:Shape) :
 defn fab (s:Shape, p:Vec3Field) -> FloField :
   fabber(s)(p)
 
-public defn Shape (s:Shape, bounds:Box) :
+public defn Shape (s:Shape, bounds:Box, points:Tuple<V3f>) :
   Shape(fabber(s), bounds)
+
+public defn Shape (s:Shape, bounds:Box) :
+  Shape(s, bounds, [])
 
 public lostanza defn new-store () -> ref<Store> :
   return new Store{call-c store_new()}
@@ -159,8 +190,8 @@ public lostanza defn del (s:ref<Store>) -> ref<False> :
   call-c store_delete(s.value)
   return false
 
-public lostanza defn new-tree (s:ref<Store>, r:ref<FloField>) -> ref<Tree> :
-  return new Tree{call-c tree_new(s.value, node(r).value)}
+public lostanza defn new-tree (s:ref<Store>, r:ref<FloField>, points:ref<Tuple<V3f>>) -> ref<Tree> :
+  return new Tree{call-c tree_new(s.value, node(r).value), points}
 
 public lostanza defn tree-export-mesh (t:ref<Tree>, filename:ref<String>, box:ref<Box>, res:ref<Float>) -> ref<False> :
   call-c tree_export_mesh(t.value, addr!(filename.chars), x(lo(box)).value, x(hi(box)).value, y(lo(box)).value, y(hi(box)).value, z(lo(box)).value, z(hi(box)).value, res.value)
@@ -395,7 +426,7 @@ public defn modulo (a:Vec3Field, b:Vec3Field) -> Vec3Field :
       x(a) * y(b) - y(a) * x(b))
 
 public defn with-xyz (mat:Mat44, f:(Vec3Field) -> Vec3Field, s:Shape) -> Shape :
-  Shape(fn (p): fab(s, f(p)), mat * bounds(s))
+  Shape(fn (p): fab(s, f(p)), mat * bounds(s), to-tuple $ seq({mat * _} points(s)))
 
 public defmethod mov (dp:V3f, s:Shape) -> Shape :
   with-xyz(mov-mat44(dp), fn (p): p - lit(dp), s)
@@ -513,13 +544,15 @@ public defn sphere (d:Float) -> Shape :
 ;;   mov(x, y, z, {circle(r)})
 
 public defn bit-or (a:Shape, b:Shape) -> Shape :
-  Shape(fn (p): min(fab(a, p), fab(b, p)), bounds(a) | bounds(b))
+  Shape(fn (p): min(fab(a, p), fab(b, p)), bounds(a) | bounds(b),
+        to-tuple $ cat(points(a), points(b)))
 
 public defn union (args:Seqable<Shape>) -> Shape :
   reduce(bit-or, args)
 
 public defn bit-and (a:Shape, b:Shape) -> Shape :
-  Shape(fn (p): max(fab(a, p), fab(b, p)), bounds(a) & bounds(b))
+  Shape(fn (p): max(fab(a, p), fab(b, p)), bounds(a) & bounds(b),
+        to-tuple $ cat(points(a), points(b)))
 
 public defn intersection (args:Seqable<Shape>) -> Shape :
   reduce(bit-and, args)
@@ -528,7 +561,7 @@ public defn invert (s:Shape) -> Shape :
   Shape(fn (p): (- fab(s, p)), inf-box())
 
 public defn rem (a:Shape, b:Shape) -> Shape :
-  Shape(a & invert(b), bounds(a))
+  Shape(a & invert(b), bounds(a), points(a))
 
 public defn rem (a:Shape, args:Seqable<Shape>) -> Shape :
   rem(a, union(args))
@@ -538,10 +571,10 @@ public defn rem (shapes:Seqable<Shape>) -> Shape :
   rem(next(s), s)
 
 public defn offset (s:Shape, o:Float) -> Shape :
-  Shape(fn (p): fab(s, p) - lit(o), fatten(bounds(s), o))
+  Shape(fn (p): fab(s, p) - lit(o), fatten(bounds(s), o), points(s))
   
 public defn clearance (a:Shape, b:Shape, o:Float) -> Shape :
-  Shape(a & invert(offset(b, o)), inf-box())
+  Shape(a & invert(offset(b, o)), inf-box(), points(a))
   
 public defn shell (s:Shape, o:Float) -> Shape :
   clearance(s, s, o)
@@ -562,8 +595,8 @@ defn rect (xmin:Float, ymin:Float, xmax:Float, ymax:Float) -> Shape :
 public defn dim-min (d:Float) -> Float : d * -0.5f
 public defn dim-max (d:Float) -> Float : d *  0.5f
 
-public defn dim-min (dim:V3f) -> V3f : V3f(dim-min(x(dim)), dim-min(z(dim)), dim-min(z(dim)))
-public defn dim-max (dim:V3f) -> V3f : V3f(dim-max(x(dim)), dim-max(z(dim)), dim-max(z(dim)))
+public defn dim-min (dim:V3f) -> V3f : V3f(dim-min(x(dim)), dim-min(y(dim)), dim-min(z(dim)))
+public defn dim-max (dim:V3f) -> V3f : V3f(dim-max(x(dim)), dim-max(y(dim)), dim-max(z(dim)))
 
 public defn rect (w:Float, h:Float) -> Shape :
   rect(dim-min(w), dim-min(h), dim-max(w), dim-max(h))
@@ -678,12 +711,9 @@ public defn space (gdims:V3f, shape:Shape) :
 
 public defn empty () -> Shape : Shape(lit{FLOAT-MAX}, min-box())
 
-public defn space-x (gdim:Float, shape:Shape) : mag(V3f(gdim / x(dims(bounds(shape))), 0.0f, 0.0f), shape)
-public defn space-y (gdim:Float, shape:Shape) : mag(V3f(0.0f, gdim / y(dims(bounds(shape))), 0.0f), shape)
-public defn space-z (gdim:Float, shape:Shape) : mag(V3f(0.0f, 0.0f, gdim / z(dims(bounds(shape)))), shape)
-public defn space-x (gdim:Float) : space-x(gdim, empty())
-public defn space-y (gdim:Float) : space-y(gdim, empty())
-public defn space-z (gdim:Float) : space-z(gdim, empty())
+public defn space-x (gdim:Float, shape:Shape) : mag1(gdim / x(dims(bounds(shape))), shape)
+public defn space-y (gdim:Float, shape:Shape) : mag1(gdim / y(dims(bounds(shape))), shape)
+public defn space-z (gdim:Float, shape:Shape) : mag1(gdim / z(dims(bounds(shape))), shape)
 
 public defmulti spacer<?T> (g:?T&Poseable, dims:V3f) -> T
 defmethod spacer (g:Shape, gdims:V3f) : Shape(lit{FLOAT-MAX}, Box(dim-min(gdims), dim-max(gdims)))
@@ -695,7 +725,11 @@ public defn spacer-x<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(gdim, 0.0f,
 public defn spacer-y<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(0.0f, gdim, 0.0f))
 public defn spacer-z<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(0.0f, 0.0f, gdim))
 
-defn boxit<?T> (ishapes:Seqable<?T&Poseable>, dim:(V3f) -> Float, mov:(Float, T) -> T, dir:Float) -> Seq<T> :
+public defn spacer-x (gdim:Float) : spacer-x(gdim, empty())
+public defn spacer-y (gdim:Float) : spacer-y(gdim, empty())
+public defn spacer-z (gdim:Float) : spacer-z(gdim, empty())
+
+defn stack-it<?T> (ishapes:Seqable<?T&Poseable>, dim:(V3f) -> Float, mov:(Float, T) -> T, dir:Float) -> Seq<T> :
   val shapes = to-tuple(ishapes)
   val tot = reduce(plus, for shape in shapes seq : dim(dims(bounds(shape))))
   var tot-fac = 0.0f
@@ -705,14 +739,14 @@ defn boxit<?T> (ishapes:Seqable<?T&Poseable>, dim:(V3f) -> Float, mov:(Float, T)
       yield(mov(dir * (tot / 2.0f - (tot-fac + now-fac / 2.0f) * tot), child))
       tot-fac = tot-fac + now-fac
 
-public defn box-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  boxit(shapes, x, mov-x, -1.0f)
+public defn stack-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-it(shapes, x, mov-x, -1.0f)
 
-public defn box-y<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  boxit(shapes, y, mov-y,  1.0f)
+public defn stack-y<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-it(shapes, y, mov-y,  1.0f)
 
-public defn box-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  boxit(shapes, z, mov-z,  1.0f)
+public defn stack-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-it(shapes, z, mov-z,  1.0f)
 
 public deftype AnyGlue <: Poseable
 public defmulti amount (g:AnyGlue) -> Float
@@ -755,15 +789,6 @@ public defn LayoutGlue (glue:Glue) :
   new LayoutGlue :
     defmethod glue (this) : glue
 
-public defn interleave<?T> (shapes:Seqable<?T&Poseable>, glue:T) -> Seq<T> :
-  generate<T> :
-    for (shape in shapes, i in 0 to false) do :
-      if i != 0: yield(glue)
-      yield(shape)
-
-;; public defn glue<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
-;;   interleave(shapes, Glue(1.0f))
-
 defmulti glue-of<?T> (s:?T&Poseable, a:Float) -> T
 defmethod glue-of (s:Shape, a:Float) -> Shape : Glue(1.0f)
 defmethod glue-of (s:Layer, a:Float) -> Layer : LayerGlue(Glue(1.0f))
@@ -776,9 +801,6 @@ public defn glue<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
       if i != 0: yield(glue-of(shape, 1.0f))
       yield(shape)
 
-;; public defn glue<?T> (shapes:Seqable<?T&Poseable>, glue:T&Poseable) -> Seq<T> :
-;;   interleave(shapes, glue)
-
 defn assign-glue<?T> (ishapes:Seqable<?T&Poseable>, target:Float, spacer:(Float, T) -> T, dim:(V3f) -> Float) -> Seq<T> :
   val shapes = to-tuple(ishapes)
   val tot = reduce(plus, for shape in shapes seq : dim(dims(bounds(shape))))
@@ -789,14 +811,14 @@ defn assign-glue<?T> (ishapes:Seqable<?T&Poseable>, target:Float, spacer:(Float,
       (g:AnyGlue&T) : spacer((amount(g) / glue-tot) * gap-tot, g)
       (s)           : s
 
-public defn box-x<?T> (w:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  box-x(assign-glue(shapes, w, spacer-x, x))
+public defn stack-x<?T> (w:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-x(assign-glue(shapes, w, spacer-x, x))
 
-public defn box-y<?T> (h:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  box-y(assign-glue(shapes, h, spacer-y, y))
+public defn stack-y<?T> (h:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-y(assign-glue(shapes, h, spacer-y, y))
 
-public defn box-z<?T> (d:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  box-z(assign-glue(shapes, d, spacer-z, z))
+public defn stack-z<?T> (d:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-z(assign-glue(shapes, d, spacer-z, z))
 
 defn align-it<?T> (ishapes:Seqable<?T&Poseable>, value:(Box) -> Float, mov:(Float, T) -> T) -> Seq<T> :
   val shapes = to-tuple(ishapes)
@@ -804,6 +826,12 @@ defn align-it<?T> (ishapes:Seqable<?T&Poseable>, value:(Box) -> Float, mov:(Floa
   ;; val target = bounds(shapes[0])
   for (child in shapes) seq :
     mov(value(target) - value(bounds(child)), child)
+
+public defn attach<?T> (src:?T&Poseable, spos:V3f, dst:?T&Poseable, dpos:V3f) -> Seqable<T> :
+  [mov(dpos - spos, src), dst]
+
+public defn attach<?T> (src:?T&Poseable, si:Int, dst:?T&Poseable, di:Int) -> Seqable<T> :
+  attach(src, points(src)[si], dst, points(dst)[di])
 
 public defn align-min-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   align-it(shapes, { x(lo(_)) }, mov-x)
@@ -827,7 +855,7 @@ defn jit-shape (s:Shape) -> Tree :
   let-var *store* = new-store() :
     val e = fab(s, Vec3Field(fab-x(), fab-y(), fab-z()))
     ;; println-all(["E = " e])
-    val res = new-tree(*store*, e)
+    val res = new-tree(*store*, e, points(s))
     del(*store*)
     res
 

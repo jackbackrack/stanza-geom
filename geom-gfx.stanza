@@ -65,12 +65,21 @@ defmethod render (poly:Polygon) -> False :
     render(c)
 
 defmethod render (mesh:Mesh) -> False :
+  ;; for t in faces(mesh) do :
+  ;;   gl-begin(GL-TRIANGLES)
+  ;;   gl-vertex3(vertices(mesh)[x(t)])
+  ;;   gl-vertex3(vertices(mesh)[y(t)])
+  ;;   gl-vertex3(vertices(mesh)[z(t)])
+  ;;   gl-end()
+  ;; gl-push-attrib(GL-CURRENT-BIT)
+  ;; gl-color3f(1.0f, 0.5f, 0.5f)
   for t in faces(mesh) do :
     gl-begin(GL-LINE-LOOP)
     gl-vertex3(vertices(mesh)[x(t)])
     gl-vertex3(vertices(mesh)[y(t)])
     gl-vertex3(vertices(mesh)[z(t)])
     gl-end()
+  ;; gl-pop-attrib()
 
 public lostanza defn gl-load-matrix (m:ref<Mat44>) -> ref<False> :
   call-c glLoadMatrixf(addr!(m.m00))
