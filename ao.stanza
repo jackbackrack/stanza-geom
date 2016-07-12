@@ -503,12 +503,14 @@ defn shear-x-y (ymin:Float, ymax:Float, dx0:Float, dx1:Float, s:Shape) -> Shape 
 public defn shear-x-y (h:Float, dx0:Float, dx1:Float, s:Shape) -> Shape :
   shear-x-y(dim-min(h), dim-max(h), dx0, dx1, s)
 
+;; TODO : UPDATE BOUNDS
 defn taper-x-y (ymin:Float, ymax:Float, s0:Float, s1:Float, s:Shape) -> Shape :
   defn xf (p) :
     val sc = lit(ymax - ymin) / ((lit(s1) * (y(p) - lit(ymin))) - (lit(s0) * (y(p) - lit(ymax))))
     Vec3Field(x(p) * sc, y(p), z(p))
   with-xyz(id-mat44(), xf, s)
 
+;; TODO : UPDATE BOUNDS
 defn taper-xy-z (zmin:Float, zmax:Float, s0:Float, s1:Float, s:Shape) -> Shape :
   defn xf (p) :
     val sc = lit(zmax - zmin) / ((lit(s1) * (z(p) - lit(zmin))) - (lit(s0) * (z(p) - lit(zmax))))
@@ -518,12 +520,15 @@ defn taper-xy-z (zmin:Float, zmax:Float, s0:Float, s1:Float, s:Shape) -> Shape :
 public defn taper-xy-z (h:Float, s0:Float, s1:Float, s:Shape) -> Shape :
   taper-xy-z(dim-min(h), dim-max(h), s0, s1, s)
 
+;; TODO : UPDATE BOUNDS
 public defn revolve-y (s:Shape) -> Shape :
   with-xyz(id-mat44(), fn (p): Vec3Field(sqrt(sqr(x(p)) + sqr(z(p))), y(p), z(p)), s)
 
+;; TODO : UPDATE BOUNDS
 public defn revolve-x (s:Shape) -> Shape :
   with-xyz(id-mat44(), fn (p): Vec3Field(x(p), sqrt(sqr(y(p)) + sqr(z(p))), z(p)), s)
 
+;; TODO : UPDATE BOUNDS
 public defn xy (z:Float, s:Shape) -> Shape :
   with-xyz(id-mat44(), fn (p): Vec3Field(x(p), y(p), lit(z)), s)
 
@@ -574,18 +579,18 @@ public defn offset (s:Shape, o:Float) -> Shape :
   Shape(fn (p): fab(s, p) - lit(o), fatten(bounds(s), o), points(s))
   
 public defn clearance (a:Shape, b:Shape, o:Float) -> Shape :
-  Shape(a & invert(offset(b, o)), inf-box(), points(a))
+  Shape(a & invert(offset(b, (- o))), bounds(a), points(a))
   
 public defn shell (s:Shape, o:Float) -> Shape :
   clearance(s, s, o)
   
-public defn blend (a:Shape, b:Shape, m:FloField) -> Shape :
+public defn blend (a:Shape, b:Shape, m:Float) -> Shape :
   val joint = a | b
-  val fillet = Shape(fn (p): sqrt(abs(fab(a, p)) + sqrt(abs(fab(b, p)))) - m, inf-box())
+  val fillet = Shape(fn (p): sqrt(abs(fab(a, p))) + sqrt(abs(fab(b, p))) - lit(m), bounds(a) | bounds(b))
   joint | fillet
   
-public defn morph (a:Shape, b:Shape, m:FloField) -> Shape :
-  Shape(fn (p): fab(a, p) * (lit(1.0) - m) + fab(b, p) * m, bounds(a) | bounds(b))
+public defn morph (a:Shape, b:Shape, m:Float) -> Shape :
+  Shape(fn (p): fab(a, p) * (lit(1.0) - lit(m)) + fab(b, p) * lit(m), bounds(a) | bounds(b))
   
 defn rect (xmin:Float, ymin:Float, xmax:Float, ymax:Float) -> Shape :
   val b = Box(V3f(xmin, ymin, FLOAT-MIN), V3f(xmax, ymax, FLOAT-MAX))
@@ -736,7 +741,8 @@ defn stack-it<?T> (ishapes:Seqable<?T&Poseable>, dim:(V3f) -> Float, mov:(Float,
   generate<T> :
     for (child in shapes, i in 0 to false) do :
       val now-fac = dim(dims(bounds(child))) / tot
-      yield(mov(dir * (tot / 2.0f - (tot-fac + now-fac / 2.0f) * tot), child))
+      val ctr     = dim(center(bounds(child)))
+      yield(mov(dir * (tot / 2.0f - (tot-fac + now-fac / 2.0f) * tot) - ctr, child))
       tot-fac = tot-fac + now-fac
 
 public defn stack-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :

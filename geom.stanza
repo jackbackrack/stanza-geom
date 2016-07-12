@@ -69,7 +69,7 @@ defmethod print (o:OutputStream, v:Vf) :
 ;;   y : Int
 ;;   z : Int
 
-public lostanza deftype V3i <: Array<Int> & Geom :
+public lostanza deftype V3i <: Array<Int> & Hashable & Geom :
   x: int
   y: int
   z: int
@@ -100,6 +100,9 @@ defmethod length (a:V3i) -> Int : 3
 
 defmethod equal? (v1:V3i, v2:V3i) :
   x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) 
+
+defmethod hash (v:V3i) :
+  (7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v))
 
 defmethod print (o:OutputStream, v:V3i) :
   print-all(o, ["V3i(", x(v), ",", y(v), ",", z(v), ")"])
@@ -162,7 +165,7 @@ defmethod print (o:OutputStream, i:Interval) :
 ;;   y: Float
 ;;   z: Float
 
-public lostanza deftype V3f <: Array<Float> & Geom :
+public lostanza deftype V3f <: Array<Float> & Geom & Hashable :
   x: float
   y: float
   z: float
@@ -198,6 +201,9 @@ public defmethod length (a:V3f) -> Int : 3
 
 defmethod equal? (v1:V3f, v2:V3f) :
   x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) 
+
+defmethod hash (v:V3f) :
+  (7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v))
 
 defmethod print (o:OutputStream, v:V3f) :
   print-all(o, ["V3f(", x(v), ",", y(v), ",", z(v), ")"])
@@ -263,7 +269,7 @@ public defn negate (a:V3f) -> V3f :
 ;;   z: Float
 ;;   a: Float
 
-public lostanza deftype V4f <: Array<Float> & Geom :
+public lostanza deftype V4f <: Array<Float> & Geom & Hashable :
   x: float
   y: float
   z: float
@@ -299,6 +305,9 @@ public defmethod length (a:V4f) -> Int : 4
 defmethod equal? (v1:V4f, v2:V4f) :
   x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) and a(v1) == a(v2) 
 
+defmethod hash (v:V4f) :
+  (7 * ((7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v)))) + hash(a(v))
+
 defmethod print (o:OutputStream, v:V4f) :
   print-all(o, ["V4f(", x(v) "," y(v) "," z(v) "," a(v) ")"])
 
@@ -310,7 +319,7 @@ public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
 
 ;;; V3d
 
-public lostanza deftype V3d <: Array<Double> & Geom :
+public lostanza deftype V3d <: Array<Double> & Geom & Hashable :
   x: double
   y: double
   z: double
@@ -328,6 +337,12 @@ public lostanza defn z (v:ref<V3d>) -> ref<Double> :
   return new Double{v.z}
 
 public defn V3d (v:V3f) -> V3d : V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
+
+defmethod equal? (v1:V3d, v2:V3d) :
+  x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) 
+
+defmethod hash (v:V3d) :
+  (7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v))
 
 ;;; BOX
 

@@ -48,6 +48,7 @@ public defn geom-eval-top-env () :
   add-binding(top-env, `hi, hi)
   add-binding(top-env, `dims, dims)
   add-binding(top-env, `union, union)
+  add-binding(top-env, `intersection, intersection)
   add-binding(top-env, `PolyLine, PolyLine)
   add-binding(top-env, `Polygon, Polygon)
   add-binding(top-env, `contours, contours)
