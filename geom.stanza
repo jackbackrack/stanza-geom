@@ -15,13 +15,6 @@ public defn ensure-index-in-bounds (i:Int, n:Int) :
    if i < 0 or i >= n :
       fatal("Index (%_) out of bounds." % [i])
 
-public defn ensure-non-negative (quantity:String, n:Int) :
-   if n < 0 :
-      fatal("Given %_ (%_) is negative." % [quantity, n])
-
-public defn ensure-non-negative-length (n:Int) :
-   ensure-non-negative("length", n)   
-
 ;;; VECS
 
 public lostanza deftype Vf <: Array<Float> & Geom :
@@ -88,6 +81,12 @@ public lostanza defn z (v:ref<V3i>) -> ref<Int> :
 
 public defn V3i (x:Int, y:Int) -> V3i :
   V3i(x, y, 0)
+
+public defn to-v3i (v:V3f) -> V3i :
+  V3i(to-int(x(v)), to-int(y(v)), to-int(z(v)))
+
+public defn to-v3f (v:V3i) -> V3f :
+  V3f(to-float(x(v)), to-float(y(v)), to-float(z(v)))
 
 public lostanza defn v3i-get (v:ref<V3i>, i:ref<Int>) -> ref<Int> :
   #if-not-defined(OPTIMIZE) :
@@ -206,7 +205,7 @@ defmethod hash (v:V3f) :
   (7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v))
 
 defmethod print (o:OutputStream, v:V3f) :
-  print-all(o, ["V3f(", x(v), ",", y(v), ",", z(v), ")"])
+  print-all(o, ["V3f(", x(v), "f,", y(v), "f,", z(v), "f)"])
 
 public defn dot (a:V3f, b:V3f) -> Float :
   x(a) * x(b) + y(a) * y(b) + z(a) * z(b)
@@ -346,7 +345,26 @@ defmethod hash (v:V3d) :
 
 ;;; BOX
 
-public defstruct Box <: Geom :
+public defstruct Boxi <: Geom & Equalable :
+  lo: V3i
+  hi: V3i
+
+public defn Boxi (v:V3i) -> Boxi :
+  Boxi(v, v)
+
+defmethod print (o:OutputStream, b:Boxi) :
+  print-all(o, ["Boxi(", lo(b), ",", hi(b) ")"])
+
+public defn center (b:Boxi) -> V3i :
+  to-v3i(0.5f * to-v3f(lo(b) + hi(b)))
+
+public defn dims (b:Boxi) -> V3i :
+  hi(b) - lo(b)
+
+defmethod equal? (b1:Boxi, b2:Boxi) :
+  lo(b1) == lo(b2) or hi(b1) == hi(b2)
+
+public defstruct Box <: Geom & Equalable :
   lo: V3f
   hi: V3f
 
@@ -403,6 +421,9 @@ public defn fatten (b:Box, r:Float) -> Box :
 
 public defn times (mat:Mat44, b:Box) -> Box :
   reduce(union, map(Box{ mat * _ }, corners(b)))
+
+defmethod equal? (b1:Box, b2:Box) :
+  lo(b1) == lo(b2) or hi(b1) == hi(b2)
 
 ;;; MAT
 
@@ -547,8 +568,8 @@ public defn rot-mat44 (r:V3f, a:Float) -> Mat44 :
          m20,  m21,  m22, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f)
 
-public defn rot2-mat44 (from:V3f, to:V3f) -> Mat44 :
-  val a = atan2(y(to), x(to)) - atan2(y(from), x(from))
+public defn rot2-mat44 (src:V3f, dst:V3f) -> Mat44 :
+  val a = atan2(y(dst), x(dst)) - atan2(y(src), x(src))
   val [c, s] = [cos(a), sin(a)]
   Mat44(    c    s 0.0f 0.0f
         (- s)    c 0.0f 0.0f
