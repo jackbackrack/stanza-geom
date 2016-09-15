@@ -85,6 +85,9 @@ public defn V3i (x:Int, y:Int) -> V3i :
 public defn to-v3i (v:V3f) -> V3i :
   V3i(to-int(x(v)), to-int(y(v)), to-int(z(v)))
 
+public defn round (p:V3f) -> V3f :
+  V3f(round(x(p)), round(y(p)), round(z(p)))
+
 public defn to-v3f (v:V3i) -> V3f :
   V3f(to-float(x(v)), to-float(y(v)), to-float(z(v)))
 
@@ -102,6 +105,9 @@ defmethod equal? (v1:V3i, v2:V3i) :
 
 defmethod hash (v:V3i) :
   (7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v))
+
+public defn xy (p:V3i) -> V3i :
+  V3i(x(p), y(p), 0)
 
 defmethod print (o:OutputStream, v:V3i) :
   print-all(o, ["V3i(", x(v), ",", y(v), ",", z(v), ")"])
@@ -209,6 +215,9 @@ defmethod print (o:OutputStream, v:V3f) :
 
 public defn dot (a:V3f, b:V3f) -> Float :
   x(a) * x(b) + y(a) * y(b) + z(a) * z(b)
+
+public defn xy (p:V3f) -> V3f :
+  V3f(x(p), y(p), 0.0f)
 
 public defn min (a:V3f) -> Float :
   min(x(a), min(y(a), z(a)))
@@ -355,11 +364,14 @@ public defn Boxi (v:V3i) -> Boxi :
 defmethod print (o:OutputStream, b:Boxi) :
   print-all(o, ["Boxi(", lo(b), ",", hi(b) ")"])
 
+public defn union (b0:Boxi, b1:Boxi) -> Boxi :
+  Boxi(min(lo(b0), lo(b1)), max(hi(b0), hi(b1)))
+
 public defn center (b:Boxi) -> V3i :
-  to-v3i(0.5f * to-v3f(lo(b) + hi(b)))
+  to-v3i(round(0.5f * to-v3f(lo(b) + hi(b))))
 
 public defn dims (b:Boxi) -> V3i :
-  hi(b) - lo(b)
+  (hi(b) - lo(b)) + V3i(1, 1, 1)
 
 defmethod equal? (b1:Boxi, b2:Boxi) :
   lo(b1) == lo(b2) or hi(b1) == hi(b2)
@@ -415,12 +427,8 @@ public defn min-box () -> Box:
   val [min-inf, max-inf] = [FLOAT-MIN, FLOAT-MAX]
   Box(V3f(max-inf, max-inf, max-inf), V3f(min-inf, min-inf, min-inf))
 
-public defn fatten (b:Box, r:Float) -> Box :
-  val rvec = r * V3f(1.0f, 1.0f, 1.0f)
-  Box(lo(b) - rvec, hi(b) + rvec)
-
-public defn fatten-xy (b:Box, r:Float) -> Box :
-  val rvec = r * V3f(1.0f, 1.0f, 0.0f)
+public defn fatten (b:Box, dims:V3f) -> Box :
+  val rvec = 0.5f * dims
   Box(lo(b) - rvec, hi(b) + rvec)
 
 public defn times (mat:Mat44, b:Box) -> Box :
