@@ -679,7 +679,7 @@ public defn circle-n (d:Float, n:Int) -> Polygon :
   val r = 0.5f * d
   val points = 
     for i in 0 to n seq :
-      val a = to-float(i) * 2.0f * 3.1415f / to-float(n)
+      val a = to-float(i) * 2.0f * PI-F / to-float(n)
       V2f(r * sin(a), r * cos(a))
   to-polygon(Contour(to-tuple(points)))
 
