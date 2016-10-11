@@ -1,3 +1,7 @@
+stanza_geom_all: ${GEN}/ao.pkg ${GEN}/ao-gfx.pkg ${GEN}/ao-eval.pkg ${GEN}/geom.pkg ${GEN}/geom-gfx.pkg 
+
+ALL_PKG_DEPS += stanza_geom_all
+
 ${GEN}/ao.pkg: stanza-geom/ao.stanza ${GEN}/utils.pkg ${GEN}/geom.pkg ${GEN}/font.pkg ${GEN}/glu.pkg
 	stanza $< $(STZ_FLAGS) -pkg ${GEN}
 
