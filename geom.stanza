@@ -55,6 +55,44 @@ defmethod length (a:Vf) -> Int : vf-length(a)
 defmethod print (o:OutputStream, v:Vf) :
   print-all(o, ["Vf(" length(v) ")"])
 
+public lostanza deftype Vi <: Array<Int> & Geom :
+  length: long
+  elts:   int ...
+
+public lostanza defn Vi (n:ref<Int>, x:ref<Int>) -> ref<Vi> :
+  #if-not-defined(OPTIMIZE) :
+    ensure-non-negative-length(n)
+  val l = n.value
+  val a = new Vi{l}
+  val c = x.value
+  for (var i:long = 0, i < l, i = i + 1) :
+    a.elts[i] = c
+  return a
+
+public defn Vi (n:Int) -> Vi :
+  Vi(n, 0)
+
+lostanza defn vi-get (v:ref<Vi>, i:ref<Int>) -> ref<Int> :
+  #if-not-defined(OPTIMIZE) :
+     ensure-index-in-bounds(i, length(v))
+  return new Int{v.elts[i.value]}
+  
+lostanza defn vi-set (v:ref<Vi>, i:ref<Int>, x:ref<Int>) -> ref<False> :
+  #if-not-defined(OPTIMIZE) :
+     ensure-index-in-bounds(i, length(v))
+  v.elts[i.value] = x.value
+  return false
+  
+lostanza defn vi-length (v:ref<Vi>) -> ref<Int> :
+  return new Int{v.length as int}
+  
+defmethod get (a:Vi, i:Int) -> Int : vi-get(a, i)
+defmethod set (a:Vi, i:Int, c:Int) -> False : vi-set(a, i, c)
+defmethod length (a:Vi) -> Int : vi-length(a)
+
+defmethod print (o:OutputStream, v:Vi) :
+  print-all(o, ["Vi(" length(v) ")"])
+
 ;;; V3i
 
 ;; public defstruct V3i <: Array<Int> :
