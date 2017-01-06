@@ -469,6 +469,9 @@ public defn fatten (b:Box, dims:V3f) -> Box :
   val rvec = 0.5f * dims
   Box(lo(b) - rvec, hi(b) + rvec)
 
+public defn fatten (b:Box, dims:Float) -> Box :
+  fatten(b, V3f(dims, dims, dims))
+
 public defn times (mat:Mat44, b:Box) -> Box :
   reduce(union, map(Box{ mat * _ }, corners(b)))
 
