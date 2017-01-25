@@ -219,6 +219,16 @@ public lostanza defn V3f (x:ref<Float>, y:ref<Float>, z:ref<Float>) -> ref<V3f> 
 public defn V2f (x:Float, y:Float) -> V3f :
   V3f(x, y, 0.0f)
 
+public defn V3f-fill (a:Float) : V3f(a, a, a)
+
+public defn V3f-unit (i:Int) :
+  if i == 0 : V3f(1.0f, 0.0f, 0.0f)
+  else if i == 1 : V3f(0.0f, 1.0f, 0.0f)
+  else : V3f(0.0f, 0.0f, 1.0f)
+  
+public defn set-elt (v:V3f, i:Int, a:Float) -> V3f :
+  v + (a - v[i]) * V3f-unit(i)
+
 public lostanza defn x (v:ref<V3f>) -> ref<Float> :
   return new Float{v.x}
 
@@ -234,6 +244,12 @@ public lostanza defn v3f-get (v:ref<V3f>, i:ref<Int>) -> ref<Float> :
   return new Float{addr!(v.x)[i.value]}
   
 public defmethod get (a:V3f, i:Int) -> Float : v3f-get(a, i)
+
+public defn max-idx (v:V3f) -> Int :
+  if x(v) > y(v):
+    if x(v) > z(v): 0 else: 2
+  else:
+    if y(v) > z(v): 1 else: 2
 
 ;; public defmethod get (a:V3f, i:Int) -> Float :
 ;;   if i == 0 : x(a) 
@@ -423,6 +439,10 @@ public defn Box (v:V3f) -> Box :
 
 defmethod print (o:OutputStream, b:Box) :
   print-all(o, ["Box(", lo(b), ",", hi(b) ")"])
+
+public defn empty? (b:Box) -> True|False :
+  val d = dims(b)
+  x(d) <= 0.0f or y(d) <= 0.0f or z(d) <= 0.0f
 
 public defn center (b:Box) -> V3f :
   0.5f * (lo(b) + hi(b))
