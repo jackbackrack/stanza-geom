@@ -251,6 +251,12 @@ public defn max-idx (v:V3f) -> Int :
   else:
     if y(v) > z(v): 1 else: 2
 
+public defn min-idx (v:V3f) -> Int :
+  if x(v) < y(v):
+    if x(v) < z(v): 0 else: 2
+  else:
+    if y(v) < z(v): 1 else: 2
+
 ;; public defmethod get (a:V3f, i:Int) -> Float :
 ;;   if i == 0 : x(a) 
 ;;   else if i == 1 : y(a) 
@@ -287,6 +293,12 @@ public defn min (a:V3f, b:V3f) -> V3f :
 
 public defn max (a:V3f, b:V3f) -> V3f :
   V3f(max(x(a), x(b)), max(y(a), y(b)), max(z(a), z(b)))
+
+public defn volume (a:V3f) -> Float :
+  x(a) * y(a) * z(a)
+
+public defn area (a:V3f) -> Float :
+  x(a) * y(a)
 
 public defn magnitude (a:V3f) -> Float :
   sqrt(dot(a, a))
