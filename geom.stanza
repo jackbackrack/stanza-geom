@@ -222,12 +222,12 @@ public defn V2f (x:Float, y:Float) -> V3f :
 public defn V3f-fill (a:Float) : V3f(a, a, a)
 
 public defn V3f-unit (i:Int) :
-  if i == 0 : V3f(1.0f, 0.0f, 0.0f)
+  if i == 0 :      V3f(1.0f, 0.0f, 0.0f)
   else if i == 1 : V3f(0.0f, 1.0f, 0.0f)
-  else : V3f(0.0f, 0.0f, 1.0f)
+  else :           V3f(0.0f, 0.0f, 1.0f)
   
 public defn set-elt (v:V3f, i:Int, a:Float) -> V3f :
-  v + (a - v[i]) * V3f-unit(i)
+  V3f(a when i == 0 else v[0], a when i == 1 else v[1], a when i == 2 else v[2])
 
 public lostanza defn x (v:ref<V3f>) -> ref<Float> :
   return new Float{v.x}
@@ -748,6 +748,12 @@ public defstruct Contour <: Geom :
 defmethod print (o:OutputStream, c:Contour) :
   print("Contour(%,)" % [points(c)])
 
+defn do-print-svg (s:OutputStream, contour:Contour) :
+  print(s, "<path d=\"")
+  for (p in points(contour), i in 0 to false) do :  
+    print-all(s, [" " ("M" when i == 0 else "L") " " x(p) " " y(p)])
+  print(s, " Z \" fill=\"none\" stroke=\"red\" stroke-width=\"0.02\"/>")
+
 public defn circle-n (d:Float, n:Int) -> Polygon :
   val r = 0.5f * d
   val points = 
@@ -761,6 +767,12 @@ public defn to-polygon (c:Contour) -> Polygon :
 
 public defn times (mat:Mat44, p:Contour) -> Contour :
   Contour(for p in points(p) map : mat * p)
+
+public defn plus (p:Contour, off:V3f) -> Contour :
+  Contour(for p in points(p) map : p + off)
+
+public defn minus (p:Contour, off:V3f) -> Contour :
+  Contour(for p in points(p) map : p - off)
 
 public defn segments (contour:Contour) -> Seq<[V3f, V3f]> :
   val pts = points(contour)
@@ -792,8 +804,28 @@ defmethod print (o:OutputStream, c:Polygon) :
 public defn times (mat:Mat44, p:Polygon) -> Polygon :
   Polygon(for c in contours(p) map : mat * c)
 
+public defn plus (p:Polygon, off:V3f) -> Polygon :
+  Polygon(for c in contours(p) map : c + off)
+
+public defn minus (p:Polygon, off:V3f) -> Polygon :
+  Polygon(for c in contours(p) map : c - off)
+
 public defn segments (polygon:Polygon) -> Seq<[V3f, V3f]> :
   cat-all(for c in contours(polygon) seq : segments(c))
+
+defn do-print-svg (s:OutputStream, polygon:Polygon, bounds:Box) :
+  println-all(s, ["<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"])
+  println-all(s, ["<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\""])
+  println-all(s, [" width=\"" x(dims(bounds)) "\" height=\"" y(dims(bounds)) "\" id=\"cons\">"])
+  val poly = polygon - lo(bounds)
+  for c in contours(poly) do :
+    do-print-svg(s, c)
+  println(s, "\n</svg>")
+
+public defn svg (polygon:Polygon, filename:String, bounds:Box) :
+  val s = FileOutputStream(filename)
+  try : do-print-svg(s, polygon, bounds)
+  finally : close(s)
 
 ;;; POLYLINE
 
