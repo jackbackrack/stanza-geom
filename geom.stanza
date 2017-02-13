@@ -1026,6 +1026,7 @@ public defn ArcBall (new-width:Float, new-height:Float) -> ArcBall :
   res
 
 public defn click (a:ArcBall, new-pt:V3f) :
+  ;; println-all(["CLICK " new-pt])
   st-vec-set(a, map-to-sphere(a, new-pt))
   set-quat(a, base-quat(a))
 
@@ -1035,13 +1036,15 @@ public defn reset! (a:ArcBall) :
   set-base-quat(a, Quat())
 
 public defn drag (a:ArcBall, new-pt:V3f) :
+  ;; println-all(["DRAG  " new-pt])
   en-vec-set(a, map-to-sphere(a, new-pt))
   val perp = st-vec(a) % en-vec(a)
   if magnitude(perp) > epsilon :
     val q = normalize(Quat(dot(st-vec(a), en-vec(a)), perp))
     ;; set-quat(a, (- q) * base-quat(a))
     ;; set-quat(a, conjugate(q) * base-quat(a))
-    set-quat(a, base-quat(a) * conjugate(q))
+    ;; set-quat(a, base-quat(a) * conjugate(q))
+    set-quat(a, base-quat(a) * q)
     set-rot(a, quat-to-mat44(quat(a)))
     q
     
