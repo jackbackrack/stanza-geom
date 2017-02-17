@@ -208,7 +208,7 @@ defmethod print (o:OutputStream, i:Interval) :
 ;;   y: Float
 ;;   z: Float
 
-public lostanza deftype V3f <: Array<Float> & Geom & Hashable :
+public lostanza deftype V3f <: Array<Float> & Geom & Hashable & Equalable :
   x: float
   y: float
   z: float
@@ -455,6 +455,9 @@ defmethod print (o:OutputStream, b:Box) :
 public defn empty? (b:Box) -> True|False :
   val d = dims(b)
   x(d) <= 0.0f or y(d) <= 0.0f or z(d) <= 0.0f
+
+public defn contains? (b:Box, p:V3f) -> True|False :
+  not empty?(b & Box(p))
 
 public defn center (b:Box) -> V3f :
   0.5f * (lo(b) + hi(b))
