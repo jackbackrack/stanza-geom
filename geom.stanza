@@ -454,7 +454,7 @@ defmethod print (o:OutputStream, b:Box) :
 
 public defn empty? (b:Box) -> True|False :
   val d = dims(b)
-  x(d) <= 0.0f or y(d) <= 0.0f or z(d) <= 0.0f
+  x(d) < 0.0f or y(d) < 0.0f or z(d) < 0.0f
 
 public defn contains? (b:Box, p:V3f) -> True|False :
   not empty?(b & Box(p))
