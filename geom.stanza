@@ -995,6 +995,9 @@ public defstruct ArcBall :
   base-quat : Quat with: (setter => set-base-quat)
   rot : Mat44 with: (setter => set-rot)
 
+public defn clone (ball:ArcBall) :
+  ArcBall(adjust-width(ball), adjust-height(ball))
+  
 public defn set-bounds (a:ArcBall, new-width:Float, new-height:Float) :
   ;; adjust-width-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
   ;; adjust-height-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
@@ -1063,6 +1066,9 @@ public defstruct Transformation :
   mag : Float with: (setter => set-mag)
   mov : V3f with: (setter => set-mov)
   last-x : Float with: (setter => set-last-x)
+
+public defn clone (xform:Transformation) :
+  Transformation(clone(ball(xform)), mag(xform), V2f(0.0f, 0.0f), 0.0f)
 
 public defn mov! (xform:Transformation, amount:V3f) :
   set-mov(xform, mov(xform) + MOV-SCALE * amount)
