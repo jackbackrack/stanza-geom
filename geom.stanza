@@ -514,7 +514,7 @@ defmethod equal? (b1:Box, b2:Box) :
 
 ;;; MAT
 
-public lostanza deftype Mat44 <: Array<Float> & Geom :
+public lostanza deftype Mat44 <: Array<Float> & Geom & Equalable :
   m00: float
   m01: float
   m02: float
@@ -539,6 +539,12 @@ public lostanza defn Mat44 (m00:ref<Float>,m01:ref<Float>,m02:ref<Float>,m03:ref
   return new Mat44{m00.value,m01.value,m02.value,m03.value,m10.value,m11.value,m12.value,m13.value,
                    m20.value,m21.value,m22.value,m23.value,m30.value,m31.value,m32.value,m33.value}
 
+public defn Mat44 (m:Mat44) -> Mat44 :
+  Mat44(m[0, 0], m[0, 1], m[0, 2], m[0, 3],
+        m[1, 0], m[1, 1], m[1, 2], m[1, 3], 
+        m[2, 0], m[2, 1], m[2, 2], m[2, 3], 
+        m[3, 0], m[3, 1], m[3, 2], m[3, 3])
+
 lostanza defn mat44-get (m:ref<Mat44>, i:ref<Int>) -> ref<Float> :
   #if-not-defined(OPTIMIZE) :
      ensure-index-in-bounds(i, new Int{16})
@@ -549,6 +555,13 @@ lostanza defn mat44-set (m:ref<Mat44>, i:ref<Int>, x:ref<Float>) -> ref<False> :
      ensure-index-in-bounds(i, new Int{16})
   addr!(m.m00)[i.value] = x.value
   return false
+
+defmethod equal? (m1:Mat44, m2:Mat44) :
+  label<True|False> return:
+    for i in 0 to 4 do :
+      for j in 0 to 4 do :
+        if m1[i, j] != m2[i, j] : return(false)
+    true
 
 defmethod get (a:Mat44, i:Int) -> Float : mat44-get(a, i)
 defmethod set (a:Mat44, i:Int, c:Float) -> False : mat44-set(a, i, c)
@@ -566,6 +579,104 @@ defmethod print (o:OutputStream, m:Mat44) :
      if i > 0 : print(o, ",")
      print(o, m[i])
   print-all(o, ")")
+
+public defn gj-inverse (m:Mat44) -> Mat44 :
+  label<Mat44> return :
+    val s = id-mat44()
+    val t = Mat44(m)
+    for i in 0 to 3 do :
+      var pivot = i
+      var pivot-size:Float = t[i, i]
+      if pivot-size < 0.0f :
+        pivot-size = (- pivot-size)
+      for j in (i + 1) to 4 do :
+        var tmp:Float = t[j, i]
+        if tmp < 0.0f :
+          tmp = (- tmp)
+        if tmp > pivot-size :
+          pivot = j
+          pivot-size = tmp
+        if pivot-size == 0.0f :
+          println(["SINGULAR"])
+          ;; if singExc : throw SingMatrixExc ("Cannot invert singular matrix.")
+          return(id-mat44())
+        if pivot != i :
+          for j in 0 to 4 do :
+            var tmp = t[i, j]
+            t[i, j] = t[pivot, j]
+            t[pivot, j] = tmp
+            tmp = s[i, j]
+            s[i, j] = s[pivot, j]
+            s[pivot, j] = tmp
+
+        for j in (i + 1) to 4 do :
+          val f = t[j, i] / t[i, i]
+          for k in 0 to 4 do :
+            t[j, k] = t[j, k] - f * t[i, k]
+            s[j, k] = s[j, k] - f * s[i, k]
+
+    ;; Backward substitution
+
+    for i in 3 through 0 by -1 do :
+      val f = t[i, i]
+      if f == 0.0f :
+        println-all(["SINGULAR"])
+        ;; if singExc : throw(SingMatrixExc ("Cannot invert singular matrix."))
+        return(id-mat44())
+      for j in 0 to 4 do :
+        t[i, j] = t[i, j] / f
+        s[i, j] = s[i, j] / f
+      for j in 0 to i do :
+        val g = t[j, i]
+        for k in 0 to 4 do :
+          t[j, k] = t[j, k] - g * t[i, k]
+          s[j, k] = s[j, k] - g * s[i, k]
+    s
+
+public defn inverse (m:Mat44) -> Mat44 :
+  label<Mat44> return :
+    if m[0, 3] != 0.0f or m[1, 3] != 0.0f or m[2, 3] != 0.0f or m[3, 3] != 1.0f :
+      return(gj-inverse(m))
+    val s = Mat44(m[1, 1] * m[2, 2] - m[2, 1] * m[1, 2],
+                  m[2, 1] * m[0, 2] - m[0, 1] * m[2, 2],
+                  m[0, 1] * m[1, 2] - m[1, 1] * m[0, 2],
+                  0.0f,
+
+                  m[2, 0] * m[1, 2] - m[1, 0] * m[2, 2],
+                  m[0, 0] * m[2, 2] - m[2, 0] * m[0, 2],
+                  m[1, 0] * m[0, 2] - m[0, 0] * m[1, 2],
+                  0.0f,
+
+                  m[1, 0] * m[2, 1] - m[2, 0] * m[1, 1],
+                  m[2, 0] * m[0, 1] - m[0, 0] * m[2, 1],
+                  m[0, 0] * m[1, 1] - m[1, 0] * m[0, 1],
+                  0.0f,
+
+                  0.0f,
+                  0.0f,
+                  0.0f,
+                  1.0f)
+     val r = m[0, 0] * s[0, 0] + m[0, 1] * s[1, 0] + m[0, 2] * s[2, 0]
+     if (abs(r) >= 1.0f) :
+       for i in 0 to 3 do :
+         for j in 0 to 3 do :
+           s[i, j] = s[i, j] / r
+     else :
+       val mr = abs(r) / FLOAT-MIN ;; smallest
+       for i in 0 to 3 do :
+         for j in 0 to 3 do :
+           if mr > abs(s[i, j]) :
+             s[i, j] = s[i, j] / r
+           else :
+             println-all(["SINGULAR"])
+             ;; if singExc : throw(SingMatrixExc ("Cannot invert singular matrix."))
+             return(id-mat44())
+             
+    s[3, 0] = (- m[3, 0]) * s[0, 0] - m[3, 1] * s[1, 0] - m[3, 2] * s[2, 0]
+    s[3, 1] = (- m[3, 0]) * s[0, 1] - m[3, 1] * s[1, 1] - m[3, 2] * s[2, 1]
+    s[3, 2] = (- m[3, 0]) * s[0, 2] - m[3, 1] * s[1, 2] - m[3, 2] * s[2, 2]
+
+    s
 
 public defn reflect-xy-mat44 () -> Mat44 :
   Mat44( 0.0f,  1.0f,  0.0f,  0.0f,
@@ -915,8 +1026,11 @@ public defn quat-from-axis (axis:V3f, rads:Float) -> Quat :
   val n = normalize(axis)
   Quat(cos(angle), sin-angle * n)
 
-public defn Quat () -> Quat :
-  quat-from-axis(V3f(1.0f, 0.0f, 0.0f), 0.0f)
+val zero-quat = quat-from-axis(V3f(1.0f, 0.0f, 0.0f), 0.0f)
+
+public defn zero? (q:Quat) : q == zero-quat
+
+public defn Quat () : zero-quat
 
 defmethod print (o:OutputStream, q:Quat) :
   print-all(o, ["Quat(" v(q) "," w(q) ")"])
