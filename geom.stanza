@@ -424,6 +424,10 @@ public defstruct Boxi <: Geom & Equalable :
   lo: V3i
   hi: V3i
 
+public defn empty-box () :
+  Box(V3f(FLOAT-POSITIVE-INFINITY, FLOAT-POSITIVE-INFINITY, FLOAT-POSITIVE-INFINITY),
+      V3f(FLOAT-NEGATIVE-INFINITY, FLOAT-NEGATIVE-INFINITY, FLOAT-NEGATIVE-INFINITY))
+  
 public defn Boxi (v:V3i) -> Boxi :
   Boxi(v, v)
 
@@ -842,10 +846,8 @@ public defn bbox (p:PolyLine) -> Box :
   if length(strokes(p)) == 0 :
     Box(V2f(0.0f, 0.0f), V2f(0.0f, 0.0f))
   else :
-    val inf = 1.0e6f
-    val empty-box = Box(V3f(inf, inf, inf), V3f((- inf), (- inf), (- inf)))
-    val boxes = seq(reduce{union, empty-box, seq(Box, _)}, strokes(p))
-    reduce(union, empty-box, boxes)
+    val boxes = seq(reduce{union, empty-box(), seq(Box, _)}, strokes(p))
+    reduce(union, empty-box(), boxes)
 
 public defn times (mat:Mat44, p:PolyLine) -> PolyLine :
   PolyLine(for s in strokes(p) map : for v in s map : mat * v)
