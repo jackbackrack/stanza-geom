@@ -8,7 +8,7 @@ ${GEN}/geom.pkg: stanza-geom/geom.stanza ${GEN}/utils.pkg
 ${GEN}/eval-geom.stanza: ${GEN}/gen-repl ${GEN}/geom.pkg
 	${GEN}/gen-repl geom
 
-${GEN}/eval-geom.pkg: ${GEN}/eval-geom.stanza ${BASE_EVAL_PKGS} ${GEN}/geom.pkg
+${GEN}/eval-geom.pkg: ${GEN}/eval-geom.stanza ${BASE_EVAL_PKGS} ${GEN}/geom.pkg ${GEN}/eval-utils.pkg
 	stanza $< $(STZ_FLAGS)
 
 ${GEN}/geom-gfx.pkg: stanza-geom/geom-gfx.stanza ${GEN}/geom.pkg ${GEN}/gfx.pkg ${GEN}/font.pkg
