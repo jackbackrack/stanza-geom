@@ -245,17 +245,29 @@ public lostanza defn v3f-get (v:ref<V3f>, i:ref<Int>) -> ref<Float> :
   
 public defmethod get (a:V3f, i:Int) -> Float : v3f-get(a, i)
 
-public defn max-idx (v:V3f) -> Int :
-  if x(v) > y(v):
-    if x(v) > z(v): 0 else: 2
-  else:
-    if y(v) > z(v): 1 else: 2
+;; public defn sorted-indices (v:V3f) -> Seqable<Int> :
+;;   seq(value, lazy-qsort(key, seq({_ => _}, v, 0 to 3)))
+
+public defn sorted-indices (v:V3f) -> V3i :
+  if x(v) < y(v) :
+    if x(v) < z(v) :
+      V3i(0, 1, 2) when y(v) < z(v) else V3i(0, 2, 1)
+    else :
+      V3i(2, 0, 1)
+  else :
+    if y(v) < z(v) :
+      V3i(1, 0, 2) when x(v) < z(v) else V3i(1, 2, 0)
+    else :
+      V3i(2, 1, 0)
 
 public defn min-idx (v:V3f) -> Int :
-  if x(v) < y(v):
-    if x(v) < z(v): 0 else: 2
-  else:
-    if y(v) < z(v): 1 else: 2
+  sorted-indices(v)[0]
+
+public defn mid-idx (v:V3f) -> Int :
+  sorted-indices(v)[1]
+
+public defn max-idx (v:V3f) -> Int :
+  sorted-indices(v)[2]
 
 ;; public defmethod get (a:V3f, i:Int) -> Float :
 ;;   if i == 0 : x(a) 
