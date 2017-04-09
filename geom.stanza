@@ -15,6 +15,9 @@ public defn ensure-index-in-bounds (i:Int, n:Int) :
    if i < 0 or i >= n :
       fatal("Index (%_) out of bounds." % [i])
 
+public val pos-inf =  1.0e6f
+public val neg-inf = -1.0e6f
+
 ;;; VECS
 
 public lostanza deftype Vf <: Array<Float> & Geom :
@@ -437,8 +440,7 @@ public defstruct Boxi <: Geom & Equalable :
   hi: V3i
 
 public defn empty-box () :
-  Box(V3f(FLOAT-POSITIVE-INFINITY, FLOAT-POSITIVE-INFINITY, FLOAT-POSITIVE-INFINITY),
-      V3f(FLOAT-NEGATIVE-INFINITY, FLOAT-NEGATIVE-INFINITY, FLOAT-NEGATIVE-INFINITY))
+  Box(V3f-fill(pos-inf), V3f-fill(neg-inf))
   
 public defn Boxi (v:V3i) -> Boxi :
   Boxi(v, v)
@@ -509,12 +511,10 @@ public defn bit-and (b0:Box, b1:Box) -> Box :
   Box(max(lo(b0), lo(b1)), min(hi(b0), hi(b1)))
 
 public defn inf-box () -> Box:
-  val [min-inf, max-inf] = [FLOAT-MIN, FLOAT-MAX]
-  Box(V3f(min-inf, min-inf, min-inf), V3f(max-inf, max-inf, max-inf))
+  Box(V3f-fill(neg-inf), V3f-fill(pos-inf))
 
 public defn min-box () -> Box:
-  val [min-inf, max-inf] = [FLOAT-MIN, FLOAT-MAX]
-  Box(V3f(max-inf, max-inf, max-inf), V3f(min-inf, min-inf, min-inf))
+  Box(V3f-fill(pos-inf), V3f-fill(neg-inf))
 
 public defn fatten (b:Box, dims:V3f) -> Box :
   Box(lo(b) - dims, hi(b) + dims)
