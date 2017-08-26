@@ -684,7 +684,7 @@ public defn inverse (m:Mat44) -> Mat44 :
            if mr > abs(s[i, j]) :
              s[i, j] = s[i, j] / r
            else :
-             println-all(["SINGULAR"])
+             println-all(["SINGULAR " m])
              ;; if singExc : throw(SingMatrixExc ("Cannot invert singular matrix."))
              return(id-mat44())
              
