@@ -1,0 +1,3 @@
+defregistry stanza-geom :
+  file "geom.stanza"
+  file "geom-gfx.stanza"
