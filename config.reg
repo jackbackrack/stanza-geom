@@ -1,3 +1,9 @@
 defregistry stanza-geom :
   file "geom.stanza"
   file "geom-gfx.stanza"
+  file "grid.cpp"
+  file "grid.stanza"
+    package grid :
+      dependency "${GEN}/grid.o"
+      link * "${GEN}/grid.o"
+  file "nester.stanza"
