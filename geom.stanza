@@ -17,6 +17,41 @@ public defn ensure-index-in-bounds (i:Int, n:Int) :
 
 public val pos-inf =  1.0e6f
 public val neg-inf = -1.0e6f
+public val pos-infi =  (1 << 30)
+public val neg-infi = (-(1 << 30))
+
+;;; PIXELS
+
+public defstruct Pixels <: Geom :
+  idims: V3i
+  dim: Float
+  data: ByteArray
+
+public defn index (g:Pixels, i:Int, j:Int, k:Int) -> Int :
+  (k * idims(g)[0] * idims(g)[1]) + j * idims(g)[1] + i
+
+public defn index (g:Pixels, pos:V3i) -> Int :
+  index(g, x(pos), y(pos), z(pos))
+
+public defn get (g:Pixels, i:Int, j:Int, k:Int) -> Byte :
+  data(g)[index(g, i, j, k)]
+
+public defn get (g:Pixels, pos:V3i) -> Byte :
+  data(g)[index(g, pos)]
+
+public defn indices (dims:V3i) -> Seq<V3i> :
+  generate<V3i> :
+    for k in 0 to z(dims) do :
+      for j in 0 to y(dims) do :
+        for i in 0 to x(dims) do :
+          yield(V3i(i, j, k))
+
+public defn indices (bounds:Boxi) -> Seq<V3i> :
+  generate<V3i> :
+    for k in z(lo(bounds)) through z(hi(bounds)) do :
+      for j in y(lo(bounds)) through y(hi(bounds)) do :
+        for i in x(lo(bounds)) through x(hi(bounds)) do :
+          yield(V3i(i, j, k))
 
 ;;; VECS
 
@@ -96,6 +131,44 @@ defmethod length (a:Vi) -> Int : vi-length(a)
 defmethod print (o:OutputStream, v:Vi) :
   print-all(o, ["Vi(" length(v) ")"])
 
+public lostanza deftype Vb <: Array<Byte> & Geom :
+  length: long
+  elts:   byte ...
+
+public lostanza defn Vb (n:ref<Int>, x:ref<Byte>) -> ref<Vb> :
+  #if-not-defined(OPTIMIZE) :
+    ensure-non-negative-length(n)
+  val l = n.value
+  val a = new Vb{l}
+  val c = x.value
+  for (var i:long = 0, i < l, i = i + 1) :
+    a.elts[i] = c
+  return a
+
+public defn Vb (n:Int) -> Vb :
+  Vb(n, to-byte $ 0)
+
+lostanza defn vi-get (v:ref<Vb>, i:ref<Int>) -> ref<Byte> :
+  #if-not-defined(OPTIMIZE) :
+     ensure-index-in-bounds(i, length(v))
+  return new Byte{v.elts[i.value]}
+  
+lostanza defn vi-set (v:ref<Vb>, i:ref<Int>, x:ref<Byte>) -> ref<False> :
+  #if-not-defined(OPTIMIZE) :
+     ensure-index-in-bounds(i, length(v))
+  v.elts[i.value] = x.value
+  return false
+  
+lostanza defn vi-length (v:ref<Vb>) -> ref<Int> :
+  return new Int{v.length as int}
+  
+defmethod get (a:Vb, i:Int) -> Byte : vi-get(a, i)
+defmethod set (a:Vb, i:Int, c:Byte) -> False : vi-set(a, i, c)
+defmethod length (a:Vb) -> Int : vi-length(a)
+
+defmethod print (o:OutputStream, v:Vb) :
+  print-all(o, ["Vb(" length(v) ")"])
+
 ;;; V3i
 
 ;; public defstruct V3i <: Array<Int> :
@@ -123,6 +196,8 @@ public lostanza defn z (v:ref<V3i>) -> ref<Int> :
 public defn V3i (x:Int, y:Int) -> V3i :
   V3i(x, y, 0)
 
+public defn V3i-fill (a:Int) : V3i(a, a, a)
+
 public defn to-v3i (v:V3f) -> V3i :
   V3i(to-int(x(v)), to-int(y(v)), to-int(z(v)))
 
@@ -140,6 +215,12 @@ public lostanza defn v3i-get (v:ref<V3i>, i:ref<Int>) -> ref<Int> :
 defmethod get (a:V3i, i:Int) -> Int : v3i-get(a, i)
 
 defmethod length (a:V3i) -> Int : 3
+
+public defn area (a:V3i) -> Int :
+  x(a) * y(a)
+
+public defn volume (a:V3i) -> Int :
+  x(a) * y(a) * z(a)
 
 defmethod equal? (v1:V3i, v2:V3i) :
   x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) 
@@ -442,11 +523,17 @@ public defstruct Boxi <: Geom & Equalable :
 public defn empty-box () :
   Box(V3f-fill(pos-inf), V3f-fill(neg-inf))
   
+public defn empty-boxi () :
+  Boxi(V3i-fill(pos-infi), V3i-fill(neg-infi))
+  
 public defn Boxi (v:V3i) -> Boxi :
   Boxi(v, v)
 
 defmethod print (o:OutputStream, b:Boxi) :
   print-all(o, ["Boxi(", lo(b), ",", hi(b) ")"])
+
+public defn xy (b:Boxi) :
+  Boxi(xy(lo(b)), xy(hi(b)))
 
 public defn union (b0:Boxi, b1:Boxi) -> Boxi :
   Boxi(min(lo(b0), lo(b1)), max(hi(b0), hi(b1)))
@@ -524,6 +611,9 @@ public defn fatten (b:Box, dims:Float) -> Box :
 
 public defn times (mat:Mat44, b:Box) -> Box :
   reduce(union, map(Box{ mat * _ }, corners(b)))
+
+public defn plus (b:Boxi, off:V3i) -> Boxi :
+  Boxi(lo(b) + off, hi(b) + off)
 
 defmethod equal? (b1:Box, b2:Box) :
   lo(b1) == lo(b2) or hi(b1) == hi(b2)
@@ -1137,8 +1227,8 @@ defn clip (x:Float, mn:Float, mx:Float) -> Float :
 
 public defn map-to-sphere (a:ArcBall, new-pt:V3f) -> V3f :
   ;; val pt = V2f(x(new-pt) * adjust-width(a) - 1.0f, 1.0f - (y(new-pt) * adjust-height(a)))
-  val pt = V2f(clip(   2.0f * x(new-pt) / adjust-width(a)  - 1.0f,   -1.0f, 1.0f),
-               clip((-(2.0f * y(new-pt) / adjust-height(a) - 1.0f)), -1.0f, 1.0f))
+  val pt = V2f(clip((-(2.0f * x(new-pt) / adjust-width(a)  - 1.0f)), -1.0f, 1.0f),
+               clip(  (2.0f * y(new-pt) / adjust-height(a) - 1.0f),  -1.0f, 1.0f))
   ;; println-all(["NEW-PT " new-pt " AW " adjust-width(a) " AH " adjust-height(a) " PT = " pt])
   val len2 = dot(pt, pt)
   val res = 

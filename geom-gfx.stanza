@@ -82,6 +82,30 @@ defmethod render (mesh:Mesh) -> False :
     gl-end()
   gl-pop-attrib()
 
+defmethod render (cells:Pixels) :
+  gl-push-attrib(GL-LINE-BIT | GL-CURRENT-BIT)
+  val dim = dim(cells)
+  gl-push-matrix()
+  val dims = idims(cells)
+  val ext = 0.5f * dim * to-v3f(dims)
+  gl-push-matrix()
+  val off = -1.0f * ext + xy(V3f-fill(0.5f * dim))
+  gl-translatef(x(off), y(off), 0.0f)
+  for pos in indices(dims) do :
+    gl-push-matrix()
+    val p = to-v3f(pos)
+    val c = cells[pos]
+    gl-translatef(x(p) * dim, y(p) * dim, 0.0f)
+    gl-scalef(0.95f, 0.95f, 0.95f)
+    gl-color4f(to-float $ c, 0.0f, 0.0f, 0.8f)
+    draw-quad(dim, dim)
+    gl-pop-matrix()
+  gl-pop-matrix()
+  gl-color4f(1.0f, 1.0f, 1.0f, 1.0f)
+  draw-rect(to-float(x(dims)) * dim, to-float(y(dims)) * dim)
+  gl-pop-matrix()
+  gl-pop-attrib()
+
 public lostanza defn gl-load-matrix (m:ref<Mat44>) -> ref<False> :
   call-c glLoadMatrixf(addr!(m.m00))
   return false
