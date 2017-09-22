@@ -28,7 +28,7 @@ public defstruct Pixels <: Geom :
   data: ByteArray
 
 public defn index (g:Pixels, i:Int, j:Int, k:Int) -> Int :
-  (k * idims(g)[0] * idims(g)[1]) + j * idims(g)[1] + i
+  (k * idims(g)[0] * idims(g)[1]) + j * idims(g)[0] + i
 
 public defn index (g:Pixels, pos:V3i) -> Int :
   index(g, x(pos), y(pos), z(pos))
@@ -38,6 +38,9 @@ public defn get (g:Pixels, i:Int, j:Int, k:Int) -> Byte :
 
 public defn get (g:Pixels, pos:V3i) -> Byte :
   data(g)[index(g, pos)]
+
+public defn set (g:Pixels, pos:V3i, v:Byte) -> False :
+  data(g)[index(g, pos)] = v
 
 public defn indices (dims:V3i) -> Seq<V3i> :
   generate<V3i> :
@@ -183,6 +186,8 @@ public lostanza deftype V3i <: Array<Int> & Hashable & Geom :
 
 public lostanza defn V3i (x:ref<Int>, y:ref<Int>, z:ref<Int>) -> ref<V3i> :
   return new V3i{x.value, y.value, z.value}
+
+public defn V2i (x:Int, y:Int) : V3i(x, y, 0)
 
 public lostanza defn x (v:ref<V3i>) -> ref<Int> :
   return new Int{v.x}

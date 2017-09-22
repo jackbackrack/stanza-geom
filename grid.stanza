@@ -268,6 +268,12 @@ defmethod equal? (a:Grid, b:Grid) -> True|False :
 ;; defn pt-of (pt:V3i, cells:Grid) -> V3f :
 ;;   pt-of(pt, idims(cells), bbox(cells))  
 
+public defn pt-of (g:Grid, idx:V3i) -> V3f :
+  dim(g) * (to-v3f(idx) + V3f(0.5f, 0.5f, 0.0f) - (0.5f * to-v3f(idims(g))))
+
+public defn ctr-pt (g:Grid) -> V3f :
+  dim(g) * 0.5f * to-v3f(idims(g))
+
 val straight-deltas2 = [V3i(-1, 0, 0), V3i(1, 0, 0), V3i(0, -1, 0), V3i(0, 1, 0)]
 val straight-deltas = to-tuple $ cat(straight-deltas2, [V3i(0, 0, -1), V3i(0, 0, 1)])
 val diagonal-deltas = [V3i(-1, -1, 0), V3i(-1, 1, 0), V3i(1, -1, 0), V3i(1, 1, 0)]
@@ -400,5 +406,17 @@ public defn to-grid (vals:Tuple<Tuple<Int>>) -> Grid :
     set-value(image, pos, to-byte $ vals[y(pos)][x(pos)])
   ;; println-all(["I"])
   ;; dump(image)
+  image
+
+public defn to-grid (pix:Pixels) -> Grid :
+  val image = Grid(idims(pix) - V3i(2, 2, 0), dim(pix))
+  for pos in indices(idims(image)) do :
+    set-value(image, pos, pix[pos + V3i(1, 1, 0)])
+  image
+
+public defn to-pixels (grid:Grid) -> Pixels :
+  val image = Pixels(idims(grid), dim(grid), ByteArray(x(idims(grid)) * y(idims(grid))))
+  for pos in indices(idims(image)) do :
+    image[pos] = get-value(grid, pos)
   image
 

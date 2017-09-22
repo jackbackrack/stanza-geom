@@ -15,7 +15,7 @@ ${GEN}/geom-gfx.pkg: stanza-geom/geom-gfx.stanza ${GEN}/geom.pkg ${GEN}/gfx.pkg 
 	stanza $< $(STZ_FLAGS)
 
 ${GEN}/grid.o: stanza-geom/grid.cpp
-	g++ $(CFLAGS) -funroll-loops -O3 -c grid.cpp -o $@
+	g++ $(CFLAGS) -funroll-loops -O3 -c $< -o $@
 
 ${GEN}/grid.pkg: stanza-geom/grid.stanza ${GEN}/utils.pkg ${GEN}/gl.pkg ${GEN}/gfx.pkg 
 	stanza $< ${STZ_FLAGS}

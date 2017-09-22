@@ -6,7 +6,9 @@
 #include <string.h>
 #include <vector>
 
-static inline int idx (int w, int h, int d, int i, int j, int k) {
+static inline int idx (int w, int h, int d, int i, int j, int ak) {
+  // TODO: FIX THIS FOR 3D
+  const int k = 0;
   return (k * w * h) + j * w + i;
 }
 
@@ -199,14 +201,14 @@ extern "C" void grid_convolve (int dw, int dh, int dd, uint8_t* dst, int sw, int
       for (int di = 0; di < (dw - mw); di++) {
         int edi = di - mw;
         uint8_t pix = 0;
+        // TODO: FIX THIS FOR 3D
         for (int mk = 0; mk < md; mk++) {
-          for (int mj = 0; mj < mh; mj++) { 
-            for (int mi = 0; mi < mw; mi++) {
-              // TODO: LIFT CHECKS
-              uint8_t a = safe_get(src, sw, sh, sd, edi + mi, edj + mj, edk + mk); 
-              uint8_t b = get(msk, mw, mh, md, mi, mj, mk);
-              pix |= (a & b);
-              // if ((a & b) != 0) { pix = 1; goto done; }
+          int edmk = edk + mk;
+          for (int edmj = max(0, edj); edmj < min(sh, mh + edj); edmj++) { 
+            for (int edmi = max(0, edi); edmi < min(sw, mw + edi); edmi++) {
+              uint8_t a = get(src, sw, sh, sd, edmi, edmj, edmk); 
+              uint8_t b = get(msk, mw, mh, md, edmi - edi, edmj - edj, mk);
+              if ((a & b) != 0) { pix = 1; goto done; }
             }
           }
         }

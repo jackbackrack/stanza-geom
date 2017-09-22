@@ -6,8 +6,9 @@ defpackage nester :
   import geom
   import grid
 
-defstruct Pose :
+public defstruct Pose :
   translation : V3i
+  angle : Int
 
 val gensyms = to-seq $ 0 to false
 
@@ -40,7 +41,9 @@ defmethod equal? (a:SuperPart, b:SuperPart) -> True|False :
 
 public defn SuperPart (id:Int, img:Grid) :
   val rots = seq(fn (rot) : Part(next(gensyms), rot, rotate(rot, img)), [0, 90, 180, 270])
-  SuperPart(id, to-tuple $ unique $ rots)
+  val urots = to-tuple $ unique $ rots
+  ;; println-all(["UNIQUE ROTS " length(urots)])
+  SuperPart(id, urots)
 
 public defstruct Page :
   stock : Part
@@ -50,22 +53,27 @@ public defstruct Page :
 public defn Page (sdims:V3i, sdim:Float) :
   Page(Part(-2, 0, sdims, sdim), Grid(sdims + V3i(2, 2, 0), sdim), Vector<KeyValue<Pose, Part>>())
 
-public defstruct Assembly :
+public defstruct PagePose :
+  page : Int
+  pose : Pose
+
+public defstruct Arrangement :
   stock-dims : V3i
   stock-dim : Float
   unique-parts : HashTable<Grid, Part>
+  poses : Vector<PagePose>
   pages : Vector<Page>
 
-public defn Assembly (sdims:V3i, sdim:Float) :
+public defn Arrangement (sdims:V3i, sdim:Float) :
   val pages = Vector<Page>()
   add(pages, Page(sdims, sdim))
-  Assembly(sdims, sdim, HashTable<Grid, Part>(), pages)
+  Arrangement(sdims, sdim, HashTable<Grid, Part>(), Vector<PagePose>(), pages)
 
-public defn uniquify (part:Part, assembly:Assembly) :
+public defn uniquify (part:Part, assembly:Arrangement) :
   ;; println-all(["UNIQUE " id(part) " " key?(unique-parts(assembly), image(part))])
   set?(unique-parts(assembly), image(part), { part })
 
-public defn uniquify (part:SuperPart, assembly:Assembly) :
+public defn uniquify (part:SuperPart, assembly:Arrangement) :
   SuperPart(id(part), to-tuple $ seq(uniquify{_, assembly}, rots(part)))
 
 defn bbox (page:Page) -> Boxi :
@@ -97,9 +105,11 @@ defn find-best (legal:Grid, bbox:Boxi, b:Part) -> [Int, V3i] :
   var best-area = infi
   var best-pos = V3i(-1, -1, -1)
   val trues = Todos()
+  ;; println-all(["BBOX " bbox])
   for pos in true-indices(legal, trues) do :
     val new-bbox = union(bbox, ibbox(b) + pos)
     val area = area(dims(new-bbox))
+    ;; println-all(["POS " pos " NEW-BBOX " new-bbox " AREA " area " LEGAL? " legal?(legal, xy(new-bbox))])
     if legal?(legal, xy(new-bbox)) and area < best-area :
       best-area = area
       best-pos = pos
@@ -148,15 +158,17 @@ defn clear (part:Part) :
   fill(outside(part), to-byte $ 0)
   fill(boundary(part), to-byte $ 0)
 
-public defn add (assembly:Assembly, new-super-part:SuperPart) -> True|False :
+public defn add (assembly:Arrangement, new-super-part:SuperPart) -> True|False :
   label<True|False> return :
-    for page in pages(assembly) do :
+    for (page in pages(assembly), n in 0 to false) do :
       if add(assembly, page, new-super-part) :
+        val parts = parts(page)
+        add(poses(assembly), PagePose(n, key(parts[length(parts) - 1])))
         return(true)
     add(pages(assembly), Page(stock-dims(assembly), stock-dim(assembly)))
     add(assembly, pages(assembly)[length(pages(assembly)) - 1], new-super-part)
 
-public defn add (assembly:Assembly, page:Page, new-super-part:SuperPart) -> True|False :
+public defn add (assembly:Arrangement, page:Page, new-super-part:SuperPart) -> True|False :
   clear(stock(page))
   ;; val [best-pos, best-part] = 
   ;; if length(parts(assembly)) == 0 :
@@ -197,22 +209,22 @@ public defn add (assembly:Assembly, page:Page, new-super-part:SuperPart) -> True
       if trace?: println-all(["LEGAL"])
       if trace?: dump(legal)
     val [area, pos] = find-best(legal, bbox(page), new-part)
-    ;; print-all(["ROT " rot(new-part) " AREA " area " POS " pos])
+    if trace? : print-all(["ROT " rot(new-part) " AREA " area " POS " pos])
     if area < best-area :
-      ;; println-all(["BEST"])
+      if trace?: println-all(["BEST"])
       best-area = area
       best-pos = pos
       best-part = new-part
-    ;; else :
-      ;; println("")
+    else :
+      if trace?: println("")
   ;; [best-pos, best-part]
   val res = 
     if best-area < infi :
       println-all(["ADD " id(best-part) "/" rot(best-part) " AT " best-pos])
-      add(parts(page), Pose(best-pos) => best-part)
+      add(parts(page), Pose(best-pos, rot(best-part)) => best-part)
       true
     else :
-      ;; println-all(["FAILED TO ADD " id(new-super-part)])
+      if trace?: println-all(["FAILED TO ADD " id(new-super-part)])
       false
   fill(result(page), to-byte $ 0)
   for pose-part in parts(page) do :
