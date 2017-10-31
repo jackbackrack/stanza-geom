@@ -7,3 +7,4 @@ defregistry stanza-geom :
       dependency "${GEN}/grid.o"
       link * "${GEN}/grid.o"
   file "nester.stanza"
+  file "aabb-tree.stanza"

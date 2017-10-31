@@ -623,6 +623,15 @@ public defn plus (b:Boxi, off:V3i) -> Boxi :
 defmethod equal? (b1:Box, b2:Box) :
   lo(b1) == lo(b2) or hi(b1) == hi(b2)
 
+public defn intersects2? (b0:Box, b1:Box) -> True|False :
+  not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
+       (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))))
+
+public defn intersects? (b0:Box, b1:Box) -> True|False :
+  not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
+       (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))) or
+       (z(hi(b0)) < z(lo(b1)) or z(lo(b0)) > z(hi(b1))))
+
 ;;; MAT
 
 public lostanza deftype Mat44 <: Array<Float> & Geom & Equalable :
