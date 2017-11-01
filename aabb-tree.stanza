@@ -12,11 +12,11 @@ public defmulti set-node (a:AABB, n:False|Node) -> False
 
 val gen-ids = to-seq $ 0 to false
 
-deftype Node <: Equalable
+public deftype Node <: Equalable
 defmulti id (n:Node) -> Int
 defmulti parent (n:Node) -> False|Node
 defmulti set-parent (n:Node, p:False|Node) -> False
-defmulti aabb (n:Node) -> Box
+public defmulti aabb (n:Node) -> Box
 defmulti set-aabb (n:Node, b:Box) -> False
 
 public defstruct LeafNode <: Node :
@@ -71,24 +71,38 @@ defmethod print (o:OutputStream, t:AABBTree) :
 public defn AABBTree (margin:Float) :
   AABBTree(Vector<Node>(), false, margin, Vector<Node>())
 
+public defn data (t:AABBTree) -> Seqable<AABB> :
+  match(root(t)) :
+    (r:False) : []
+    (r:Node) :
+      generate<AABB> :
+        let enum (node:Node = r) :
+          match(node) :
+            (node:LeafNode) :
+              yield(data(node) as AABB)
+            (node:BranchNode) :
+              enum(children(node)[0])
+              enum(children(node)[1])
+
 public defn query (t:AABBTree, target:AABB) -> Seqable<AABB> :
   match(root(t)) :
     (r:False) : []
     (r:Node) :
-      println("QUERY %_" % [target])
+      ;; println("QUERY %_" % [target])
       generate<AABB> :
         let query (node:Node = r) :
-          println("I %_ => %_" % [aabb(node), intersects2?(box(target), aabb(node))])
+          ;; println("I %_ => %_" % [aabb(node), intersects2?(box(target), aabb(node))])
           if intersects2?(box(target), aabb(node)) :
             match(node) :
               (node:LeafNode) :
-                yield(data(node) as AABB)
+                if data(node) != target :
+                  yield(data(node) as AABB)
               (node:BranchNode) :
                 query(children(node)[0])
                 query(children(node)[1])
 
 public defn add (t:AABBTree, aabb:AABB) :
-  println("ADDING %_" % [aabb])
+  ;; println("ADDING %_" % [aabb])
   val new-leaf = LeafNode(aabb, margin(t))
   set-node(aabb, new-leaf)
   match(root(t)) :
@@ -121,7 +135,7 @@ defn insert-node (t:AABBTree, node:Node, dad:() -> Node, set-dad:BranchNode -> F
   update-aabb(dad(), margin(t))
     
 public defn remove (t:AABBTree, aabb:AABB) :
-  println("REMOVING %_" % [aabb])
+  ;; println("REMOVING %_" % [aabb])
   val node = node(aabb) as LeafNode
   set-node(aabb, false)
   set-data(node, false)
@@ -136,6 +150,9 @@ defn remove-node (t:AABBTree, node:Node) :
           set-parent(sib, pp)
           val cs = children(pp)
           set-children(pp, [sib, cs[1]] when p == cs[0] else [cs[0], sib])
+          let update-bounds (n:Node = pp) :
+            update-aabb(n, margin(t))
+            if parent(n) is Node : update-bounds(parent(n) as Node)
         (pp:False) :
           set-root(t, sib)
           set-parent(sib, false)
@@ -163,7 +180,7 @@ public defn update (t:AABBTree) :
         insert-node(t, node, { root(t) as Node }, set-root{t, _})
       clear(invalid-nodes(t))
 
-public defn compute-pairs (t:AABBTree) -> Seqable<[Node, Node]> :
+public defn compute-pairs (t:AABBTree) -> Seqable<[AABB, AABB]> :
   if root(t) is False|LeafNode :
     []
   else :
@@ -173,7 +190,7 @@ public defn compute-pairs (t:AABBTree) -> Seqable<[Node, Node]> :
           set-children-crossed?(node, false)
           do(clear, children(node))
         (node:LeafNode) : false
-    generate<[Node, Node]> :
+    generate<[AABB, AABB]> :
       val cs = children(root(t) as BranchNode)
       let loop (n0:Node = cs[0], n1:Node = cs[1]) :
         defn cross-children (n:BranchNode) :
@@ -185,7 +202,7 @@ public defn compute-pairs (t:AABBTree) -> Seqable<[Node, Node]> :
             match(n1) :
               (n1:LeafNode) :
                 if intersects2?(box(data(n0) as AABB), box(data(n1) as AABB)) :
-                  yield([n0, n1])
+                  yield([data(n0) as AABB, data(n1) as AABB])
               (n1:BranchNode) :
                 cross-children(n1)
                 if intersects2?(aabb(n0), aabb(n1)) :
