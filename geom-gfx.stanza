@@ -38,7 +38,7 @@ defmethod render (p:V3f) -> False :
   gl-vertex3(p)
   gl-end()
 
-defmethod render (box:Box) -> False :
+defmethod render (box:Boxf) -> False :
   gl-begin(GL-LINE-LOOP)
   gl-vertex3(lo(box))
   gl-vertex3(hi(box))

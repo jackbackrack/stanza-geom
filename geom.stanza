@@ -12,11 +12,16 @@ public defstruct Msg <: Geom :
   value : String
 
 public defn ensure-index-in-bounds (i:Int, n:Int) :
-   if i < 0 or i >= n :
+  #if-defined(OPTIMIZE) :
+    false
+  #else :
+    if i < 0 or i >= n :
       fatal("Index (%_) out of bounds." % [i])
 
-public val pos-inf =  1.0e6f
-public val neg-inf = -1.0e6f
+public val pos-inff =  1.0e6f
+public val neg-inff = -1.0e6f
+public val pos-infd =  1.0e6
+public val neg-infd = -1.0e6
 public val pos-infi =  (1 << 30)
 public val neg-infi = (-(1 << 30))
 
@@ -63,8 +68,7 @@ public lostanza deftype Vf <: Array<Float> & Geom :
   elts:   float ...
 
 public lostanza defn Vf (n:ref<Int>, x:ref<Float>) -> ref<Vf> :
-  #if-not-defined(OPTIMIZE) :
-    ensure-non-negative-length(n)
+  ensure-non-negative-length(n)
   val l = n.value
   val a = new Vf{l}
   val c = x.value
@@ -72,17 +76,17 @@ public lostanza defn Vf (n:ref<Int>, x:ref<Float>) -> ref<Vf> :
     a.elts[i] = c
   return a
 
+;; USE PRIMARRAYS
+
 public defn Vf (n:Int) -> Vf :
   Vf(n, 0.0f)
 
 lostanza defn vf-get (v:ref<Vf>, i:ref<Int>) -> ref<Float> :
-  #if-not-defined(OPTIMIZE) :
-     ensure-index-in-bounds(i, length(v))
+  ensure-index-in-bounds(i, length(v))
   return new Float{v.elts[i.value]}
   
 lostanza defn vf-set (v:ref<Vf>, i:ref<Int>, x:ref<Float>) -> ref<False> :
-  #if-not-defined(OPTIMIZE) :
-     ensure-index-in-bounds(i, length(v))
+  ensure-index-in-bounds(i, length(v))
   v.elts[i.value] = x.value
   return false
   
@@ -101,8 +105,7 @@ public lostanza deftype Vi <: Array<Int> & Geom :
   elts:   int ...
 
 public lostanza defn Vi (n:ref<Int>, x:ref<Int>) -> ref<Vi> :
-  #if-not-defined(OPTIMIZE) :
-    ensure-non-negative-length(n)
+  ensure-non-negative-length(n)
   val l = n.value
   val a = new Vi{l}
   val c = x.value
@@ -139,8 +142,7 @@ public lostanza deftype Vb <: Array<Byte> & Geom :
   elts:   byte ...
 
 public lostanza defn Vb (n:ref<Int>, x:ref<Byte>) -> ref<Vb> :
-  #if-not-defined(OPTIMIZE) :
-    ensure-non-negative-length(n)
+  ensure-non-negative-length(n)
   val l = n.value
   val a = new Vb{l}
   val c = x.value
@@ -174,100 +176,157 @@ defmethod print (o:OutputStream, v:Vb) :
 
 ;;; V3i
 
-;; public defstruct V3i <: Array<Int> :
-;;   x : Int
-;;   y : Int
-;;   z : Int
+defn round (x:Int) : x
+defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
 
-public lostanza deftype V3i <: Array<Int> & Hashable & Geom :
-  x: int
-  y: int
-  z: int
+#for (Prim in [Int Float Double]
+      prim in [int float double]
+      PrimVec in [V3i V3f V3d]
+      PrimVecName in ["V3i" "V3f" "V3d"]
+      PrimVec2 in [V2i V2f V2d]
+      prim-fill in [V3i-fill V3f-fill V3d-fill]
+      x0 in [0 0.0f 0.0]
+      x1 in [1 1.0f 1.0]) :
 
-public lostanza defn V3i (x:ref<Int>, y:ref<Int>, z:ref<Int>) -> ref<V3i> :
-  return new V3i{x.value, y.value, z.value}
+  public lostanza deftype PrimVec <: Array<Prim> & Hashable & Geom :
+    x: prim
+    y: prim
+    z: prim
 
-public defn V2i (x:Int, y:Int) : V3i(x, y, 0)
+  public defn PrimVec2 (x:Prim, y:Prim) : PrimVec(x, y, x0)
 
-public lostanza defn x (v:ref<V3i>) -> ref<Int> :
-  return new Int{v.x}
+  public lostanza defn PrimVec (x:ref<Prim>, y:ref<Prim>, z:ref<Prim>) -> ref<PrimVec> :
+    return new PrimVec{x.value, y.value, z.value}
 
-public lostanza defn y (v:ref<V3i>) -> ref<Int> :
-  return new Int{v.y}
+  public lostanza defn x (v:ref<PrimVec>) -> ref<Prim> :
+    return new Prim{v.x}
 
-public lostanza defn z (v:ref<V3i>) -> ref<Int> :
-  return new Int{v.z}
+  public lostanza defn y (v:ref<PrimVec>) -> ref<Prim> :
+    return new Prim{v.y}
 
-public defn V3i (x:Int, y:Int) -> V3i :
-  V3i(x, y, 0)
+  public lostanza defn z (v:ref<PrimVec>) -> ref<Prim> :
+    return new Prim{v.z}
 
-public defn V3i-fill (a:Int) : V3i(a, a, a)
+  public defn PrimVec (x:Prim, y:Prim) -> PrimVec :
+    PrimVec(x, y, x0)
+
+  public defn prim-fill (a:Prim) : PrimVec(a, a, a)
+
+  public defn prim-unit (i:Int) :
+    if i == 0 :      PrimVec(x1, x0, x0)
+    else if i == 1 : PrimVec(x0, x1, x0)
+    else :           PrimVec(x0, x0, x1)
+
+  public defn set-elt (v:PrimVec, i:Int, a:Prim) -> PrimVec :
+    PrimVec(a when i == 0 else v[0], a when i == 1 else v[1], a when i == 2 else v[2])
+
+  lostanza defmethod get (v:ref<PrimVec>, i:ref<Int>) -> ref<Prim> : 
+    ensure-index-in-bounds(i, new Int{3})
+    return new Prim{addr!(v.x)[i.value]}
+
+  defmethod length (a:PrimVec) -> Int : 3
+
+  public defn area (a:PrimVec) -> Prim :
+    x(a) * y(a)
+
+  public defn volume (a:PrimVec) -> Prim :
+    x(a) * y(a) * z(a)
+
+  defmethod equal? (v1:PrimVec, v2:PrimVec) :
+    x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) 
+
+  defmethod hash (v:PrimVec) :
+    (7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v))
+
+  public defn xy (p:PrimVec) -> PrimVec :
+    PrimVec(x(p), y(p), x0)
+
+  defmethod print (o:OutputStream, v:PrimVec) :
+    print-all(o, [PrimVecName "(", x(v), ",", y(v), ",", z(v), ")"])
+
+  public defn magnitude (a:PrimVec) -> Prim :
+    sqrt(dot(a, a))
+
+  public defn distance (v0:PrimVec, v1:PrimVec) -> Prim :
+    magnitude(v1 - v0)
+
+  public defn normalize (a:PrimVec) -> PrimVec :
+    a / magnitude(a)
+
+  public defn dot (a:PrimVec, b:PrimVec) -> Prim :
+    x(a) * x(b) + y(a) * y(b) + z(a) * z(b)
+
+  public defn min (a:PrimVec) -> Prim :
+    min(x(a), min(y(a), z(a)))
+
+  public defn max (a:PrimVec) -> Prim :
+    max(x(a), max(y(a), z(a)))
+
+  public defn min (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(min(x(a), x(b)), min(y(a), y(b)), min(z(a), z(b)))
+
+  public defn max (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(max(x(a), x(b)), max(y(a), y(b)), max(z(a), z(b)))
+
+  public defn times (a:Prim, b:PrimVec) -> PrimVec :
+    PrimVec(a * x(b), a * y(b), a * z(b))
+
+  public defn times (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) * x(b), y(a) * y(b), z(a) * z(b))
+
+  public defn divide (a:PrimVec, b:Prim) -> PrimVec :
+    PrimVec(x(a) / b, y(a) / b, z(a) / b)
+
+  public defn divide (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) / x(b), y(a) / y(b), z(a) / z(b))
+
+  public defn modulo (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(y(a) * z(b) - z(a) * y(b),
+            z(a) * x(b) - x(a) * z(b),
+            x(a) * y(b) - y(a) * x(b))
+
+  public defn plus (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) + x(b), y(a) + y(b), z(a) + z(b))
+
+  public defn minus (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) - x(b), y(a) - y(b), z(a) - z(b))
+
+  public defn negate (a:PrimVec) -> PrimVec :
+    PrimVec((- x(a)), (- y(a)), (- z(a)))
+
+  public defn round (p:PrimVec) -> PrimVec :
+    PrimVec(round(x(p)), round(y(p)), round(z(p)))
+
+  public defn sorted-indices (v:PrimVec) -> V3i :
+    if x(v) < y(v) :
+      if x(v) < z(v) :
+        V3i(0, 1, 2) when y(v) < z(v) else V3i(0, 2, 1)
+      else :
+        V3i(2, 0, 1)
+    else :
+      if y(v) < z(v) :
+        V3i(1, 0, 2) when x(v) < z(v) else V3i(1, 2, 0)
+      else :
+        V3i(2, 1, 0)
+
+  public defn min-idx (v:PrimVec) -> Int :
+    sorted-indices(v)[0]
+
+  public defn mid-idx (v:PrimVec) -> Int :
+    sorted-indices(v)[1]
+
+  public defn max-idx (v:PrimVec) -> Int :
+    sorted-indices(v)[2]
+
+
+public defn to-v3d (v:V3f) -> V3d :
+  V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
 
 public defn to-v3i (v:V3f) -> V3i :
   V3i(to-int(x(v)), to-int(y(v)), to-int(z(v)))
 
-public defn round (p:V3f) -> V3f :
-  V3f(round(x(p)), round(y(p)), round(z(p)))
-
 public defn to-v3f (v:V3i) -> V3f :
   V3f(to-float(x(v)), to-float(y(v)), to-float(z(v)))
-
-public lostanza defn v3i-get (v:ref<V3i>, i:ref<Int>) -> ref<Int> :
-  #if-not-defined(OPTIMIZE) :
-     ensure-index-in-bounds(i, new Int{3})
-  return new Int{addr!(v.x)[i.value]}
-  
-defmethod get (a:V3i, i:Int) -> Int : v3i-get(a, i)
-
-defmethod length (a:V3i) -> Int : 3
-
-public defn area (a:V3i) -> Int :
-  x(a) * y(a)
-
-public defn volume (a:V3i) -> Int :
-  x(a) * y(a) * z(a)
-
-defmethod equal? (v1:V3i, v2:V3i) :
-  x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) 
-
-defmethod hash (v:V3i) :
-  (7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v))
-
-public defn xy (p:V3i) -> V3i :
-  V3i(x(p), y(p), 0)
-
-defmethod print (o:OutputStream, v:V3i) :
-  print-all(o, ["V3i(", x(v), ",", y(v), ",", z(v), ")"])
-
-public defn dot (a:V3i, b:V3i) -> Int :
-  x(a) * x(b) + y(a) * y(b) + z(a) * z(b)
-
-public defn min (a:V3i) -> Int :
-  min(x(a), min(y(a), z(a)))
-
-public defn max (a:V3i) -> Int :
-  max(x(a), max(y(a), z(a)))
-
-public defn min (a:V3i, b:V3i) -> V3i :
-  V3i(min(x(a), x(b)), min(y(a), y(b)), min(z(a), z(b)))
-
-public defn max (a:V3i, b:V3i) -> V3i :
-  V3i(max(x(a), x(b)), max(y(a), y(b)), max(z(a), z(b)))
-
-public defn times (a:Int, b:V3i) -> V3i :
-  V3i(a * x(b), a * y(b), a * z(b))
-
-public defn divide (a:V3i, b:Int) -> V3i :
-  V3i(x(a) / b, y(a) / b, z(a) / b)
-
-public defn plus (a:V3i, b:V3i) -> V3i :
-  V3i(x(a) + x(b), y(a) + y(b), z(a) + z(b))
-
-public defn minus (a:V3i, b:V3i) -> V3i :
-  V3i(x(a) - x(b), y(a) - y(b), z(a) - z(b))
-
-public defn negate (a:V3i) -> V3i :
-  V3i((- x(a)), (- y(a)), (- z(a)))
 
 ;;; Interval 
 
@@ -289,152 +348,6 @@ defmethod equal? (i1:Interval, i2:Interval) :
 
 defmethod print (o:OutputStream, i:Interval) :
   print-all(o, ["Interval(", lo(i), ",", hi(i) ")"])
-
-;;; V3f
-
-;; public defstruct V3f <: Array<Float> :
-;;   x: Float
-;;   y: Float
-;;   z: Float
-
-public lostanza deftype V3f <: Array<Float> & Geom & Hashable & Equalable :
-  x: float
-  y: float
-  z: float
-
-public lostanza defn V3f (x:ref<Float>, y:ref<Float>, z:ref<Float>) -> ref<V3f> :
-  return new V3f{x.value, y.value, z.value}
-
-public defn V2f (x:Float, y:Float) -> V3f :
-  V3f(x, y, 0.0f)
-
-public defn V3f-fill (a:Float) : V3f(a, a, a)
-
-public defn V3f-unit (i:Int) :
-  if i == 0 :      V3f(1.0f, 0.0f, 0.0f)
-  else if i == 1 : V3f(0.0f, 1.0f, 0.0f)
-  else :           V3f(0.0f, 0.0f, 1.0f)
-  
-public defn set-elt (v:V3f, i:Int, a:Float) -> V3f :
-  V3f(a when i == 0 else v[0], a when i == 1 else v[1], a when i == 2 else v[2])
-
-public lostanza defn x (v:ref<V3f>) -> ref<Float> :
-  return new Float{v.x}
-
-public lostanza defn y (v:ref<V3f>) -> ref<Float> :
-  return new Float{v.y}
-
-public lostanza defn z (v:ref<V3f>) -> ref<Float> :
-  return new Float{v.z}
-
-public lostanza defn v3f-get (v:ref<V3f>, i:ref<Int>) -> ref<Float> :
-  #if-not-defined(OPTIMIZE) :
-     ensure-index-in-bounds(i, new Int{3})
-  return new Float{addr!(v.x)[i.value]}
-  
-public defmethod get (a:V3f, i:Int) -> Float : v3f-get(a, i)
-
-;; public defn sorted-indices (v:V3f) -> Seqable<Int> :
-;;   seq(value, lazy-qsort(key, seq({_ => _}, v, 0 to 3)))
-
-public defn sorted-indices (v:V3f) -> V3i :
-  if x(v) < y(v) :
-    if x(v) < z(v) :
-      V3i(0, 1, 2) when y(v) < z(v) else V3i(0, 2, 1)
-    else :
-      V3i(2, 0, 1)
-  else :
-    if y(v) < z(v) :
-      V3i(1, 0, 2) when x(v) < z(v) else V3i(1, 2, 0)
-    else :
-      V3i(2, 1, 0)
-
-public defn min-idx (v:V3f) -> Int :
-  sorted-indices(v)[0]
-
-public defn mid-idx (v:V3f) -> Int :
-  sorted-indices(v)[1]
-
-public defn max-idx (v:V3f) -> Int :
-  sorted-indices(v)[2]
-
-;; public defmethod get (a:V3f, i:Int) -> Float :
-;;   if i == 0 : x(a) 
-;;   else if i == 1 : y(a) 
-;;   else : z(a) 
-
-public defmethod length (a:V3f) -> Int : 3
-
-defmethod equal? (v1:V3f, v2:V3f) :
-  x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) 
-
-defmethod hash (v:V3f) :
-  (7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v))
-
-defmethod print (o:OutputStream, v:V3f) :
-  print-all(o, ["V3f(", x(v), "f,", y(v), "f,", z(v), "f)"])
-
-public defn dot (a:V3f, b:V3f) -> Float :
-  x(a) * x(b) + y(a) * y(b) + z(a) * z(b)
-
-public defn xy (p:V3f) -> V3f :
-  V3f(x(p), y(p), 0.0f)
-
-public defn min (a:V3f) -> Float :
-  min(x(a), min(y(a), z(a)))
-
-public defn max (a:V3f) -> Float :
-  max(x(a), max(y(a), z(a)))
-
-public defn abs (a:V3f) -> V3f :
-  V3f(abs(x(a)), abs(y(a)), abs(z(a)))
-
-public defn min (a:V3f, b:V3f) -> V3f :
-  V3f(min(x(a), x(b)), min(y(a), y(b)), min(z(a), z(b)))
-
-public defn max (a:V3f, b:V3f) -> V3f :
-  V3f(max(x(a), x(b)), max(y(a), y(b)), max(z(a), z(b)))
-
-public defn volume (a:V3f) -> Float :
-  x(a) * y(a) * z(a)
-
-public defn area (a:V3f) -> Float :
-  x(a) * y(a)
-
-public defn magnitude (a:V3f) -> Float :
-  sqrt(dot(a, a))
-
-public defn distance (v0:V3f, v1:V3f) -> Float :
-  magnitude(v1 - v0)
-
-public defn normalize (a:V3f) -> V3f :
-  a / magnitude(a)
-
-public defn times (a:Float, b:V3f) -> V3f :
-  V3f(a * x(b), a * y(b), a * z(b))
-
-public defn times (a:V3f, b:V3f) -> V3f :
-  V3f(x(a) * x(b), y(a) * y(b), z(a) * z(b))
-
-public defn divide (a:V3f, b:Float) -> V3f :
-  V3f(x(a) / b, y(a) / b, z(a) / b)
-
-public defn divide (a:V3f, b:V3f) -> V3f :
-  V3f(x(a) / x(b), y(a) / y(b), z(a) / z(b))
-
-public defn plus (a:V3f, b:V3f) -> V3f :
-  V3f(x(a) + x(b), y(a) + y(b), z(a) + z(b))
-
-public defn minus (a:V3f, b:V3f) -> V3f :
-  V3f(x(a) - x(b), y(a) - y(b), z(a) - z(b))
-
-public defn modulo (a:V3f, b:V3f) -> V3f :
-  V3f(y(a) * z(b) - z(a) * y(b),
-      z(a) * x(b) - x(a) * z(b),
-      x(a) * y(b) - y(a) * x(b))
-
-public defn negate (a:V3f) -> V3f :
-  V3f((- x(a)), (- y(a)), (- z(a)))
 
 ;;; V4f
 
@@ -468,12 +381,9 @@ public lostanza defn a (v:ref<V4f>) -> ref<Float> :
 public defn V4f (x:Float, y:Float, z:Float) -> V4f :
   V4f(x, y, z, 0.0f)
 
-public lostanza defn v4f-get (v:ref<V4f>, i:ref<Int>) -> ref<Float> :
-  #if-not-defined(OPTIMIZE) :
-     ensure-index-in-bounds(i, new Int{3})
+public lostanza defmethod get (v:ref<V4f>, i:ref<Int>) -> ref<Float> :
+  ensure-index-in-bounds(i, new Int{3})
   return new Float{addr!(v.x)[i.value]}
-  
-public defmethod get (a:V4f, i:Int) -> Float : v4f-get(a, i)
 
 public defmethod length (a:V4f) -> Int : 4
 
@@ -492,145 +402,102 @@ public val BLUE  = V4f(0.0f, 0.0f, 1.0f, 1.0f)
 public val BLACK  = V4f(0.0f, 0.0f, 0.0f, 1.0f)
 public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
 
-;;; V3d
-
-public lostanza deftype V3d <: Array<Double> & Geom & Hashable :
-  x: double
-  y: double
-  z: double
-
-public lostanza defn V3d (x:ref<Double>, y:ref<Double>, z:ref<Double>) -> ref<V3d> :
-  return new V3d{x.value, y.value, z.value}
-
-public lostanza defn x (v:ref<V3d>) -> ref<Double> :
-  return new Double{v.x}
-
-public lostanza defn y (v:ref<V3d>) -> ref<Double> :
-  return new Double{v.y}
-
-public lostanza defn z (v:ref<V3d>) -> ref<Double> :
-  return new Double{v.z}
-
-public defn V3d (v:V3f) -> V3d : V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
-
-defmethod equal? (v1:V3d, v2:V3d) :
-  x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) 
-
-defmethod hash (v:V3d) :
-  (7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v))
-
 ;;; BOX
 
-public defstruct Boxi <: Geom & Equalable :
-  lo: V3i
-  hi: V3i
+#for (Prim in [Int Float Double]
+      BoxVec in [V3i V3f V3d]
+      BoxName in ["Boxi" "Boxf" "Boxd"]
+      BoxVec-fill in [V3i-fill V3f-fill V3d-fill]
+      Box in [Boxi Boxf Boxd]
+      neg-inf in [neg-infi, neg-inff, neg-infd]
+      pos-inf in [pos-infi, pos-inff, pos-infd]
+      inf-box in [inf-boxi, inf-boxf, inf-boxd]
+      min-box in [min-boxi, min-boxf, min-boxd]
+      x2 in [2 2.0f 2.0]
+      x0 in [0 0.0f 0.0]) :
 
-public defn empty-box () :
-  Box(V3f-fill(pos-inf), V3f-fill(neg-inf))
-  
-public defn empty-boxi () :
-  Boxi(V3i-fill(pos-infi), V3i-fill(neg-infi))
-  
-public defn Boxi (v:V3i) -> Boxi :
-  Boxi(v, v)
+  public defstruct Box <: Geom & Equalable :
+    lo: BoxVec
+    hi: BoxVec
 
-defmethod print (o:OutputStream, b:Boxi) :
-  print-all(o, ["Boxi(", lo(b), ",", hi(b) ")"])
+  public defn Box (v:BoxVec) -> Box :
+    Box(v, v)
 
-public defn xy (b:Boxi) :
-  Boxi(xy(lo(b)), xy(hi(b)))
+  defmethod print (o:OutputStream, b:Box) :
+    print-all(o, [BoxName "(", lo(b), ",", hi(b) ")"])
 
-public defn union (b0:Boxi, b1:Boxi) -> Boxi :
-  Boxi(min(lo(b0), lo(b1)), max(hi(b0), hi(b1)))
+  public defn empty? (b:Box) -> True|False :
+    val d = dims(b)
+    x(d) < x0 or y(d) < x0 or z(d) < x0
 
-public defn center (b:Boxi) -> V3i :
-  to-v3i(round(0.5f * to-v3f(lo(b) + hi(b))))
+  public defn contains? (b:Box, p:BoxVec) -> True|False :
+    not empty?(b & Box(p))
 
-public defn dims (b:Boxi) -> V3i :
-  (hi(b) - lo(b)) + V3i(1, 1, 1)
+  public defn center (b:Box) -> BoxVec :
+    (lo(b) + hi(b)) / x2
 
-defmethod equal? (b1:Boxi, b2:Boxi) :
-  lo(b1) == lo(b2) and hi(b1) == hi(b2)
+  public defn dims (b:Box) -> BoxVec :
+    hi(b) - lo(b)
 
-public defstruct Box <: Geom & Equalable :
-  lo: V3f
-  hi: V3f
+  public defn corners (b:Box) -> Tuple<BoxVec> :
+    val [l, h] = [lo(b), hi(b)]
+    [BoxVec(x(l), y(l), z(l)),
+     BoxVec(x(l), y(l), z(h)), 
+     BoxVec(x(l), y(h), z(l)), 
+     BoxVec(x(l), y(h), z(h)), 
+     BoxVec(x(h), y(l), z(l)), 
+     BoxVec(x(h), y(l), z(h)),
+     BoxVec(x(h), y(h), z(l)), 
+     BoxVec(x(h), y(h), z(h))]
 
-public defn Box (v:V3f) -> Box :
-  Box(v, v)
+  public defn dims-to-box (dims:BoxVec) -> Box :
+    val hdims = dims / x2
+    Box((- hdims), hdims)
 
-defmethod print (o:OutputStream, b:Box) :
-  print-all(o, ["Box(", lo(b), ",", hi(b) ")"])
+  public defn union (b:Box, v:BoxVec) -> Box :
+    Box(min(lo(b), v), max(hi(b), v))
 
-public defn empty? (b:Box) -> True|False :
-  val d = dims(b)
-  x(d) < 0.0f or y(d) < 0.0f or z(d) < 0.0f
+  public defn union (b0:Box, b1:Box) -> Box :
+    Box(min(lo(b0), lo(b1)), max(hi(b0), hi(b1)))
 
-public defn contains? (b:Box, p:V3f) -> True|False :
-  not empty?(b & Box(p))
+  public defn bit-or (b0:Box, b1:Box) -> Box :
+    union(b0, b1)
 
-public defn center (b:Box) -> V3f :
-  0.5f * (lo(b) + hi(b))
+  public defn bit-and (b0:Box, b1:Box) -> Box :
+    Box(max(lo(b0), lo(b1)), min(hi(b0), hi(b1)))
 
-public defn dims (b:Box) -> V3f :
-  hi(b) - lo(b)
+  public defn inf-box () -> Box:
+    Box(BoxVec-fill(neg-inf), BoxVec-fill(pos-inf))
 
-public defn corners (b:Box) -> Tuple<V3f> :
-  val [l, h] = [lo(b), hi(b)]
-  [V3f(x(l), y(l), z(l)),
-   V3f(x(l), y(l), z(h)), 
-   V3f(x(l), y(h), z(l)), 
-   V3f(x(l), y(h), z(h)), 
-   V3f(x(h), y(l), z(l)), 
-   V3f(x(h), y(l), z(h)),
-   V3f(x(h), y(h), z(l)), 
-   V3f(x(h), y(h), z(h))]
+  public defn min-box () -> Box:
+    Box(BoxVec-fill(pos-inf), BoxVec-fill(neg-inf))
 
-public defn dims-to-box (dims:V3f) -> Box :
-  val hdims = 0.5f * dims
-  Box((- hdims), hdims)
+  public defn fatten (b:Box, dims:BoxVec) -> Box :
+    Box(lo(b) - dims, hi(b) + dims)
 
-public defn union (b:Box, v:V3f) -> Box :
-  Box(min(lo(b), v), max(hi(b), v))
+  public defn fatten (b:Box, dims:Prim) -> Box :
+    fatten(b, BoxVec(dims, dims, dims))
 
-public defn union (b0:Box, b1:Box) -> Box :
-  Box(min(lo(b0), lo(b1)), max(hi(b0), hi(b1)))
+  public defn plus (b:Box, off:BoxVec) -> Box :
+    Box(lo(b) + off, hi(b) + off)
 
-public defn bit-or (b0:Box, b1:Box) -> Box :
-  union(b0, b1)
+  public defn minus (b:Box, off:BoxVec) -> Box :
+    Box(lo(b) - off, hi(b) - off)
 
-public defn bit-and (b0:Box, b1:Box) -> Box :
-  Box(max(lo(b0), lo(b1)), min(hi(b0), hi(b1)))
+  defmethod equal? (b1:Box, b2:Box) :
+    lo(b1) == lo(b2) and hi(b1) == hi(b2)
 
-public defn inf-box () -> Box:
-  Box(V3f-fill(neg-inf), V3f-fill(pos-inf))
+  public defn intersects2? (b0:Box, b1:Box) -> True|False :
+    not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
+         (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))))
 
-public defn min-box () -> Box:
-  Box(V3f-fill(pos-inf), V3f-fill(neg-inf))
+  public defn intersects? (b0:Box, b1:Box) -> True|False :
+    not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
+         (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))) or
+         (z(hi(b0)) < z(lo(b1)) or z(lo(b0)) > z(hi(b1))))
 
-public defn fatten (b:Box, dims:V3f) -> Box :
-  Box(lo(b) - dims, hi(b) + dims)
-
-public defn fatten (b:Box, dims:Float) -> Box :
-  fatten(b, V3f(dims, dims, dims))
-
-public defn times (mat:Mat44, b:Box) -> Box :
-  reduce(union, map(Box{ mat * _ }, corners(b)))
-
-public defn plus (b:Boxi, off:V3i) -> Boxi :
-  Boxi(lo(b) + off, hi(b) + off)
-
-defmethod equal? (b1:Box, b2:Box) :
-  lo(b1) == lo(b2) and hi(b1) == hi(b2)
-
-public defn intersects2? (b0:Box, b1:Box) -> True|False :
-  not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
-       (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))))
-
-public defn intersects? (b0:Box, b1:Box) -> True|False :
-  not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
-       (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))) or
-       (z(hi(b0)) < z(lo(b1)) or z(lo(b0)) > z(hi(b1))))
+public defn times (mat:Mat44, b:Boxf) -> Boxf :
+  reduce(union, map(Boxf{ mat * _ }, corners(b)))
 
 ;;; MAT
 
@@ -1046,7 +913,7 @@ public defn minus (p:Polygon, off:V3f) -> Polygon :
 public defn segments (polygon:Polygon) -> Seq<[V3f, V3f]> :
   cat-all(for c in contours(polygon) seq : segments(c))
 
-defn do-print-svg (s:OutputStream, polygon:Polygon, bounds:Box) :
+defn do-print-svg (s:OutputStream, polygon:Polygon, bounds:Boxf) :
   println-all(s, ["<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"])
   println-all(s, ["<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\""])
   println-all(s, [" width=\"" x(dims(bounds)) "\" height=\"" y(dims(bounds)) "\" id=\"cons\">"])
@@ -1055,7 +922,7 @@ defn do-print-svg (s:OutputStream, polygon:Polygon, bounds:Box) :
     do-print-svg(s, c)
   println(s, "\n</svg>")
 
-public defn svg (polygon:Polygon, filename:String, bounds:Box) :
+public defn svg (polygon:Polygon, filename:String, bounds:Boxf) :
   val s = FileOutputStream(filename)
   try : do-print-svg(s, polygon, bounds)
   finally : close(s)
@@ -1069,12 +936,12 @@ public defstruct PolyLine <: Geom :
 defmethod print (o:OutputStream, c:PolyLine) :
   print("PolyLine(%,)" % [strokes(c)])
 
-public defn bbox (p:PolyLine) -> Box :
+public defn bbox (p:PolyLine) -> Boxf :
   if length(strokes(p)) == 0 :
-    Box(V2f(0.0f, 0.0f), V2f(0.0f, 0.0f))
+    Boxf(V2f(0.0f, 0.0f), V2f(0.0f, 0.0f))
   else :
-    val boxes = seq(reduce{union, empty-box(), seq(Box, _)}, strokes(p))
-    reduce(union, empty-box(), boxes)
+    val boxes = seq(reduce{union, min-boxf(), seq(Boxf, _)}, strokes(p))
+    reduce(union, min-boxf(), boxes)
 
 public defn times (mat:Mat44, p:PolyLine) -> PolyLine :
   PolyLine(for s in strokes(p) map : for v in s map : mat * v)

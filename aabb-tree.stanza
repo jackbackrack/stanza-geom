@@ -6,7 +6,7 @@ defpackage aabb-tree :
   import geom
 
 public deftype AABB <: Equalable
-public defmulti box (a:AABB) -> Box
+public defmulti box (a:AABB) -> Boxf
 public defmulti node (a:AABB) -> False|Node
 public defmulti set-node (a:AABB, n:False|Node) -> False
 
@@ -16,19 +16,19 @@ public deftype Node <: Equalable
 defmulti id (n:Node) -> Int
 defmulti parent (n:Node) -> False|Node
 defmulti set-parent (n:Node, p:False|Node) -> False
-public defmulti aabb (n:Node) -> Box
-defmulti set-aabb (n:Node, b:Box) -> False
+public defmulti aabb (n:Node) -> Boxf
+defmulti set-aabb (n:Node, b:Boxf) -> False
 
 public defstruct LeafNode <: Node :
   id : Int with: (as-method => true)
   parent : False|Node with : (as-method => true, setter => set-parent)
-  aabb : Box with: (as-method => true, setter => set-aabb)
+  aabb : Boxf with: (as-method => true, setter => set-aabb)
   data : False|AABB with: (setter => set-data)
 
 public defstruct BranchNode <: Node :
   id : Int with: (as-method => true)
   parent : False|Node with : (as-method => true, setter => set-parent)
-  aabb : Box with: (as-method => true, setter => set-aabb)
+  aabb : Boxf with: (as-method => true, setter => set-aabb)
   children : Tuple<Node> with : (setter => set-children)
   children-crossed? : True|False with : (setter => set-children-crossed?)
 
@@ -109,7 +109,7 @@ public defn add (t:AABBTree, aabb:AABB) :
     (r:False) : set-root(t, new-leaf)
     (r:Node) :  insert-node(t, new-leaf, { root(t) as Node }, set-root{t, _})
 
-defn area (box:Box) : area(dims(box))
+defn area (box:Boxf) : area(dims(box))
 
 defn set-child (n:BranchNode, i:Int, c:Node) :
   val cs = children(n)
@@ -120,7 +120,7 @@ defn insert-node (t:AABBTree, node:Node, dad:() -> Node, set-dad:BranchNode -> F
   val new-parent =
     match(p) :
       (p:LeafNode) :
-        val new-parent = BranchNode(next(gen-ids), false, empty-box(), [node, p], false)
+        val new-parent = BranchNode(next(gen-ids), false, min-boxf(), [node, p], false)
         set-parent(new-parent, parent(p))
         set-parent(node, new-parent)
         set-parent(p, new-parent)
