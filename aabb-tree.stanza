@@ -120,7 +120,7 @@ defn insert-node (t:AABBTree, node:Node, dad:() -> Node, set-dad:BranchNode -> F
   val new-parent =
     match(p) :
       (p:LeafNode) :
-        val new-parent = BranchNode(next(gen-ids), false, min-boxf(), [node, p], false)
+        val new-parent = BranchNode(next(gen-ids), false, min-box-f(), [node, p], false)
         set-parent(new-parent, parent(p))
         set-parent(node, new-parent)
         set-parent(p, new-parent)
