@@ -18,12 +18,12 @@ public defn ensure-index-in-bounds (i:Int, n:Int) :
     if i < 0 or i >= n :
       fatal("Index (%_) out of bounds." % [i])
 
-public val pos-inff =  1.0e6f
-public val neg-inff = -1.0e6f
-public val pos-infd =  1.0e6
-public val neg-infd = -1.0e6
-public val pos-infi =  (1 << 30)
-public val neg-infi = (-(1 << 30))
+public val pos-inf-f =  1.0e6f
+public val neg-inf-f = -1.0e6f
+public val pos-inf-d =  1.0e6
+public val neg-inf-d = -1.0e6
+public val pos-inf-i =  (1 << 30)
+public val neg-inf-i = (-(1 << 30))
 
 ;;; PIXELS
 
@@ -185,6 +185,7 @@ defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
       PrimVecName in ["V3i" "V3f" "V3d"]
       PrimVec2 in [V2i V2f V2d]
       prim-fill in [V3i-fill V3f-fill V3d-fill]
+      prim-unit in [V3i-unit V3f-unit V3d-unit]
       x0 in [0 0.0f 0.0]
       x1 in [1 1.0f 1.0]) :
 
@@ -409,10 +410,10 @@ public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
       BoxName in ["Boxi" "Boxf" "Boxd"]
       BoxVec-fill in [V3i-fill V3f-fill V3d-fill]
       Box in [Boxi Boxf Boxd]
-      neg-inf in [neg-infi, neg-inff, neg-infd]
-      pos-inf in [pos-infi, pos-inff, pos-infd]
-      inf-box in [inf-boxi, inf-boxf, inf-boxd]
-      min-box in [min-boxi, min-boxf, min-boxd]
+      neg-inf in [neg-inf-i, neg-inf-f, neg-inf-d]
+      pos-inf in [pos-inf-i, pos-inf-f, pos-inf-d]
+      inf-box in [inf-box-i, inf-box-f, inf-box-d]
+      min-box in [min-box-i, min-box-f, min-box-d]
       x2 in [2 2.0f 2.0]
       x0 in [0 0.0f 0.0]) :
 
@@ -435,6 +436,9 @@ public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
 
   public defn center (b:Box) -> BoxVec :
     (lo(b) + hi(b)) / x2
+
+  public defn xy (b:Box) -> Box :
+    Box(xy(lo(b)), xy(hi(b)))
 
   public defn dims (b:Box) -> BoxVec :
     hi(b) - lo(b)
@@ -940,8 +944,8 @@ public defn bbox (p:PolyLine) -> Boxf :
   if length(strokes(p)) == 0 :
     Boxf(V2f(0.0f, 0.0f), V2f(0.0f, 0.0f))
   else :
-    val boxes = seq(reduce{union, min-boxf(), seq(Boxf, _)}, strokes(p))
-    reduce(union, min-boxf(), boxes)
+    val boxes = seq(reduce{union, min-box-f(), seq(Boxf, _)}, strokes(p))
+    reduce(union, min-box-f(), boxes)
 
 public defn times (mat:Mat44, p:PolyLine) -> PolyLine :
   PolyLine(for s in strokes(p) map : for v in s map : mat * v)

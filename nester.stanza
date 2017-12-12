@@ -77,7 +77,7 @@ public defn uniquify (part:SuperPart, assembly:Arrangement) :
   SuperPart(id(part), to-tuple $ seq(uniquify{_, assembly}, rots(part)))
 
 defn bbox (page:Page) -> Boxi :
-  var res = empty-boxi()
+  var res = min-box-i()
   for pos-part in parts(page) do :
     res = union(res, ibbox(value(pos-part)) + translation(key(pos-part)))
   res
