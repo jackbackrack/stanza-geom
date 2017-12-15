@@ -9,35 +9,35 @@ defpackage grid :
 
 public val trace? = false
 
-extern todos_fab: () -> ptr<?>
-extern todos_del: (ptr<?>) -> int
-extern todos_clear: (ptr<?>) -> int
-extern todos_elt: (ptr<?>, int, ptr<int>) -> int
-extern todos_len: (ptr<?>) -> int
+extern indices_fab: () -> ptr<?>
+extern indices_del: (ptr<?>) -> int
+extern indices_clear: (ptr<?>) -> int
+extern indices_elt: (ptr<?>, int, ptr<int>) -> int
+extern indices_len: (ptr<?>) -> int
 
-public lostanza deftype Todos :
+public lostanza deftype Indices :
   value: ptr<?>
 
-public lostanza defn Todos () -> ref<Todos> :
-  val res = call-c todos_fab()
-  return new Todos{res}
+public lostanza defn Indices () -> ref<Indices> :
+  val res = call-c indices_fab()
+  return new Indices{res}
 
-public lostanza defn del (v:ref<Todos>) -> ref<False> :
-  call-c todos_del(v.value)
+public lostanza defn del (v:ref<Indices>) -> ref<False> :
+  call-c indices_del(v.value)
   return false
 
-public lostanza defn clear (v:ref<Todos>) -> ref<False> :
-  call-c todos_clear(v.value)
+public lostanza defn clear (v:ref<Indices>) -> ref<False> :
+  call-c indices_clear(v.value)
   return false
 
 val pt = V3i(0, 0, 0)
 
-public lostanza defn get (v:ref<Todos>, i:ref<Int>) -> ref<V3i> :
-  call-c todos_elt(v.value, i.value, addr!(pt.x))
+public lostanza defn get (v:ref<Indices>, i:ref<Int>) -> ref<V3i> :
+  call-c indices_elt(v.value, i.value, addr!(pt.x))
   return V3i(x(pt), y(pt), z(pt))
 
-public lostanza defn length (v:ref<Todos>) -> ref<Int> :
-  val res = call-c todos_len(v.value)
+public lostanza defn length (v:ref<Indices>) -> ref<Int> :
+  val res = call-c indices_len(v.value)
   return new Int{res}
 
 extern grid_fill: (int, int, int, ptr<byte>, byte) -> int
@@ -126,8 +126,8 @@ lostanza defn do-convolve (dst:ref<Grid>, src:ref<Grid>, a-default:ref<Byte>, ma
                        addr!(data(mask).data))
   return false
 
-public lostanza defn find-ones (g:ref<Grid>, todos:ref<Todos>) -> ref<False> :
-  call-c grid_find_ones(n-cols(g).value, n-rows(g).value, n-lays(g).value, addr!(data(g).data), todos.value)
+public lostanza defn find-ones (g:ref<Grid>, indices:ref<Indices>) -> ref<False> :
+  call-c grid_find_ones(n-cols(g).value, n-rows(g).value, n-lays(g).value, addr!(data(g).data), indices.value)
   return false
 
 lostanza defmethod hash (g:ref<Grid>) -> ref<Int> :
@@ -383,7 +383,7 @@ public defn convolve (d:Grid, a:Grid, a-default:Byte, b:Grid) :
 ;;     for off in indices(legal) do :
 ;;       yield(off) when get-value(legal, off) == to-byte(1)
   
-public defn true-indices (legal:Grid, trues:Todos) -> Seq<V3i> :
+public defn true-indices (legal:Grid, trues:Indices) -> Seq<V3i> :
   find-ones(legal, trues)
   generate<V3i> :
     for i in 0 to length(trues) do :

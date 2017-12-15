@@ -104,7 +104,7 @@ val infi = 1 << 30
 defn find-best (legal:Grid, bbox:Boxi, b:Part) -> [Int, V3i] :
   var best-area = infi
   var best-pos = V3i(-1, -1, -1)
-  val trues = Todos()
+  val trues = Indices()
   ;; println-all(["BBOX " bbox])
   for pos in true-indices(legal, trues) do :
     val new-bbox = union(bbox, ibbox(b) + pos)

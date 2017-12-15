@@ -219,22 +219,22 @@ extern "C" void grid_convolve (int dw, int dh, int dd, uint8_t* dst, int sw, int
   }
 }
 
-extern "C" std::vector<v3i_t> *todos_fab () {
+extern "C" std::vector<v3i_t> *indices_fab () {
   std::vector<v3i_t> *res = new std::vector<v3i_t>();
   return res;
 }
 
-extern "C" int *todos_del (std::vector<v3i_t> *v) {
+extern "C" int *indices_del (std::vector<v3i_t> *v) {
   delete v;
   return 0;
 }
 
-extern "C" int *todos_clear (std::vector<v3i_t> *v) {
+extern "C" int *indices_clear (std::vector<v3i_t> *v) {
   v->clear();
   return 0;
 }
 
-extern "C" int *todos_elt (std::vector<v3i_t> *v, int i, int *pos) {
+extern "C" int *indices_elt (std::vector<v3i_t> *v, int i, int *pos) {
   v3i_t res = v->at(i);
   pos[0] = res.x;
   pos[1] = res.y;
@@ -242,16 +242,16 @@ extern "C" int *todos_elt (std::vector<v3i_t> *v, int i, int *pos) {
   return 0;
 }
 
-extern "C" int todos_len (std::vector<v3i_t> *v) {
+extern "C" int indices_len (std::vector<v3i_t> *v) {
   return v->size();
 }
 
-extern "C" void grid_find_ones (int w, int h, int d, uint8_t* src, std::vector<v3i_t> *todos) {
+extern "C" void grid_find_ones (int w, int h, int d, uint8_t* src, std::vector<v3i_t> *indices) {
   for (int k = 0; k < d; k++) {
     for (int j = 0; j < h; j++) {
       for (int i = 0; i < w; i++) {
         if (get(src, w, h, d, i, j, k) == 1) {
-          todos->push_back(V3i_t(i, j, k));
+          indices->push_back(V3i_t(i, j, k));
         }
       }
     }
