@@ -54,7 +54,7 @@ public defn indices (dims:V3i) -> Seq<V3i> :
         for i in 0 to x(dims) do :
           yield(V3i(i, j, k))
 
-public defn indices (bounds:Boxi) -> Seq<V3i> :
+public defn indices (bounds:Box3i) -> Seq<V3i> :
   generate<V3i> :
     for k in z(lo(bounds)) through z(hi(bounds)) do :
       for j in y(lo(bounds)) through y(hi(bounds)) do :
@@ -174,7 +174,7 @@ defmethod length (a:Vb) -> Int : vi-length(a)
 defmethod print (o:OutputStream, v:Vb) :
   print-all(o, ["Vb(" length(v) ")"])
 
-;;; V3i
+;;; V3x
 
 defn round (x:Int) : x
 defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
@@ -193,8 +193,6 @@ defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
     x: prim
     y: prim
     z: prim
-
-  public defn PrimVec2 (x:Prim, y:Prim) : PrimVec(x, y, x0)
 
   public lostanza defn PrimVec (x:ref<Prim>, y:ref<Prim>, z:ref<Prim>) -> ref<PrimVec> :
     return new PrimVec{x.value, y.value, z.value}
@@ -239,8 +237,10 @@ defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
   defmethod hash (v:PrimVec) :
     (7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v))
 
-  public defn xy (p:PrimVec) -> PrimVec :
-    PrimVec(x(p), y(p), x0)
+  public defn xy (p:PrimVec) -> PrimVec2 :
+    PrimVec2(x(p), y(p))
+
+  public defn xyz (p:PrimVec) -> PrimVec : p
 
   defmethod print (o:OutputStream, v:PrimVec) :
     print-all(o, [PrimVecName "(", x(v), ",", y(v), ",", z(v), ")"])
@@ -319,6 +319,122 @@ defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
   public defn max-idx (v:PrimVec) -> Int :
     sorted-indices(v)[2]
 
+;;; V2x
+
+#for (Prim in [Int Float Double]
+      prim in [int float double]
+      PrimVec in [V2i V2f V2d]
+      PrimVecName in ["V2i" "V2f" "V2d"]
+      PrimVec3 in [V3i V3f V3d]
+      prim-fill in [V2i-fill V2f-fill V2d-fill]
+      prim-unit in [V2i-unit V2f-unit V2d-unit]
+      x0 in [0 0.0f 0.0]
+      x1 in [1 1.0f 1.0]) :
+
+  public lostanza deftype PrimVec <: Array<Prim> & Hashable & Geom :
+    x: prim
+    y: prim
+
+  public lostanza defn PrimVec (x:ref<Prim>, y:ref<Prim>) -> ref<PrimVec> :
+    return new PrimVec{x.value, y.value}
+
+  public lostanza defn x (v:ref<PrimVec>) -> ref<Prim> :
+    return new Prim{v.x}
+
+  public lostanza defn y (v:ref<PrimVec>) -> ref<Prim> :
+    return new Prim{v.y}
+
+  public defn prim-fill (a:Prim) : PrimVec(a, a)
+
+  public defn prim-unit (i:Int) :
+    if i == 0 : PrimVec(x1, x0)
+    else :      PrimVec(x0, x1)
+
+  public defn set-elt (v:PrimVec, i:Int, a:Prim) -> PrimVec :
+    PrimVec(a when i == 0 else v[0], a when i == 1 else v[1])
+
+  lostanza defmethod get (v:ref<PrimVec>, i:ref<Int>) -> ref<Prim> : 
+    ensure-index-in-bounds(i, new Int{2})
+    return new Prim{addr!(v.x)[i.value]}
+
+  defmethod length (a:PrimVec) -> Int : 2
+
+  public defn area (a:PrimVec) -> Prim :
+    x(a) * y(a)
+
+  public defn volume (a:PrimVec) -> Prim :
+    x0
+
+  defmethod equal? (v1:PrimVec, v2:PrimVec) :
+    x(v1) == x(v2) and y(v1) == y(v2)
+
+  defmethod hash (v:PrimVec) :
+    ((7 * hash(x(v))) + hash(y(v)))
+
+  public defn xy (p:PrimVec) -> PrimVec : p
+
+  public defn xyz (p:PrimVec) -> PrimVec3 :
+    PrimVec3(x(p), y(p), x0)
+
+  defmethod print (o:OutputStream, v:PrimVec) :
+    print-all(o, [PrimVecName "(", x(v), ",", y(v), ")"])
+
+  public defn magnitude (a:PrimVec) -> Prim :
+    sqrt(dot(a, a))
+
+  public defn distance (v0:PrimVec, v1:PrimVec) -> Prim :
+    magnitude(v1 - v0)
+
+  public defn normalize (a:PrimVec) -> PrimVec :
+    a / magnitude(a)
+
+  public defn dot (a:PrimVec, b:PrimVec) -> Prim :
+    x(a) * x(b) + y(a) * y(b)
+
+  public defn min (a:PrimVec) -> Prim :
+    min(x(a), y(a))
+
+  public defn max (a:PrimVec) -> Prim :
+    max(x(a), y(a))
+
+  public defn min (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(min(x(a), x(b)), min(y(a), y(b)))
+
+  public defn max (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(max(x(a), x(b)), max(y(a), y(b)))
+
+  public defn times (a:Prim, b:PrimVec) -> PrimVec :
+    PrimVec(a * x(b), a * y(b))
+
+  public defn times (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) * x(b), y(a) * y(b))
+
+  public defn divide (a:PrimVec, b:Prim) -> PrimVec :
+    PrimVec(x(a) / b, y(a) / b)
+
+  public defn divide (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) / x(b), y(a) / y(b))
+
+  public defn plus (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) + x(b), y(a) + y(b))
+
+  public defn minus (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) - x(b), y(a) - y(b))
+
+  public defn negate (a:PrimVec) -> PrimVec :
+    PrimVec((- x(a)), (- y(a)))
+
+  public defn round (p:PrimVec) -> PrimVec :
+    PrimVec(round(x(p)), round(y(p)))
+
+  public defn sorted-indices (v:PrimVec) -> V2i :
+    V2i(0, 1) when x(v) < y(v) else V2i(1, 0)
+
+  public defn min-idx (v:PrimVec) -> Int :
+    0 when x(v) < y(v) else 1
+
+  public defn max-idx (v:PrimVec) -> Int :
+    1 when x(v) < y(v) else 0
 
 public defn to-v3d (v:V3f) -> V3d :
   V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
@@ -328,6 +444,12 @@ public defn to-v3i (v:V3f) -> V3i :
 
 public defn to-v3f (v:V3i) -> V3f :
   V3f(to-float(x(v)), to-float(y(v)), to-float(z(v)))
+
+public defn to-v2i (v:V2f) -> V2i :
+  V2i(to-int(x(v)), to-int(y(v)))
+
+public defn to-v2f (v:V2i) -> V2f :
+  V2f(to-float(x(v)), to-float(y(v)))
 
 ;;; Interval 
 
@@ -403,19 +525,19 @@ public val BLUE  = V4f(0.0f, 0.0f, 1.0f, 1.0f)
 public val BLACK  = V4f(0.0f, 0.0f, 0.0f, 1.0f)
 public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
 
-;;; BOX
+;;; BOX2 and BOX3
 
-#for (Prim in [Int Float Double]
-      BoxVec in [V3i V3f V3d]
-      BoxName in ["Boxi" "Boxf" "Boxd"]
-      BoxVec-fill in [V3i-fill V3f-fill V3d-fill]
-      Box in [Boxi Boxf Boxd]
-      neg-inf in [neg-inf-i, neg-inf-f, neg-inf-d]
-      pos-inf in [pos-inf-i, pos-inf-f, pos-inf-d]
-      inf-box in [inf-box-i, inf-box-f, inf-box-d]
-      min-box in [min-box-i, min-box-f, min-box-d]
-      x2 in [2 2.0f 2.0]
-      x0 in [0 0.0f 0.0]) :
+#for (Prim in [Int Float Double Int Float Double]
+      BoxVec in [V3i V3f V3d V2i V2f V2d]
+      BoxName in ["Box3i" "Box3f" "Box3d" "Box2i" "Box2f" "Box2d"]
+      BoxVec-fill in [V3i-fill V3f-fill V3d-fill V2i-fill V2f-fill V2d-fill]
+      Box in [Box3i Box3f Box3d Box2i Box2f Box2d]
+      neg-inf in [neg-inf-i, neg-inf-f, neg-inf-d, neg-inf-i, neg-inf-f, neg-inf-d]
+      pos-inf in [pos-inf-i, pos-inf-f, pos-inf-d, pos-inf-i, pos-inf-f, pos-inf-d]
+      pos-inf-box in [pos-inf-box3i, pos-inf-box3f, pos-inf-box3d, pos-inf-box2i, pos-inf-box2f, pos-inf-box2d]
+      neg-inf-box in [neg-inf-box3i, neg-inf-box3f, neg-inf-box3d, neg-inf-box2i, neg-inf-box2f, neg-inf-box2d]
+      x2 in [2 2.0f 2.0, 2, 2.0f, 2.0]
+      x0 in [0 0.0f 0.0, 0, 0.0f, 0.0]) :
 
   public defstruct Box <: Geom & Equalable :
     lo: BoxVec
@@ -427,32 +549,14 @@ public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
   defmethod print (o:OutputStream, b:Box) :
     print-all(o, [BoxName "(", lo(b), ",", hi(b) ")"])
 
-  public defn empty? (b:Box) -> True|False :
-    val d = dims(b)
-    x(d) < x0 or y(d) < x0 or z(d) < x0
-
   public defn contains? (b:Box, p:BoxVec) -> True|False :
     not empty?(b & Box(p))
 
   public defn center (b:Box) -> BoxVec :
     (lo(b) + hi(b)) / x2
 
-  public defn xy (b:Box) -> Box :
-    Box(xy(lo(b)), xy(hi(b)))
-
   public defn dims (b:Box) -> BoxVec :
     hi(b) - lo(b)
-
-  public defn corners (b:Box) -> Tuple<BoxVec> :
-    val [l, h] = [lo(b), hi(b)]
-    [BoxVec(x(l), y(l), z(l)),
-     BoxVec(x(l), y(l), z(h)), 
-     BoxVec(x(l), y(h), z(l)), 
-     BoxVec(x(l), y(h), z(h)), 
-     BoxVec(x(h), y(l), z(l)), 
-     BoxVec(x(h), y(l), z(h)),
-     BoxVec(x(h), y(h), z(l)), 
-     BoxVec(x(h), y(h), z(h))]
 
   public defn dims-to-box (dims:BoxVec) -> Box :
     val hdims = dims / x2
@@ -470,17 +574,17 @@ public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
   public defn bit-and (b0:Box, b1:Box) -> Box :
     Box(max(lo(b0), lo(b1)), min(hi(b0), hi(b1)))
 
-  public defn inf-box () -> Box:
+  public defn pos-inf-box () -> Box:
     Box(BoxVec-fill(neg-inf), BoxVec-fill(pos-inf))
 
-  public defn min-box () -> Box:
+  public defn neg-inf-box () -> Box:
     Box(BoxVec-fill(pos-inf), BoxVec-fill(neg-inf))
 
   public defn fatten (b:Box, dims:BoxVec) -> Box :
     Box(lo(b) - dims, hi(b) + dims)
 
   public defn fatten (b:Box, dims:Prim) -> Box :
-    fatten(b, BoxVec(dims, dims, dims))
+    fatten(b, BoxVec-fill(dims))
 
   public defn plus (b:Box, off:BoxVec) -> Box :
     Box(lo(b) + off, hi(b) + off)
@@ -491,21 +595,67 @@ public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
   defmethod equal? (b1:Box, b2:Box) :
     lo(b1) == lo(b2) and hi(b1) == hi(b2)
 
-  public defn intersects2? (b0:Box, b1:Box) -> True|False :
+#for (BoxVec in [V2i V2f V2d]
+      Box in [Box2i Box2f Box2d]
+      Box3 in [Box3i Box3f Box3d]
+      x0 in [0 0.0f 0.0]) :
+
+  public defn xy (b:Box) -> Box : b
+
+  public defn xyz (b:Box) -> Box3 :
+    Box3(xyz(lo(b)), xyz(hi(b)))
+
+  public defn empty? (b:Box) -> True|False :
+    val d = dims(b)
+    x(d) < x0 or y(d) < x0
+
+  public defn corners (b:Box) -> Tuple<BoxVec> :
+    val [l, h] = [lo(b), hi(b)]
+    [BoxVec(x(l), y(l)),
+     BoxVec(x(l), y(h)), 
+     BoxVec(x(h), y(h)),
+     BoxVec(x(h), y(l))] 
+
+  public defn intersects? (b0:Box, b1:Box) -> True|False :
     not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
          (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))))
+
+#for (BoxVec in [V3i V3f V3d]
+      Box in [Box3i Box3f Box3d]
+      Box2 in [Box2i Box2f Box2d]
+      x0 in [0 0.0f 0.0]) :
+
+  public defn xy (b:Box) -> Box2 :
+    Box2(xy(lo(b)), xy(hi(b)))
+
+  public defn xyz (b:Box) -> Box : b
+
+  public defn empty? (b:Box) -> True|False :
+    val d = dims(b)
+    x(d) < x0 or y(d) < x0 or z(d) < x0
+
+  public defn corners (b:Box) -> Tuple<BoxVec> :
+    val [l, h] = [lo(b), hi(b)]
+    [BoxVec(x(l), y(l), z(l)),
+     BoxVec(x(l), y(l), z(h)), 
+     BoxVec(x(l), y(h), z(l)), 
+     BoxVec(x(l), y(h), z(h)), 
+     BoxVec(x(h), y(l), z(l)), 
+     BoxVec(x(h), y(l), z(h)),
+     BoxVec(x(h), y(h), z(l)), 
+     BoxVec(x(h), y(h), z(h))]
 
   public defn intersects? (b0:Box, b1:Box) -> True|False :
     not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
          (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))) or
          (z(hi(b0)) < z(lo(b1)) or z(lo(b0)) > z(hi(b1))))
 
-public defn times (mat:Mat44, b:Boxf) -> Boxf :
-  reduce(union, map(Boxf{ mat * _ }, corners(b)))
+public defn times (mat:Mat44f, b:Box3f) -> Box3f :
+  reduce(union, map(Box3f{ mat * _ }, corners(b)))
 
 ;;; MAT
 
-public lostanza deftype Mat44 <: Array<Float> & Geom & Equalable :
+public lostanza deftype Mat44f <: Array<Float> & Geom & Equalable :
   m00: float
   m01: float
   m02: float
@@ -523,58 +673,58 @@ public lostanza deftype Mat44 <: Array<Float> & Geom & Equalable :
   m32: float
   m33: float
 
-public lostanza defn Mat44 (m00:ref<Float>,m01:ref<Float>,m02:ref<Float>,m03:ref<Float>,
-                            m10:ref<Float>,m11:ref<Float>,m12:ref<Float>,m13:ref<Float>,
-                            m20:ref<Float>,m21:ref<Float>,m22:ref<Float>,m23:ref<Float>,
-                            m30:ref<Float>,m31:ref<Float>,m32:ref<Float>,m33:ref<Float>) -> ref<Mat44> :
-  return new Mat44{m00.value,m01.value,m02.value,m03.value,m10.value,m11.value,m12.value,m13.value,
-                   m20.value,m21.value,m22.value,m23.value,m30.value,m31.value,m32.value,m33.value}
+public lostanza defn Mat44f (m00:ref<Float>,m01:ref<Float>,m02:ref<Float>,m03:ref<Float>,
+                             m10:ref<Float>,m11:ref<Float>,m12:ref<Float>,m13:ref<Float>,
+                             m20:ref<Float>,m21:ref<Float>,m22:ref<Float>,m23:ref<Float>,
+                             m30:ref<Float>,m31:ref<Float>,m32:ref<Float>,m33:ref<Float>) -> ref<Mat44f> :
+  return new Mat44f{m00.value,m01.value,m02.value,m03.value,m10.value,m11.value,m12.value,m13.value,
+                    m20.value,m21.value,m22.value,m23.value,m30.value,m31.value,m32.value,m33.value}
 
-public defn Mat44 (m:Mat44) -> Mat44 :
-  Mat44(m[0, 0], m[0, 1], m[0, 2], m[0, 3],
-        m[1, 0], m[1, 1], m[1, 2], m[1, 3], 
-        m[2, 0], m[2, 1], m[2, 2], m[2, 3], 
-        m[3, 0], m[3, 1], m[3, 2], m[3, 3])
+public defn Mat44f (m:Mat44f) -> Mat44f :
+  Mat44f(m[0, 0], m[0, 1], m[0, 2], m[0, 3],
+         m[1, 0], m[1, 1], m[1, 2], m[1, 3], 
+         m[2, 0], m[2, 1], m[2, 2], m[2, 3], 
+         m[3, 0], m[3, 1], m[3, 2], m[3, 3])
 
-lostanza defn mat44-get (m:ref<Mat44>, i:ref<Int>) -> ref<Float> :
+lostanza defn mat44f-get (m:ref<Mat44f>, i:ref<Int>) -> ref<Float> :
   #if-not-defined(OPTIMIZE) :
      ensure-index-in-bounds(i, new Int{16})
   return new Float{addr!(m.m00)[i.value]}
 
-lostanza defn mat44-set (m:ref<Mat44>, i:ref<Int>, x:ref<Float>) -> ref<False> :
+lostanza defn mat44f-set (m:ref<Mat44f>, i:ref<Int>, x:ref<Float>) -> ref<False> :
   #if-not-defined(OPTIMIZE) :
      ensure-index-in-bounds(i, new Int{16})
   addr!(m.m00)[i.value] = x.value
   return false
 
-defmethod equal? (m1:Mat44, m2:Mat44) :
+defmethod equal? (m1:Mat44f, m2:Mat44f) :
   label<True|False> return:
     for i in 0 to 4 do :
       for j in 0 to 4 do :
         if m1[i, j] != m2[i, j] : return(false)
     true
 
-defmethod get (a:Mat44, i:Int) -> Float : mat44-get(a, i)
-defmethod set (a:Mat44, i:Int, c:Float) -> False : mat44-set(a, i, c)
-defmethod length (a:Mat44) -> Int : 16
+defmethod get (a:Mat44f, i:Int) -> Float : mat44f-get(a, i)
+defmethod set (a:Mat44f, i:Int, c:Float) -> False : mat44f-set(a, i, c)
+defmethod length (a:Mat44f) -> Int : 16
 
-public defn get (m:Mat44, x:Int, y:Int) -> Float :
+public defn get (m:Mat44f, x:Int, y:Int) -> Float :
   m[x * 4 + y]
 
-public defn set (m:Mat44, x:Int, y:Int, v:Float) -> False :
+public defn set (m:Mat44f, x:Int, y:Int, v:Float) -> False :
   m[x * 4 + y] = v
 
-defmethod print (o:OutputStream, m:Mat44) :
+defmethod print (o:OutputStream, m:Mat44f) :
   print(o, "MAT(")
   for (i in 0 to 16) do :
      if i > 0 : print(o, ",")
      print(o, m[i])
   print-all(o, ")")
 
-public defn gj-inverse (m:Mat44) -> Mat44 :
-  label<Mat44> return :
-    val s = id-mat44()
-    val t = Mat44(m)
+public defn gj-inverse (m:Mat44f) -> Mat44f :
+  label<Mat44f> return :
+    val s = id-mat44f()
+    val t = Mat44f(m)
     for i in 0 to 3 do :
       var pivot = i
       var pivot-size:Float = t[i, i]
@@ -590,7 +740,7 @@ public defn gj-inverse (m:Mat44) -> Mat44 :
         if pivot-size == 0.0f :
           println(["SINGULAR"])
           ;; if singExc : throw SingMatrixExc ("Cannot invert singular matrix.")
-          return(id-mat44())
+          return(id-mat44f())
         if pivot != i :
           for j in 0 to 4 do :
             var tmp = t[i, j]
@@ -613,7 +763,7 @@ public defn gj-inverse (m:Mat44) -> Mat44 :
       if f == 0.0f :
         println-all(["SINGULAR"])
         ;; if singExc : throw(SingMatrixExc ("Cannot invert singular matrix."))
-        return(id-mat44())
+        return(id-mat44f())
       for j in 0 to 4 do :
         t[i, j] = t[i, j] / f
         s[i, j] = s[i, j] / f
@@ -624,11 +774,11 @@ public defn gj-inverse (m:Mat44) -> Mat44 :
           s[j, k] = s[j, k] - g * s[i, k]
     s
 
-public defn inverse (m:Mat44) -> Mat44 :
-  label<Mat44> return :
+public defn inverse (m:Mat44f) -> Mat44f :
+  label<Mat44f> return :
     if m[0, 3] != 0.0f or m[1, 3] != 0.0f or m[2, 3] != 0.0f or m[3, 3] != 1.0f :
       return(gj-inverse(m))
-    val s = Mat44(m[1, 1] * m[2, 2] - m[2, 1] * m[1, 2],
+    val s = Mat44f(m[1, 1] * m[2, 2] - m[2, 1] * m[1, 2],
                   m[2, 1] * m[0, 2] - m[0, 1] * m[2, 2],
                   m[0, 1] * m[1, 2] - m[1, 1] * m[0, 2],
                   0.0f,
@@ -661,7 +811,7 @@ public defn inverse (m:Mat44) -> Mat44 :
            else :
              println-all(["SINGULAR " m])
              ;; if singExc : throw(SingMatrixExc ("Cannot invert singular matrix."))
-             return(id-mat44())
+             return(id-mat44f())
              
     s[3, 0] = (- m[3, 0]) * s[0, 0] - m[3, 1] * s[1, 0] - m[3, 2] * s[2, 0]
     s[3, 1] = (- m[3, 0]) * s[0, 1] - m[3, 1] * s[1, 1] - m[3, 2] * s[2, 1]
@@ -669,49 +819,49 @@ public defn inverse (m:Mat44) -> Mat44 :
 
     s
 
-public defn reflect-xy-mat44 () -> Mat44 :
-  Mat44( 0.0f,  1.0f,  0.0f,  0.0f,
-         1.0f,  0.0f,  0.0f,  0.0f,
-         0.0f,  0.0f,  1.0f,  0.0f,
-         0.0f,  0.0f,  0.0f,  1.0f)
+public defn reflect-xy-mat44f () -> Mat44f :
+  Mat44f( 0.0f,  1.0f,  0.0f,  0.0f,
+          1.0f,  0.0f,  0.0f,  0.0f,
+          0.0f,  0.0f,  1.0f,  0.0f,
+          0.0f,  0.0f,  0.0f,  1.0f)
  
-public defn reflect-xz-mat44 () -> Mat44 :
-  Mat44( 0.0f,  0.0f,  1.0f,  0.0f,
-         0.0f,  1.0f,  0.0f,  0.0f,
-         1.0f,  0.0f,  0.0f,  0.0f,
-         0.0f,  0.0f,  0.0f,  1.0f)
+public defn reflect-xz-mat44f () -> Mat44f :
+  Mat44f( 0.0f,  0.0f,  1.0f,  0.0f,
+          0.0f,  1.0f,  0.0f,  0.0f,
+          1.0f,  0.0f,  0.0f,  0.0f,
+          0.0f,  0.0f,  0.0f,  1.0f)
  
-public defn reflect-yz-mat44 () -> Mat44 :
-  Mat44( 1.0f,  0.0f,  0.0f,  0.0f,
-         0.0f,  0.0f,  1.0f,  0.0f,
-         0.0f,  1.0f,  0.0f,  0.0f,
-         0.0f,  0.0f,  0.0f,  1.0f)
+public defn reflect-yz-mat44f () -> Mat44f :
+  Mat44f( 1.0f,  0.0f,  0.0f,  0.0f,
+          0.0f,  0.0f,  1.0f,  0.0f,
+          0.0f,  1.0f,  0.0f,  0.0f,
+          0.0f,  0.0f,  0.0f,  1.0f)
  
-public defn shear-x-y-mat44 (ymin:Float, ymax:Float, dx0:Float, dx1:Float) -> Mat44 :
+public defn shear-x-y-mat44f (ymin:Float, ymax:Float, dx0:Float, dx1:Float) -> Mat44f :
   ;; TODO
-  id-mat44()
+  id-mat44f()
  
-public defn id-mat44 () -> Mat44 : mag-mat44(1.0f)
+public defn id-mat44f () -> Mat44f : mag-mat44f(1.0f)
 
-public defn mag-mat44 (s:Float) -> Mat44 :
-  Mat44(   s, 0.0f, 0.0f, 0.0f,
-        0.0f,    s, 0.0f, 0.0f,
-        0.0f, 0.0f,    s, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f)
+public defn mag-mat44f (s:Float) -> Mat44f :
+  Mat44f(   s, 0.0f, 0.0f, 0.0f,
+         0.0f,    s, 0.0f, 0.0f,
+         0.0f, 0.0f,    s, 0.0f,
+         0.0f, 0.0f, 0.0f, 1.0f)
  
-public defn mag-mat44 (s:V3f) -> Mat44 :
-  Mat44(x(s), 0.0f, 0.0f, 0.0f,
-        0.0f, y(s), 0.0f, 0.0f,
-        0.0f, 0.0f, z(s), 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f)
+public defn mag-mat44f (s:V3f) -> Mat44f :
+  Mat44f(x(s), 0.0f, 0.0f, 0.0f,
+         0.0f, y(s), 0.0f, 0.0f,
+         0.0f, 0.0f, z(s), 0.0f,
+         0.0f, 0.0f, 0.0f, 1.0f)
 
-public defn mov-mat44 (t:V3f) -> Mat44 :
-  Mat44( 1.0f, 0.0f, 0.0f, 0.0f,
-         0.0f, 1.0f, 0.0f, 0.0f,
-         0.0f, 0.0f, 1.0f, 0.0f,
-         t[0], t[1], t[2], 1.0f)
+public defn mov-mat44f (t:V3f) -> Mat44f :
+  Mat44f( 1.0f, 0.0f, 0.0f, 0.0f,
+          0.0f, 1.0f, 0.0f, 0.0f,
+          0.0f, 0.0f, 1.0f, 0.0f,
+          t[0], t[1], t[2], 1.0f)
 
-public defn rot-mat44 (r:V3f) -> Mat44 :
+public defn rot-mat44f (r:V3f) -> Mat44f :
   val cos_rz = cos(r[2])
   val cos_ry = cos(r[1])
   val cos_rx = cos(r[0])
@@ -730,12 +880,12 @@ public defn rot-mat44 (r:V3f) -> Mat44 :
   val m21 = cos_rz * (- sin_rx) + sin_rz * sin_ry * cos_rx
   val m22 = cos_ry * cos_rx
 
-  Mat44( m00,  m01,  m02, 0.0f,
+  Mat44f( m00,  m01,  m02, 0.0f,
          m10,  m11,  m12, 0.0f,
          m20,  m21,  m22, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f)
 
-public defn rot-mat44 (r:V3f, a:Float) -> Mat44 :
+public defn rot-mat44f (r:V3f, a:Float) -> Mat44f :
   val u = normalize(r)
   val s = sin(a)
   val c = cos(a)
@@ -752,28 +902,34 @@ public defn rot-mat44 (r:V3f, a:Float) -> Mat44 :
   val m21 = u[1] * u[2] * (1.0f - c) + u[0] * s
   val m22 = u[2] * u[2] * (1.0f - c) + c
 
-  Mat44( m00,  m01,  m02, 0.0f,
+  Mat44f( m00,  m01,  m02, 0.0f,
          m10,  m11,  m12, 0.0f,
          m20,  m21,  m22, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f)
 
-public defn rot2-mat44 (src:V3f, dst:V3f) -> Mat44 :
+public defn rot2-mat44f (src:V3f, dst:V3f) -> Mat44f :
   val a = atan2(y(dst), x(dst)) - atan2(y(src), x(src))
   val [c, s] = [cos(a), sin(a)]
-  Mat44(    c    s 0.0f 0.0f
+  Mat44f(    c    s 0.0f 0.0f
         (- s)    c 0.0f 0.0f
          0.0f 0.0f 1.0f 0.0f
          0.0f 0.0f 0.0f 1.0f)
 
-public defn times (m:Mat44, v:V3f) -> V3f :
+public defn times (m:Mat44f, v:V3f) -> V3f :
   val px = x(v) * m[0,0] + y(v) * m[1,0] + z(v) * m[2,0] + m[3,0]
   val py = x(v) * m[0,1] + y(v) * m[1,1] + z(v) * m[2,1] + m[3,1]
   val pz = x(v) * m[0,2] + y(v) * m[1,2] + z(v) * m[2,2] + m[3,2]
   val pw = x(v) * m[0,3] + y(v) * m[1,3] + z(v) * m[2,3] + m[3,3]
   V3f(px / pw, py / pw, pz / pw)
 
-public defn times (a:Mat44, b:Mat44) -> Mat44 :
-  val res = id-mat44()
+public defn times (m:Mat44f, v:V2f) -> V2f :
+  val px = x(v) * m[0,0] + y(v) * m[1,0] + m[3,0]
+  val py = x(v) * m[0,1] + y(v) * m[1,1] + m[3,1]
+  val pw = x(v) * m[0,3] + y(v) * m[1,3] + m[3,3]
+  V2f(px / pw, py / pw)
+
+public defn times (a:Mat44f, b:Mat44f) -> Mat44f :
+  val res = id-mat44f()
   for i in 0 to 4 do :
     for j in 0 to 4 do :
       var sum: Float = 0.0f
@@ -802,7 +958,7 @@ public defn half (p1:V3f, p2:V3f, p3:V3f) -> Half :
   val distance = dot(normal, p1)
   Half(normal, distance)
 
-;; defn times (g:Half, m:Mat44) -> Half :
+;; defn times (g:Half, m:Mat44f) -> Half :
 ;;   var dir1:V3f       = V3f(1.0f, 0.0f, 0.0f) % normal(g)
 ;;   var dir1-len:Float = dot(dir1, dir1)
 ;;   var tmp:V3f        = V3f(0.0f, 1.0f, 0.0f) % normal(g)
@@ -847,7 +1003,7 @@ public defn line-of (p0:V3f, p1:V3f) -> Line :
 ;;; CONTOUR
 
 public defstruct Contour <: Geom :
-  points: Tuple<V3f>
+  points: Tuple<V2f>
 
 defmethod print (o:OutputStream, c:Contour) :
   print("Contour(%,)" % [points(c)])
@@ -869,16 +1025,16 @@ public defn circle-n (d:Float, n:Int) -> Polygon :
 public defn to-polygon (c:Contour) -> Polygon :
   Polygon([c])
 
-public defn times (mat:Mat44, p:Contour) -> Contour :
+public defn times (mat:Mat44f, p:Contour) -> Contour :
   Contour(for p in points(p) map : mat * p)
 
-public defn plus (p:Contour, off:V3f) -> Contour :
+public defn plus (p:Contour, off:V2f) -> Contour :
   Contour(for p in points(p) map : p + off)
 
-public defn minus (p:Contour, off:V3f) -> Contour :
+public defn minus (p:Contour, off:V2f) -> Contour :
   Contour(for p in points(p) map : p - off)
 
-public defn segments (contour:Contour) -> Seq<[V3f, V3f]> :
+public defn segments (contour:Contour) -> Seq<[V2f, V2f]> :
   val pts = points(contour)
   for i in 0 to length(pts) seq :
     [pts[i], pts[(i + 1) % length(pts)]]
@@ -886,12 +1042,12 @@ public defn segments (contour:Contour) -> Seq<[V3f, V3f]> :
 ;; ;;; STROKE
 ;; 
 ;; public defstruct Stroke <: Geom :
-;;   points: Tuple<V3f>
+;;   points: Tuple<V2f>
 ;; 
 ;; defmethod print (o:OutputStream, c:Stroke) :
 ;;   print("Stroke(%,)" % [points(c)])
 ;; 
-;; public defn times (mat:Mat44, p:Stroke) -> Stroke :
+;; public defn times (mat:Mat44f, p:Stroke) -> Stroke :
 ;;   Stroke(for p in points(p) map : mat * p)
 
 ;;; POLYGON
@@ -899,25 +1055,25 @@ public defn segments (contour:Contour) -> Seq<[V3f, V3f]> :
 public defstruct Polygon <: Geom :
   contours: Tuple<Contour>
 
-public defn points (p:Polygon) -> Tuple<V3f> :
+public defn points (p:Polygon) -> Tuple<V2f> :
   to-tuple $ cat-all(for c in contours(p) seq : points(c))
 
 defmethod print (o:OutputStream, c:Polygon) :
   print("Polygon(%,)" % [contours(c)])
 
-public defn times (mat:Mat44, p:Polygon) -> Polygon :
+public defn times (mat:Mat44f, p:Polygon) -> Polygon :
   Polygon(for c in contours(p) map : mat * c)
 
-public defn plus (p:Polygon, off:V3f) -> Polygon :
+public defn plus (p:Polygon, off:V2f) -> Polygon :
   Polygon(for c in contours(p) map : c + off)
 
-public defn minus (p:Polygon, off:V3f) -> Polygon :
+public defn minus (p:Polygon, off:V2f) -> Polygon :
   Polygon(for c in contours(p) map : c - off)
 
-public defn segments (polygon:Polygon) -> Seq<[V3f, V3f]> :
+public defn segments (polygon:Polygon) -> Seq<[V2f, V2f]> :
   cat-all(for c in contours(polygon) seq : segments(c))
 
-defn do-print-svg (s:OutputStream, polygon:Polygon, bounds:Boxf) :
+defn do-print-svg (s:OutputStream, polygon:Polygon, bounds:Box2f) :
   println-all(s, ["<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"])
   println-all(s, ["<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\""])
   println-all(s, [" width=\"" x(dims(bounds)) "\" height=\"" y(dims(bounds)) "\" id=\"cons\">"])
@@ -926,47 +1082,54 @@ defn do-print-svg (s:OutputStream, polygon:Polygon, bounds:Boxf) :
     do-print-svg(s, c)
   println(s, "\n</svg>")
 
-public defn svg (polygon:Polygon, filename:String, bounds:Boxf) :
+public defn svg (polygon:Polygon, filename:String, bounds:Box2f) :
   val s = FileOutputStream(filename)
   try : do-print-svg(s, polygon, bounds)
   finally : close(s)
 
 ;;; POLYLINE
 
-public defstruct PolyLine <: Geom :
-  ;; strokes: Tuple<Stroke>
-  strokes: Tuple<Tuple<V3f>>
+#for (Prim in [Float Float]
+      Vec in [V2f V3f]
+      PolyLine in [PolyLine2f PolyLine3f]
+      Box in [Box2f Box3f]
+      neg-inf-box in [neg-inf-box2f neg-inf-box3f]
+      PolyLineName in ["PolyLine2f" "PolyLine3f"]) :
 
-defmethod print (o:OutputStream, c:PolyLine) :
-  print("PolyLine(%,)" % [strokes(c)])
+  public defstruct PolyLine <: Geom :
+    ;; strokes: Tuple<Stroke>
+    strokes: Tuple<Tuple<Vec>>
 
-public defn bbox (p:PolyLine) -> Boxf :
-  if length(strokes(p)) == 0 :
-    Boxf(V2f(0.0f, 0.0f), V2f(0.0f, 0.0f))
-  else :
-    val boxes = seq(reduce{union, min-box-f(), seq(Boxf, _)}, strokes(p))
-    reduce(union, min-box-f(), boxes)
+  defmethod print (o:OutputStream, c:PolyLine) :
+    print("%_(%,)" % [PolyLineName strokes(c)])
 
-public defn times (mat:Mat44, p:PolyLine) -> PolyLine :
-  PolyLine(for s in strokes(p) map : for v in s map : mat * v)
+  public defn bbox (p:PolyLine) -> Box :
+    if length(strokes(p)) == 0 :
+      Box(Vec(0.0f, 0.0f), Vec(0.0f, 0.0f))
+    else :
+      val boxes = seq(reduce{union, neg-inf-box(), seq(Box, _)}, strokes(p))
+      reduce(union, neg-inf-box(), boxes)
 
-public defn center (p:PolyLine) -> PolyLine :
-  mov-mat44((- center(bbox(p)))) * p
-  
-public defn center-x (p:PolyLine) -> PolyLine :
-  mov-mat44(V3f((- x(center(bbox(p)))), 0.0f, 0.0f)) * p
+  public defn times (mat:Mat44f, p:PolyLine) -> PolyLine :
+    PolyLine(for s in strokes(p) map : for v in s map : mat * v)
 
-public defn mag (p:PolyLine, fac:V3f) -> PolyLine :
-  mag-mat44(fac) * p
+  public defn center (p:PolyLine) -> PolyLine :
+    mov-mat44f(xyz((- center(bbox(p))))) * p
 
-public defn offset (p:PolyLine, off:V3f) -> PolyLine :
-  mov-mat44(off) * p
+  public defn center-x (p:PolyLine) -> PolyLine :
+    mov-mat44f(xyz(Vec((- x(center(bbox(p)))), 0.0f))) * p
 
-public defn segments (polyline:PolyLine) -> Seq<[V3f, V3f]> :
-  generate<[V3f, V3f]> :
-    for s in strokes(polyline) do :
-      for i in 0 to (length(s) - 1) do :
-        yield([s[i], s[i + 1]])
+  public defn mag (p:PolyLine, fac:Vec) -> PolyLine :
+    mag-mat44f(xyz(fac)) * p
+
+  public defn offset (p:PolyLine, off:Vec) -> PolyLine :
+    mov-mat44f(xyz(off)) * p
+
+  public defn segments (polyline:PolyLine) -> Seq<[Vec, Vec]> :
+    generate<[Vec, Vec]> :
+      for s in strokes(polyline) do :
+        for i in 0 to (length(s) - 1) do :
+          yield([s[i], s[i + 1]])
 
 ;;; MESH
  
@@ -1073,17 +1236,17 @@ public defn slerp (src:Quat, dst0:Quat, t:Float) -> Quat :
       [1.0f - t, t]
   Quat(s0 * w(src) + s1 * w(dst), s0 * v(src) + s1 * v(dst))
 
-public defn quat-to-mat44 (q:Quat) -> Mat44 :
+public defn quat-to-mat44f (q:Quat) -> Mat44f :
   val [ wx,  wy,  wz] = [w(q) * x(q), w(q) * y(q), w(q) * z(q)]
   val [ xx,  xy,  xz] = [x(q) * x(q), x(q) * y(q), x(q) * z(q)]
   val [ yy,  yz,  zz] = [y(q) * y(q), y(q) * z(q), z(q) * z(q)]
   val [m00, m01, m02] = [1.0f - 2.0f * (yy + zz),        2.0f * (xy - wz),        2.0f * (xz + wy)]
   val [m10, m11, m12] = [       2.0f * (xy + wz), 1.0f - 2.0f * (xx + zz),        2.0f * (yz - wx)]
   val [m20, m21, m22] = [       2.0f * (xz - wy),        2.0f * (yz + wx), 1.0f - 2.0f * (xx + yy)]
-  Mat44( m00,  m01,  m02, 0.0f,
-         m10,  m11,  m12, 0.0f,
-         m20,  m21,  m22, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f)
+  Mat44f( m00,  m01,  m02, 0.0f,
+          m10,  m11,  m12, 0.0f,
+          m20,  m21,  m22, 0.0f,
+         0.0f, 0.0f, 0.0f, 1.0f)
 
 ;;; ARCBALL
 
@@ -1096,7 +1259,7 @@ public defstruct ArcBall :
   adjust-height: Float with: (setter => adjust-height-set)
   quat : Quat with: (setter => set-quat)
   base-quat : Quat with: (setter => set-base-quat)
-  rot : Mat44 with: (setter => set-rot)
+  rot : Mat44f with: (setter => set-rot)
 
 public defn clone (ball:ArcBall) :
   ArcBall(adjust-width(ball), adjust-height(ball))
@@ -1110,7 +1273,7 @@ public defn set-bounds (a:ArcBall, new-width:Float, new-height:Float) :
 defn clip (x:Float, mn:Float, mx:Float) -> Float :
   min(mx, max(mn, x))
 
-public defn map-to-sphere (a:ArcBall, new-pt:V3f) -> V3f :
+public defn map-to-sphere (a:ArcBall, new-pt:V2f) -> V3f :
   ;; val pt = V2f(x(new-pt) * adjust-width(a) - 1.0f, 1.0f - (y(new-pt) * adjust-height(a)))
   val pt = V2f(clip((-(2.0f * x(new-pt) / adjust-width(a)  - 1.0f)), -1.0f, 1.0f),
                clip(  (2.0f * y(new-pt) / adjust-height(a) - 1.0f),  -1.0f, 1.0f))
@@ -1130,21 +1293,21 @@ public defn map-to-sphere (a:ArcBall, new-pt:V3f) -> V3f :
   res
 
 public defn ArcBall (new-width:Float, new-height:Float) -> ArcBall :
-  val res = ArcBall(V3f(0.0f, 0.0f, 0.0f), V3f(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, Quat(), Quat(), id-mat44())
+  val res = ArcBall(V3f(0.0f, 0.0f, 0.0f), V3f(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, Quat(), Quat(), id-mat44f())
   set-bounds(res, new-width, new-height)
   res
 
-public defn click (a:ArcBall, new-pt:V3f) :
+public defn click (a:ArcBall, new-pt:V2f) :
   ;; println-all(["CLICK " new-pt])
   st-vec-set(a, map-to-sphere(a, new-pt))
   set-quat(a, base-quat(a))
 
 public defn reset! (a:ArcBall) :
-  set-rot(a, id-mat44())
+  set-rot(a, id-mat44f())
   set-quat(a, Quat())
   set-base-quat(a, Quat())
 
-public defn drag (a:ArcBall, new-pt:V3f) :
+public defn drag (a:ArcBall, new-pt:V2f) :
   ;; println-all(["DRAG  " new-pt])
   en-vec-set(a, map-to-sphere(a, new-pt))
   val perp = st-vec(a) % en-vec(a)
@@ -1154,7 +1317,7 @@ public defn drag (a:ArcBall, new-pt:V3f) :
     ;; set-quat(a, conjugate(q) * base-quat(a))
     ;; set-quat(a, base-quat(a) * conjugate(q))
     set-quat(a, base-quat(a) * q)
-    set-rot(a, quat-to-mat44(quat(a)))
+    set-rot(a, quat-to-mat44f(quat(a)))
     q
     
 public defn complete-drag (a:ArcBall) :
@@ -1167,13 +1330,13 @@ public val MOV-SCALE  = 0.0001f
 public defstruct Transformation :
   ball : ArcBall with: (setter => set-ball)
   mag : Float with: (setter => set-mag)
-  mov : V3f with: (setter => set-mov)
+  mov : V2f with: (setter => set-mov)
   last-x : Float with: (setter => set-last-x)
 
 public defn clone (xform:Transformation) :
   Transformation(clone(ball(xform)), mag(xform), V2f(0.0f, 0.0f), 0.0f)
 
-public defn mov! (xform:Transformation, amount:V3f) :
+public defn mov! (xform:Transformation, amount:V2f) :
   set-mov(xform, mov(xform) + MOV-SCALE * amount)
 
 public defn reset! (t:Transformation) :

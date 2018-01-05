@@ -59,7 +59,7 @@ public lostanza defn fill (dst:ref<Grid>, v:ref<Byte>) -> ref<False> :
   call-c grid_fill(n-cols(dst).value, n-rows(dst).value, n-lays(dst).value, addr!(data(dst).data), v.value)
   return false
 
-public lostanza defn fill (dst:ref<Grid>, v:ref<Byte>, bbox:ref<Boxi>) -> ref<False> :
+public lostanza defn fill (dst:ref<Grid>, v:ref<Byte>, bbox:ref<Box3i>) -> ref<False> :
   call-c grid_fill_range(n-cols(dst).value, n-rows(dst).value, n-lays(dst).value,
                          x(lo(bbox)).value, y(lo(bbox)).value, z(lo(bbox)).value,
                          x(hi(bbox)).value, y(hi(bbox)).value, z(hi(bbox)).value,
@@ -137,14 +137,14 @@ lostanza defmethod hash (g:ref<Grid>) -> ref<Int> :
 public defstruct Grid <: Equalable & Hashable :
   idims: V3i
   dim: Float
-  ;; ibbox: Boxi
+  ;; ibbox: Box3i
   ;; dim: Float
   ;; bbox: Box
   ;; pts: Array<V3f>
   data: ByteArray
 
-public defn ibbox (g:Grid) -> Boxi :
-  Boxi(V3i(0, 0, 0), idims(g) - V3i(1, 1, 1))
+public defn ibbox (g:Grid) -> Box3i :
+  Box3i(V3i(0, 0, 0), idims(g) - V3i(1, 1, 1))
 
 defn transform (f-d:V3i -> V3i, f-p:V3i -> V3i, g:Grid) -> Grid:
   val res = Grid(f-d(idims(g)), dim(g))
@@ -206,7 +206,7 @@ public defn legal? (g:Grid, pos:V3i) -> True|False :
   y(pos) >= 0 and y(pos) < y(idims(g)) and
   z(pos) >= 0 and z(pos) < z(idims(g))
 
-public defn legal? (g:Grid, new-bbox:Boxi) -> True|False :
+public defn legal? (g:Grid, new-bbox:Box3i) -> True|False :
   legal?(g, lo(new-bbox)) and legal?(g, hi(new-bbox))
 
 defn get-value (g:Grid, pos:V3i, default:Byte) -> Byte :
@@ -290,7 +290,7 @@ public defn render-values (cells:Grid) :
   val fac = max(x(ext), y(ext))
   gl-scalef(0.9f / fac, 0.9f / fac, 1.0f)
   gl-push-matrix()
-  val off = -1.0f * ext + xy(V3f-fill(0.5f * dim))
+  val off = -1.0f * ext + xyz(xy(V3f-fill(0.5f * dim)))
   gl-translatef(x(off), y(off), 0.0f)
   for pos in indices(dims) do :
     gl-push-matrix()
@@ -313,7 +313,7 @@ public defn render-values (cells:Grid) :
   gl-pop-matrix()
   gl-pop-attrib()
 
-public defn find-limits (dst:Grid) -> Boxi :
+public defn find-limits (dst:Grid) -> Box3i :
   var lo = lo(ibbox(dst))
   var hi = hi(ibbox(dst))
   for pos in indices(dst) do :
@@ -322,13 +322,13 @@ public defn find-limits (dst:Grid) -> Boxi :
       lo = min(pos, lo)
       hi = max(pos, hi)
       set-value(dst, pos, to-byte $ 0)
-  Boxi(lo, hi)
+  Box3i(lo, hi)
 
 ;; defn fill (dst:Grid, x:Byte) :
 ;;   for pos in indices(dst) do :
 ;;     set-value(dst, pos, x)
 ;; 
-;; defn fill (dst:Grid, x:Byte, bounds:Boxi) :
+;; defn fill (dst:Grid, x:Byte, bounds:Box3i) :
 ;;   for pos in indices(bounds) do :
 ;;     set-value(dst, pos, x)
 ;; 
@@ -389,8 +389,8 @@ public defn true-indices (legal:Grid, trues:Todos) -> Seq<V3i> :
     for i in 0 to length(trues) do :
       yield(trues[i])
   
-public defn rnd-grid (boxi:Boxi) -> Grid :
-  val idims = V3i(rndi(x(lo(boxi)), x(hi(boxi))), rndi(y(lo(boxi)), y(hi(boxi))), 1)
+public defn rnd-grid (box3i:Box3i) -> Grid :
+  val idims = V3i(rndi(x(lo(box3i)), x(hi(box3i))), rndi(y(lo(box3i)), y(hi(box3i))), 1)
   println-all(["IDIMS " idims])
   val image = Grid(idims, 0.0f)
   for pos in indices(idims) do :

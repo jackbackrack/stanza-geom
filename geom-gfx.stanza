@@ -18,11 +18,11 @@ public defn gl-color4 (v:V4f) : gl-color4f(x(v), y(v), z(v), a(v))
 
 public defn gl-vertex3 (v:V3f) : gl-vertex3f(x(v), y(v), z(v))
 
-public defn gl-vertex2 (v:V3f) : gl-vertex2f(x(v), y(v))
+public defn gl-vertex2 (v:V2f) : gl-vertex2f(x(v), y(v))
 
 public defn gl-translate3 (v:V3f) : gl-translatef(x(v), y(v), z(v))
 
-public defn gl-translate2 (v:V3f) : gl-translatef(x(v), y(v), 0.0f)
+public defn gl-translate2 (v:V2f) : gl-translatef(x(v), y(v), 0.0f)
 
 public defmulti render (g:Geom) -> False
 
@@ -38,7 +38,7 @@ defmethod render (p:V3f) -> False :
   gl-vertex3(p)
   gl-end()
 
-defmethod render (box:Boxf) -> False :
+defmethod render (box:Box3f) -> False :
   gl-begin(GL-LINE-LOOP)
   gl-vertex3(lo(box))
   gl-vertex3(hi(box))
@@ -47,11 +47,18 @@ defmethod render (box:Boxf) -> False :
 defmethod render (msg:Msg) -> False :
   draw-text(2.0f, 2.0f, *font*, value(msg))
 
-defmethod render (poly:PolyLine) -> False :
+defmethod render (poly:PolyLine3f) -> False :
   for s in strokes(poly) do :
     gl-begin(GL-LINE-STRIP)
     for p in s do :
       gl-vertex3(p)
+    gl-end()
+
+defmethod render (poly:PolyLine2f) -> False :
+  for s in strokes(poly) do :
+    gl-begin(GL-LINE-STRIP)
+    for p in s do :
+      gl-vertex2(p)
     gl-end()
 
 defmethod render (contour:Contour) -> False :
@@ -89,7 +96,7 @@ defmethod render (cells:Pixels) :
   val dims = idims(cells)
   val ext = 0.5f * dim * to-v3f(dims)
   gl-push-matrix()
-  val off = -1.0f * ext + xy(V3f-fill(0.5f * dim))
+  val off = -1.0f * ext + xyz(V2f-fill(0.5f * dim))
   gl-translatef(x(off), y(off), 0.0f)
   for pos in indices(dims) do :
     gl-push-matrix()
@@ -106,11 +113,11 @@ defmethod render (cells:Pixels) :
   gl-pop-matrix()
   gl-pop-attrib()
 
-public lostanza defn gl-load-matrix (m:ref<Mat44>) -> ref<False> :
+public lostanza defn gl-load-matrix (m:ref<Mat44f>) -> ref<False> :
   call-c glLoadMatrixf(addr!(m.m00))
   return false
 
-public lostanza defn gl-mult-matrix (m:ref<Mat44>) -> ref<False> :
+public lostanza defn gl-mult-matrix (m:ref<Mat44f>) -> ref<False> :
   call-c glMultMatrixf(addr!(m.m00))
   return false
 
