@@ -5,6 +5,7 @@ defpackage grid :
   import utils
   import geom
   import gl
+  import glu
   import gfx
 
 public val trace? = false
@@ -268,11 +269,11 @@ defmethod equal? (a:Grid, b:Grid) -> True|False :
 ;; defn pt-of (pt:V3i, cells:Grid) -> V3f :
 ;;   pt-of(pt, idims(cells), bbox(cells))  
 
-public defn pt-of (g:Grid, idx:V3i) -> V3f :
-  dim(g) * (to-v3f(idx) + V3f(0.5f, 0.5f, 0.0f) - (0.5f * to-v3f(idims(g))))
+public defn pt-of (g:Grid, idx:V3i) -> V2f :
+  xy(dim(g) * (to-v3f(idx) + V3f(0.5f, 0.5f, 0.0f) - (0.5f * to-v3f(idims(g)))))
 
-public defn ctr-pt (g:Grid) -> V3f :
-  dim(g) * 0.5f * to-v3f(idims(g))
+public defn ctr-pt (g:Grid) -> V2f :
+  xy(dim(g) * 0.5f * to-v3f(idims(g)))
 
 val straight-deltas2 = [V3i(-1, 0, 0), V3i(1, 0, 0), V3i(0, -1, 0), V3i(0, 1, 0)]
 val straight-deltas = to-tuple $ cat(straight-deltas2, [V3i(0, 0, -1), V3i(0, 0, 1)])
@@ -419,4 +420,27 @@ public defn to-pixels (grid:Grid) -> Pixels :
   for pos in indices(idims(image)) do :
     image[pos] = get-value(grid, pos)
   image
+
+public defn bounds (g:Grid) :
+  Box2f(pt-of(g, V3i(0, 0, 0)), pt-of(g, idims(g) - V3i(1, 1, 0)))
+
+public defn idx-of (g:Grid, p:V3f) :
+  val ext = -0.5f * dim(g) * to-v3f(idims(g))
+  to-v3i(round((p - ext) / dim(g)))
+
+public defn scan (g:Grid, t:Triangle) :
+  val box = bounds(t)
+  val boxi = Box3i(idx-of(g, xyz(lo(box))), idx-of(g, xyz(hi(box))))
+  ;; println("TRIANGLE %_ BOX %_ BOXI %_ STOCK-BOX %_" % [ t box boxi bounds(g) ])
+  for j in y(lo(boxi)) through y(hi(boxi)) do :
+    for i in x(lo(boxi)) through x(hi(boxi)) do :
+      val pi = V2i(i, j)
+      val p  = pt-of(g, xyz(pi))
+      if inside?(t, p) :
+        set-value(g, i, j, 0, to-byte(1))
+
+public defn scan (g:Grid, p:Polygon) :
+  val mesh = triangulate(p)
+  for face in faces(mesh) do :
+    scan(g, Triangle([xy(vertices(mesh)[x(face)]), xy(vertices(mesh)[y(face)]), xy(vertices(mesh)[z(face)])]))
 

@@ -115,8 +115,8 @@ extern "C" void grid_fill (int w, int h, int d, uint8_t* dst, uint8_t val) {
 extern "C" void grid_fill_range (int w, int h, int d, int x0, int y0, int z0, int x1, int y1, int z1, uint8_t* dst, uint8_t val) {
   // printf("GRID-FILL %d [%d %d %d] FROM [%d %d %d] TO [%d %d %d]\n", val, w, h, d, x0, y0, z0, x1, y1, z1);
   for (int k = z0; k <= z1; k++) 
-    for (int j = y0; j <= y1; j++) 
-      for (int i = x0; i <= x1; i++) 
+    for (int j = max(0, y0); j <= min(h - 1, y1); j++) 
+      for (int i = max(0, x0); i <= min(w - 1, x1); i++) 
         set(val, dst, w, h, d, i, j, k);
 }
 
