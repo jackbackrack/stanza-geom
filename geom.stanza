@@ -1088,8 +1088,6 @@ public defn to-v2f (vals:Seqable<Float>) -> V2f :
   val elts = to-tuple $ vals
   V2f(elts[0], elts[1])
   
-public defn to-v2f (v:V2f) -> V2f : v
-  
 public defn Polygon (cs:Seqable<Seqable<V2f>>) -> Polygon :
   Polygon(to-tuple $ seq(Contour, seq(to-tuple, cs)))
 
