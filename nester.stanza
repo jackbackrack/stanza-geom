@@ -42,6 +42,7 @@ defmethod equal? (a:SuperPart, b:SuperPart) -> True|False :
 public defn SuperPart (id:Int, img:Grid) :
   val rots = seq(fn (rot) : Part(next(gensyms), rot, rotate(rot, img)), [0, 90, 180, 270])
   val urots = to-tuple $ unique $ rots
+  println("SUPER-PART %_" % [idims(img)])
   ;; println-all(["UNIQUE ROTS " length(urots)])
   SuperPart(id, urots)
 

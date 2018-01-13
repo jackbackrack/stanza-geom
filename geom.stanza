@@ -319,6 +319,11 @@ defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
   public defn max-idx (v:PrimVec) -> Int :
     sorted-indices(v)[2]
 
+#for (Prim in [Float Double]
+      PrimVec in [V3f V3d]) :
+  public defn angle (a:PrimVec, b:PrimVec) -> Prim :
+    acos(dot(a, b) / (magnitude(a) * magnitude(b)))
+
 ;;; V2x
 
 #for (Prim in [Int Float Double]
@@ -907,7 +912,12 @@ public defn rot-mat44f (r:V3f, a:Float) -> Mat44f :
          m20,  m21,  m22, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f)
 
-public defn rot2-mat44f (src:V3f, dst:V3f) -> Mat44f :
+public defn rot-mat44f (a:V3f, b:V3f) -> Mat44f :
+  val axis  = a % b
+  val angle = angle(a, b)
+  rot-mat44f(axis, angle)
+
+public defn rot-mat44f (src:V2f, dst:V2f) -> Mat44f :
   val a = atan2(y(dst), x(dst)) - atan2(y(src), x(src))
   val [c, s] = [cos(a), sin(a)]
   Mat44f(    c    s 0.0f 0.0f
@@ -1000,6 +1010,35 @@ public defn line-of (p0:V3f, p1:V3f) -> Line :
 ;;   ;; println-all(["CLOSEST POINT TO " x(pt) "," y(pt) " NORMAL " x(normal) "," y(normal) " ALIGN " align])
 ;;   Half(normal, (if align > 0.0f : 1.0f else : -1.0f) * len(pt))
 
+public defstruct ImplicitLine :
+  a : Float
+  b : Float
+  c : Float
+
+public defn ImplicitLine (p:V2f, q:V2f) :
+  ImplicitLine(y(q) - y(p), x(p) - x(q), x(q) * y(p) - y(q) * x(p))
+
+public defn inside? (l:ImplicitLine, p:V2f) -> True|False :
+  (a(l) * x(p) + b(l) * y(p) + c(l)) < 0.0f
+
+public defstruct Triangle :
+  points : Tuple<V2f>
+  lines : Tuple<ImplicitLine>
+
+defmethod print (o:OutputStream, t:Triangle) :
+  print(o, "Triangle(%_)" % [points(t)])
+
+public defn Triangle (ipts:Tuple<V2f>) :
+  val order = xyz(ipts[1] - ipts[0]) % xyz(ipts[2] - ipts[0])
+  val pts = ipts when z(order) >= 0.0f else [ ipts[0] ipts[2] ipts[1] ]
+  val lines = for i in 0 to 3 seq : ImplicitLine(pts[i], pts[(i + 1) % 3])
+  Triangle(pts, to-tuple $ lines)
+
+public defn inside? (l:Triangle, p:V2f) -> True|False :
+  inside?(lines(l)[0], p) and inside?(lines(l)[1], p) and inside?(lines(l)[2], p)
+
+public defn bounds (t:Triangle) : reduce(union, seq(Box2f, points(t)))
+
 ;;; CONTOUR
 
 public defstruct Contour <: Geom :
@@ -1054,6 +1093,13 @@ public defn segments (contour:Contour) -> Seq<[V2f, V2f]> :
 
 public defstruct Polygon <: Geom :
   contours: Tuple<Contour>
+
+public defn to-v2f (vals:Seqable<Float>) -> V2f :
+  val elts = to-tuple $ vals
+  V2f(elts[0], elts[1])
+  
+public defn Polygon (cs:Seqable<Seqable<V2f>>) -> Polygon :
+  Polygon(to-tuple $ seq(Contour, seq(to-tuple, cs)))
 
 public defn points (p:Polygon) -> Tuple<V2f> :
   to-tuple $ cat-all(for c in contours(p) seq : points(c))
