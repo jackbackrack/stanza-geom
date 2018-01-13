@@ -319,6 +319,11 @@ defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
   public defn max-idx (v:PrimVec) -> Int :
     sorted-indices(v)[2]
 
+#for (Prim in [Float Double]
+      PrimVec in [V3f V3d]) :
+  public defn angle (a:PrimVec, b:PrimVec) -> Prim :
+    acos(dot(a, b) / (magnitude(a) * magnitude(b)))
+
 ;;; V2x
 
 #for (Prim in [Int Float Double]
@@ -907,7 +912,12 @@ public defn rot-mat44f (r:V3f, a:Float) -> Mat44f :
          m20,  m21,  m22, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f)
 
-public defn rot2-mat44f (src:V3f, dst:V3f) -> Mat44f :
+public defn rot-mat44f (a:V3f, b:V3f) -> Mat44f :
+  val axis  = a % b
+  val angle = angle(a, b)
+  rot-mat44f(axis, angle)
+
+public defn rot-mat44f (src:V2f, dst:V2f) -> Mat44f :
   val a = atan2(y(dst), x(dst)) - atan2(y(src), x(src))
   val [c, s] = [cos(a), sin(a)]
   Mat44f(    c    s 0.0f 0.0f
