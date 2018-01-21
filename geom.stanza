@@ -242,6 +242,8 @@ defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
 
   public defn xyz (p:PrimVec) -> PrimVec : p
 
+  public defn xyz (p:Prim) -> PrimVec : PrimVec(p, p, p)
+
   defmethod print (o:OutputStream, v:PrimVec) :
     print-all(o, [PrimVecName "(", x(v), ",", y(v), ",", z(v), ")"])
 
@@ -378,8 +380,9 @@ defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
 
   public defn xy (p:PrimVec) -> PrimVec : p
 
-  public defn xyz (p:PrimVec) -> PrimVec3 :
-    PrimVec3(x(p), y(p), x0)
+  public defn xyz (p:PrimVec) -> PrimVec3 : PrimVec3(x(p), y(p), x0)
+
+  public defn xy (p:Prim) -> PrimVec : PrimVec(p, p)
 
   defmethod print (o:OutputStream, v:PrimVec) :
     print-all(o, [PrimVecName "(", x(v), ",", y(v), ")"])
@@ -456,27 +459,6 @@ public defn to-v2i (v:V2f) -> V2i :
 public defn to-v2f (v:V2i) -> V2f :
   V2f(to-float(x(v)), to-float(y(v)))
 
-;;; Interval 
-
-public lostanza deftype Interval <: Geom & Equalable :
-  lo: float
-  hi: float
-
-public lostanza defn Interval (lo:ref<Float>, hi:ref<Float>) -> ref<Interval> :
-  return new Interval{lo.value, hi.value}
-
-public lostanza defn lo (i:ref<Interval>) -> ref<Float> :
-  return new Float{i.lo}
-
-public lostanza defn hi (i:ref<Interval>) -> ref<Float> :
-  return new Float{i.hi}
-
-defmethod equal? (i1:Interval, i2:Interval) :
-  lo(i1) == lo(i2) and hi(i1) == hi(i2)
-
-defmethod print (o:OutputStream, i:Interval) :
-  print-all(o, ["Interval(", lo(i), ",", hi(i) ")"])
-
 ;;; V4f
 
 ;; public defstruct V4f <: Array<Float> :
@@ -532,42 +514,42 @@ public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
 
 ;;; BOX2 and BOX3
 
-#for (Prim in [Int Float Double Int Float Double]
-      BoxVec in [V3i V3f V3d V2i V2f V2d]
-      BoxName in ["Box3i" "Box3f" "Box3d" "Box2i" "Box2f" "Box2d"]
-      BoxVec-fill in [V3i-fill V3f-fill V3d-fill V2i-fill V2f-fill V2d-fill]
-      Box in [Box3i Box3f Box3d Box2i Box2f Box2d]
-      neg-inf in [neg-inf-i, neg-inf-f, neg-inf-d, neg-inf-i, neg-inf-f, neg-inf-d]
-      pos-inf in [pos-inf-i, pos-inf-f, pos-inf-d, pos-inf-i, pos-inf-f, pos-inf-d]
-      pos-inf-box in [pos-inf-box3i, pos-inf-box3f, pos-inf-box3d, pos-inf-box2i, pos-inf-box2f, pos-inf-box2d]
-      neg-inf-box in [neg-inf-box3i, neg-inf-box3f, neg-inf-box3d, neg-inf-box2i, neg-inf-box2f, neg-inf-box2d]
-      x2 in [2 2.0f 2.0, 2, 2.0f, 2.0]
-      x0 in [0 0.0f 0.0, 0, 0.0f, 0.0]) :
+#for (Prim in [Int Float Double Int Float Double Int Float Double]
+      BoxElt in [V3i V3f V3d V2i V2f V2d Int Float Double ]
+      BoxName in ["Box3i" "Box3f" "Box3d" "Box2i" "Box2f" "Box2d" "Box1i" "Box1f" "Box1d"]
+      BoxElt-fill in [V3i-fill V3f-fill V3d-fill V2i-fill V2f-fill V2d-fill to-int to-float to-double]
+      Box in [Box3i Box3f Box3d Box2i Box2f Box2d Box1i Box1f Box1d]
+      neg-inf in [neg-inf-i, neg-inf-f, neg-inf-d, neg-inf-i, neg-inf-f, neg-inf-d neg-inf-i, neg-inf-f, neg-inf-d]
+      pos-inf in [pos-inf-i, pos-inf-f, pos-inf-d, pos-inf-i, pos-inf-f, pos-inf-d pos-inf-i, pos-inf-f, pos-inf-d]
+      pos-inf-box in [pos-inf-box3i, pos-inf-box3f, pos-inf-box3d, pos-inf-box2i, pos-inf-box2f, pos-inf-box2d pos-inf-box1i, pos-inf-box1f, pos-inf-box1d]
+      neg-inf-box in [neg-inf-box3i, neg-inf-box3f, neg-inf-box3d, neg-inf-box2i, neg-inf-box2f, neg-inf-box2d neg-inf-box1i, neg-inf-box1f, neg-inf-box1d]
+      x2 in [2 2.0f 2.0, 2, 2.0f, 2.0, 2, 2.0f, 2.0]
+      x0 in [0 0.0f 0.0, 0, 0.0f, 0.0, 0, 0.0f, 0.0]) :
 
   public defstruct Box <: Geom & Equalable :
-    lo: BoxVec
-    hi: BoxVec
+    lo: BoxElt
+    hi: BoxElt
 
-  public defn Box (v:BoxVec) -> Box :
+  public defn Box (v:BoxElt) -> Box :
     Box(v, v)
 
   defmethod print (o:OutputStream, b:Box) :
     print-all(o, [BoxName "(", lo(b), ",", hi(b) ")"])
 
-  public defn contains? (b:Box, p:BoxVec) -> True|False :
+  public defn contains? (b:Box, p:BoxElt) -> True|False :
     not empty?(b & Box(p))
 
-  public defn center (b:Box) -> BoxVec :
+  public defn center (b:Box) -> BoxElt :
     (lo(b) + hi(b)) / x2
 
-  public defn dims (b:Box) -> BoxVec :
+  public defn dims (b:Box) -> BoxElt :
     hi(b) - lo(b)
 
-  public defn dims-to-box (dims:BoxVec) -> Box :
+  public defn dims-to-box (dims:BoxElt) -> Box :
     val hdims = dims / x2
     Box((- hdims), hdims)
 
-  public defn union (b:Box, v:BoxVec) -> Box :
+  public defn union (b:Box, v:BoxElt) -> Box :
     Box(min(lo(b), v), max(hi(b), v))
 
   public defn union (b0:Box, b1:Box) -> Box :
@@ -580,27 +562,46 @@ public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
     Box(max(lo(b0), lo(b1)), min(hi(b0), hi(b1)))
 
   public defn pos-inf-box () -> Box:
-    Box(BoxVec-fill(neg-inf), BoxVec-fill(pos-inf))
+    Box(BoxElt-fill(neg-inf), BoxElt-fill(pos-inf))
 
   public defn neg-inf-box () -> Box:
-    Box(BoxVec-fill(pos-inf), BoxVec-fill(neg-inf))
+    Box(BoxElt-fill(pos-inf), BoxElt-fill(neg-inf))
 
-  public defn fatten (b:Box, dims:BoxVec) -> Box :
+  public defn fatten (b:Box, dims:BoxElt) -> Box :
     Box(lo(b) - dims, hi(b) + dims)
 
-  public defn fatten (b:Box, dims:Prim) -> Box :
-    fatten(b, BoxVec-fill(dims))
+  ;; public defn fatten (b:Box, dims:Prim) -> Box :
+  ;;   fatten(b, BoxElt-fill(dims))
 
-  public defn plus (b:Box, off:BoxVec) -> Box :
+  public defn plus (b:Box, off:BoxElt) -> Box :
     Box(lo(b) + off, hi(b) + off)
 
-  public defn minus (b:Box, off:BoxVec) -> Box :
+  public defn minus (b:Box, off:BoxElt) -> Box :
     Box(lo(b) - off, hi(b) - off)
 
   defmethod equal? (b1:Box, b2:Box) :
     lo(b1) == lo(b2) and hi(b1) == hi(b2)
 
-#for (BoxVec in [V2i V2f V2d]
+#for (BoxElt in [Int Float Double]
+      Box in [Box1i Box1f Box1d]
+      Box2 in [Box2i Box2f Box2d]
+      Box3 in [Box3i Box3f Box3d]
+      x0 in [0 0.0f 0.0]) :
+
+  public defn xy (b:Box) : Box2(xy(lo(b)), xy(hi(b)))
+
+  public defn xyz (b:Box) : Box3(xyz(lo(b)), xyz(hi(b)))
+
+  public defn empty? (b:Box) -> True|False :
+    dims(b) < x0
+
+  public defn corners (b:Box) -> Tuple<BoxElt> :
+    [lo(b), hi(b)]
+
+  public defn intersects? (b0:Box, b1:Box) -> True|False :
+    not (hi(b0) < lo(b1) or lo(b0) > hi(b1))
+
+#for (BoxElt in [V2i V2f V2d]
       Box in [Box2i Box2f Box2d]
       Box3 in [Box3i Box3f Box3d]
       x0 in [0 0.0f 0.0]) :
@@ -614,18 +615,18 @@ public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
     val d = dims(b)
     x(d) < x0 or y(d) < x0
 
-  public defn corners (b:Box) -> Tuple<BoxVec> :
+  public defn corners (b:Box) -> Tuple<BoxElt> :
     val [l, h] = [lo(b), hi(b)]
-    [BoxVec(x(l), y(l)),
-     BoxVec(x(l), y(h)), 
-     BoxVec(x(h), y(h)),
-     BoxVec(x(h), y(l))] 
+    [BoxElt(x(l), y(l)),
+     BoxElt(x(l), y(h)), 
+     BoxElt(x(h), y(h)),
+     BoxElt(x(h), y(l))] 
 
   public defn intersects? (b0:Box, b1:Box) -> True|False :
     not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
          (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))))
 
-#for (BoxVec in [V3i V3f V3d]
+#for (BoxElt in [V3i V3f V3d]
       Box in [Box3i Box3f Box3d]
       Box2 in [Box2i Box2f Box2d]
       x0 in [0 0.0f 0.0]) :
@@ -639,16 +640,16 @@ public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
     val d = dims(b)
     x(d) < x0 or y(d) < x0 or z(d) < x0
 
-  public defn corners (b:Box) -> Tuple<BoxVec> :
+  public defn corners (b:Box) -> Tuple<BoxElt> :
     val [l, h] = [lo(b), hi(b)]
-    [BoxVec(x(l), y(l), z(l)),
-     BoxVec(x(l), y(l), z(h)), 
-     BoxVec(x(l), y(h), z(l)), 
-     BoxVec(x(l), y(h), z(h)), 
-     BoxVec(x(h), y(l), z(l)), 
-     BoxVec(x(h), y(l), z(h)),
-     BoxVec(x(h), y(h), z(l)), 
-     BoxVec(x(h), y(h), z(h))]
+    [BoxElt(x(l), y(l), z(l)),
+     BoxElt(x(l), y(l), z(h)), 
+     BoxElt(x(l), y(h), z(l)), 
+     BoxElt(x(l), y(h), z(h)), 
+     BoxElt(x(h), y(l), z(l)), 
+     BoxElt(x(h), y(l), z(h)),
+     BoxElt(x(h), y(h), z(l)), 
+     BoxElt(x(h), y(h), z(h))]
 
   public defn intersects? (b0:Box, b1:Box) -> True|False :
     not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
@@ -948,270 +949,6 @@ public defn times (a:Mat44f, b:Mat44f) -> Mat44f :
       res[i, j] = sum
   res
 
-;;; HALF -- PLANE
-
-public defstruct Half :
-  normal:   V3f
-  distance: Float
-
-public defmethod print (o:OutputStream, g:Half) :
-  print-all(o, ["half(" normal(g) "," distance(g) ")"])
-
-public defn half (x:Float, y:Float, z:Float, d:Float) -> Half :
-  Half(V3f(x, y, z), d)
-
-public defn half (v:V3f, d:Float) -> Half :
-  Half(v, d)
-
-public defn half (p1:V3f, p2:V3f, p3:V3f) -> Half :
-  val normal = normalize((p2 - p1) % (p3 - p1))
-  val distance = dot(normal, p1)
-  Half(normal, distance)
-
-;; defn times (g:Half, m:Mat44f) -> Half :
-;;   var dir1:V3f       = V3f(1.0f, 0.0f, 0.0f) % normal(g)
-;;   var dir1-len:Float = dot(dir1, dir1)
-;;   var tmp:V3f        = V3f(0.0f, 1.0f, 0.0f) % normal(g)
-;;   var tmp-len:Float  = dot(tmp, tmp)
-;;   if tmp-len > dir1-len :
-;;     dir1     = tmp
-;;     dir1-len = tmp-len
-;;   tmp     = V3f(0.0f,0.0f, 1.0f) % normal(g)
-;;   tmp-len = dot(tmp, tmp)
-;;   if tmp-len > dir1-len :
-;;     dir1     = tmp
-;;   val dir2  = dir1 % normal(g)
-;;   val point = distance(g) * normal(g)
-;;   half(point * m, (point + dir2) * m, (point + dir1) * m)
-
-public defn distance-to (plane:Half, point:V3f) -> Float :
-  dot(point, normal(plane)) - distance(plane)
-
-public defn level (g:Half, point:V3f) -> Float :
-  (- distance-to(g, point))
-
-;;; LINE
-
-public defstruct Line <: Geom :
-  pos: V3f
-  dir: V3f
-
-public defn closest-point-to (l:Line, point:V3f) -> V3f :
-  dot((point - pos(l)), dir(l)) * dir(l) + pos(l)
-
-public defn line-of (p0:V3f, p1:V3f) -> Line :
-  Line(p0, normalize(p1 - p0))
-
-;; public defn extrude (p0:V3f, p1:V3f) -> Half :
-;;   val line   = line-of(p0, p1)
-;;   val normal = V3f(y(dir(line)), (- x(dir(line))))
-;;   val pt     = closest-point-to(line, V3f(0.0f, 0.0f))
-;;   val align  = dot(normal, normalize(pt))
-;;   ;; println-all(["CLOSEST POINT TO " x(pt) "," y(pt) " NORMAL " x(normal) "," y(normal) " ALIGN " align])
-;;   Half(normal, (if align > 0.0f : 1.0f else : -1.0f) * len(pt))
-
-public defstruct ImplicitLine :
-  a : Float
-  b : Float
-  c : Float
-
-public defn ImplicitLine (p:V2f, q:V2f) :
-  ImplicitLine(y(q) - y(p), x(p) - x(q), x(q) * y(p) - y(q) * x(p))
-
-public defn inside? (l:ImplicitLine, p:V2f) -> True|False :
-  (a(l) * x(p) + b(l) * y(p) + c(l)) < 0.0f
-
-public defstruct Triangle :
-  points : Tuple<V2f>
-  lines : Tuple<ImplicitLine>
-
-defmethod print (o:OutputStream, t:Triangle) :
-  print(o, "Triangle(%_)" % [points(t)])
-
-public defn Triangle (ipts:Tuple<V2f>) :
-  val order = xyz(ipts[1] - ipts[0]) % xyz(ipts[2] - ipts[0])
-  val pts = ipts when z(order) >= 0.0f else [ ipts[0] ipts[2] ipts[1] ]
-  val lines = for i in 0 to 3 seq : ImplicitLine(pts[i], pts[(i + 1) % 3])
-  Triangle(pts, to-tuple $ lines)
-
-public defn inside? (l:Triangle, p:V2f) -> True|False :
-  inside?(lines(l)[0], p) and inside?(lines(l)[1], p) and inside?(lines(l)[2], p)
-
-public defn bounds (t:Triangle) : reduce(union, seq(Box2f, points(t)))
-
-;;; CONTOUR
-
-public defstruct Contour <: Geom :
-  points: Tuple<V2f>
-
-defmethod print (o:OutputStream, c:Contour) :
-  print("Contour(%,)" % [points(c)])
-
-defn do-print-svg (s:OutputStream, contour:Contour) :
-  print(s, "<path d=\"")
-  for (p in points(contour), i in 0 to false) do :  
-    print-all(s, [" " ("M" when i == 0 else "L") " " x(p) " " y(p)])
-  print(s, " Z \" fill=\"none\" stroke=\"red\" stroke-width=\"0.02\"/>")
-
-public defn circle-n (d:Float, n:Int) -> Polygon :
-  val r = 0.5f * d
-  val points = 
-    for i in 0 to n seq :
-      val a = to-float(i) * 2.0f * PI-F / to-float(n)
-      V2f(r * sin(a), r * cos(a))
-  to-polygon(Contour(to-tuple(points)))
-
-public defn to-polygon (c:Contour) -> Polygon :
-  Polygon([c])
-
-public defn times (mat:Mat44f, p:Contour) -> Contour :
-  Contour(for p in points(p) map : mat * p)
-
-public defn plus (p:Contour, off:V2f) -> Contour :
-  Contour(for p in points(p) map : p + off)
-
-public defn minus (p:Contour, off:V2f) -> Contour :
-  Contour(for p in points(p) map : p - off)
-
-public defn segments (contour:Contour) -> Seq<[V2f, V2f]> :
-  val pts = points(contour)
-  for i in 0 to length(pts) seq :
-    [pts[i], pts[(i + 1) % length(pts)]]
-
-;; ;;; STROKE
-;; 
-;; public defstruct Stroke <: Geom :
-;;   points: Tuple<V2f>
-;; 
-;; defmethod print (o:OutputStream, c:Stroke) :
-;;   print("Stroke(%,)" % [points(c)])
-;; 
-;; public defn times (mat:Mat44f, p:Stroke) -> Stroke :
-;;   Stroke(for p in points(p) map : mat * p)
-
-;;; POLYGON
-
-public defstruct Polygon <: Geom :
-  contours: Tuple<Contour>
-
-public defn to-v2f (vals:Seqable<Float>) -> V2f :
-  val elts = to-tuple $ vals
-  V2f(elts[0], elts[1])
-  
-public defn Polygon (cs:Seqable<Seqable<V2f>>) -> Polygon :
-  Polygon(to-tuple $ seq(Contour, seq(to-tuple, cs)))
-
-public defn points (p:Polygon) -> Tuple<V2f> :
-  to-tuple $ cat-all(for c in contours(p) seq : points(c))
-
-defmethod print (o:OutputStream, c:Polygon) :
-  print("Polygon(%,)" % [contours(c)])
-
-public defn times (mat:Mat44f, p:Polygon) -> Polygon :
-  Polygon(for c in contours(p) map : mat * c)
-
-public defn plus (p:Polygon, off:V2f) -> Polygon :
-  Polygon(for c in contours(p) map : c + off)
-
-public defn minus (p:Polygon, off:V2f) -> Polygon :
-  Polygon(for c in contours(p) map : c - off)
-
-public defn segments (polygon:Polygon) -> Seq<[V2f, V2f]> :
-  cat-all(for c in contours(polygon) seq : segments(c))
-
-defn do-print-svg (s:OutputStream, polygon:Polygon, bounds:Box2f) :
-  println-all(s, ["<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"])
-  println-all(s, ["<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\""])
-  println-all(s, [" width=\"" x(dims(bounds)) "\" height=\"" y(dims(bounds)) "\" id=\"cons\">"])
-  val poly = polygon - lo(bounds)
-  for c in contours(poly) do :
-    do-print-svg(s, c)
-  println(s, "\n</svg>")
-
-public defn svg (polygon:Polygon, filename:String, bounds:Box2f) :
-  val s = FileOutputStream(filename)
-  try : do-print-svg(s, polygon, bounds)
-  finally : close(s)
-
-;;; POLYLINE
-
-#for (Prim in [Float Float]
-      Vec in [V2f V3f]
-      PolyLine in [PolyLine2f PolyLine3f]
-      Box in [Box2f Box3f]
-      neg-inf-box in [neg-inf-box2f neg-inf-box3f]
-      PolyLineName in ["PolyLine2f" "PolyLine3f"]) :
-
-  public defstruct PolyLine <: Geom :
-    ;; strokes: Tuple<Stroke>
-    strokes: Tuple<Tuple<Vec>>
-
-  defmethod print (o:OutputStream, c:PolyLine) :
-    print("%_(%,)" % [PolyLineName strokes(c)])
-
-  public defn bbox (p:PolyLine) -> Box :
-    if length(strokes(p)) == 0 :
-      Box(Vec(0.0f, 0.0f), Vec(0.0f, 0.0f))
-    else :
-      val boxes = seq(reduce{union, neg-inf-box(), seq(Box, _)}, strokes(p))
-      reduce(union, neg-inf-box(), boxes)
-
-  public defn times (mat:Mat44f, p:PolyLine) -> PolyLine :
-    PolyLine(for s in strokes(p) map : for v in s map : mat * v)
-
-  public defn center (p:PolyLine) -> PolyLine :
-    mov-mat44f(xyz((- center(bbox(p))))) * p
-
-  public defn center-x (p:PolyLine) -> PolyLine :
-    mov-mat44f(xyz(Vec((- x(center(bbox(p)))), 0.0f))) * p
-
-  public defn mag (p:PolyLine, fac:Vec) -> PolyLine :
-    mag-mat44f(xyz(fac)) * p
-
-  public defn offset (p:PolyLine, off:Vec) -> PolyLine :
-    mov-mat44f(xyz(off)) * p
-
-  public defn segments (polyline:PolyLine) -> Seq<[Vec, Vec]> :
-    generate<[Vec, Vec]> :
-      for s in strokes(polyline) do :
-        for i in 0 to (length(s) - 1) do :
-          yield([s[i], s[i + 1]])
-
-;;; MESH
- 
-public defstruct Mesh <: Geom :
-  vertices: Tuple<V3f>
-  faces:    Tuple<V3i>
-
-defmethod print (o:OutputStream, m:Mesh) :
-  print-all(o, ["Mesh(" vertices(m) "," faces(m) ")"])
-
-;; ;; public defn triangulate (p: Polygon) :
-;; ;;   val vertices = Vector<V3f>()
-;; ;;   val faces  = Vector<Int>()
-;; ;; 
-;; ;;   defn vertex-callback (index: Int) :
-;; ;;     ;; println("Vertex Callback")
-;; ;;     add(faces, index)
-;; ;; 
-;; ;;   defn combine-callback (x:Float, y:Float, z:Float) -> Int :
-;; ;;     ;; println("Combine Callback")
-;; ;;     add(vertices, V3f(x, y, z))
-;; ;;     length(vertices) - 1
-;; ;; 
-;; ;;   val tess-ptr = call-c(triangulator_new, vertex-callback, combine-callback)
-;; ;; 
-;; ;;   call-c(triangulator_begin_polygon, tess-ptr)
-;; ;;   for c in contours(p) do :
-;; ;;     call-c(triangulator_begin_contour, tess-ptr)
-;; ;;     for p in points(c) do :
-;; ;;       add(vertices, p)
-;; ;;       call-c(triangulator_vertex, tess-ptr, length(vertices) - 1, x(p), y(p), z(p))
-;; ;;     call-c(triangulator_end_contour, tess-ptr)
-;; ;;   call-c(triangulator_end_polygon, tess-ptr)
-;; ;; 
-;; ;;   Mesh(vertices, faces)
-
 ;;; QUAT
 
 public defstruct Quat <: Geom & Equalable :
@@ -1390,3 +1127,627 @@ public defn reset! (t:Transformation) :
   set-mov(t, V2f(0.0f, 0.0f))
   set-mag(t, 1.0f)
   set-last-x(t, 0.0f)
+
+;;;; POSEABLES
+
+public deftype Poseable <: Geom
+public defmulti clone<?T> (s:?T&Poseable, name:False|Symbol, color:V4f, points:Tuple<V3f>, tags:Tuple<Symbol>) -> T
+public defmulti name (p:Poseable) -> False|Symbol
+public defmulti color (p:Poseable) -> V4f
+public defmulti tags (p:Poseable) -> Tuple<Symbol>
+public defmulti points (p:Poseable) -> Tuple<V3f>
+public defmulti bounds (p:Poseable) -> Box3f
+public defmulti xyz<?T> (mat:Mat44f, p:?T&Poseable) -> T
+public defmulti any-shapes (p:Poseable) -> Seqable<AnyShape>
+
+public defn rgb<?T> (c:V4f, p:?T&Poseable) -> T : clone(p, name(p), c, points(p), tags(p))
+public defn mov<?T> (dp:V3f, s:?T&Poseable) -> T : xyz(mov-mat44f(dp), s)
+
+public defn mov-x<?T> (dx:Float, p:?T&Poseable) -> T : mov(V3f(dx, 0.0f, 0.0f), p)
+public defn mov-y<?T> (dy:Float, p:?T&Poseable) -> T : mov(V3f(0.0f, dy, 0.0f), p)
+public defn mov-z<?T> (dz:Float, p:?T&Poseable) -> T : mov(V3f(0.0f, 0.0f, dz), p)
+public defn mov (d:V3f)     : mov{d, _}
+public defn mov-x (d:Float) : mov-x{d, _}
+public defn mov-y (d:Float) : mov-y{d, _}
+public defn mov-z (d:Float) : mov-z{d, _}
+
+public defn center<?T> (p:?T&Poseable) -> T :
+  mov((- center(bounds(p))), p)
+
+public defn center-x<?T> (p:?T&Poseable) -> T :
+  mov-x((- x(center(bounds(p)))), p)
+
+public defn center-y<?T> (p:?T&Poseable) -> T :
+  mov-x((- y(center(bounds(p)))), p)
+
+public defn center-z<?T> (p:?T&Poseable) -> T :
+  mov-x((- z(center(bounds(p)))), p)
+
+public defn any-shapes (s:Seqable<AnyShape>) : s
+
+public defn rgb (c:V4f) : rgb{c, _}
+
+;;; ASSEMBLIES
+
+public deftype Assembly <: Poseable
+public defmulti children (a:Assembly) -> Seqable<Poseable>
+public defmulti mat (l:Assembly) -> Mat44f
+
+public defn Assembly (mat:Mat44f, name:False|Symbol, color:V4f, poseables:Seqable<Poseable>) -> Assembly :
+  val children = to-tuple $ poseables
+  if length(children) == 0 : fatal("EMPTY CHILDREN")
+  new Assembly :
+    defmethod children (this) : children
+    defmethod name (this) : name
+    defmethod tags (this) : to-tuple $ unique $ cat-all $ seq(tags, children)
+    defmethod bounds (this) : mat * reduce(bit-or, seq(bounds, children))
+    defmethod mat (this) : mat
+    defmethod color (this) : color
+    defmethod any-shapes (this) : seq(rgb{color, _}, seq(xyz{mat, _}, cat-all $ seq(any-shapes, children)))
+    defmethod points (this) : to-tuple $ cat-all $ seq(points, children)
+
+defmethod clone (p:Assembly, name:False|Symbol, color:V4f, points:Tuple<V3f>, tags:Tuple<Symbol>) -> Assembly :
+  Assembly(mat(p), name, color, children(p))
+
+public defn Assembly (mat:Mat44f, poseables:Seqable<Poseable>) -> Assembly :
+  Assembly(mat, false, V4f(0.0f, 0.0f, 0.0f, 0.0f), poseables)
+  
+public defn Assembly (poseables:Seqable<Poseable>) -> Assembly :
+  Assembly(id-mat44f(), poseables)
+  
+defmethod print (s:OutputStream, a:Assembly) :
+  print(s, "Assembly(%_ %,)" % [name(a), children(a)])
+
+public defmethod xyz (xf:Mat44f, a:Assembly) -> Assembly :
+  Assembly(mat(a) * xf, name(a), color(a), children(a))
+
+;;; ANYSHAPE
+
+public defstruct AnyShapeState :
+  name : False|Symbol
+  color : V4f
+  tags : Tuple<Symbol>
+  points : Tuple<V3f>
+
+public deftype AnyShape <: Poseable
+public defmulti state (a:AnyShape) -> AnyShapeState
+public defmulti clone<?T> (shape:?T&AnyShape, state:AnyShapeState) -> T
+public defmethod name (p:AnyShape) : name(state(p))
+public defmethod color (p:AnyShape) : color(state(p))
+public defmethod tags (p:AnyShape) : tags(state(p))
+public defmethod points (p:AnyShape) : points(state(p))
+
+public defn add-points<?T> (s:?T&AnyShape, points:Tuple<V3f>) -> T :
+  clone(s, AnyShapeState(name(s), color(s), tags(s), points))
+public defn add-tags<?T> (s:?T&AnyShape, tags:Tuple<Symbol>) -> T :
+  clone(s, AnyShapeState(name(s), color(s), tags, points(s)))
+
+public defn add-min-x-point<?T> (s:?T&AnyShape) -> T :
+  add-points(s, [V3f(x(lo(bounds(s))), 0.0f, 0.0f)])
+public defn add-max-x-point<?T> (s:?T&AnyShape) -> T :
+  add-points(s, [V3f(x(hi(bounds(s))), 0.0f, 0.0f)])
+public defn add-min-y-point<?T> (s:?T&AnyShape) -> T :
+  add-points(s, [V3f(0.0f, y(lo(bounds(s))), 0.0f)])
+public defn add-max-y-point<?T> (s:?T&AnyShape) -> T :
+  add-points(s, [V3f(0.0f, y(hi(bounds(s))), 0.0f)])
+public defn add-min-z-point<?T> (s:?T&AnyShape) -> T :
+  add-points(s, [V3f(0.0f, 0.0f, z(lo(bounds(s))))])
+public defn add-max-z-point<?T> (s:?T&AnyShape) -> T :
+  add-points(s, [V3f(0.0f, 0.0f, z(hi(bounds(s))))])
+
+public defn degrees-to-radians (d:Float) -> Float :
+  d * to-float(PI-F) / 180.0f
+
+public defn radians-to-degrees (a:Float) -> Float :
+  a * 180.0f / to-float(PI-F)
+
+public defn rot-x<?T> (d:Float, s:?T&Poseable) -> T :
+  xyz(rot-mat44f(V3f(degrees-to-radians(d), 0.0f, 0.0f)), s)
+
+public defn rot-y<?T> (d:Float, s:?T&Poseable) -> T :
+  xyz(rot-mat44f(V3f(0.0f, degrees-to-radians(d), 0.0f)), s)
+
+public defn rot-z<?T> (d:Float, s:?T&Poseable) -> T :
+  xyz(rot-mat44f(V3f(0.0f, 0.0f, degrees-to-radians(d))), s)
+
+public defn rot<?T> (axis:V3f, ang:Float, s:?T&Poseable) -> T :
+  xyz(rot-mat44f(axis, degrees-to-radians(ang)), s)
+
+public defn rot<?T> (a:V3f, b:V3f, s:?T&Poseable) -> T :
+  xyz(rot-mat44f(a, b), s)
+
+public defn rot<?T> (a:V2f, b:V2f, s:?T&Poseable) -> T :
+  xyz(rot-mat44f(a, b), s)
+
+public defn rot-x (d:Float) : rot-x{d, _}
+public defn rot-y (d:Float) : rot-y{d, _}
+public defn rot-z (d:Float) : rot-z{d, _}
+public defn rot (a:V3f, b:V3f) : rot{a, b, _}
+public defn rot (a:V2f, b:V2f) : rot{a, b, _}
+public defn rot (axis:V3f, ang:Float) : rot{axis, ang, _}
+
+public defn reflect-x<?T> (s:?T&Poseable) -> T : xyz(mag-mat44f(V3f(-1.0f, 1.0f, 1.0f)), s)
+public defn reflect-y<?T> (s:?T&Poseable) -> T : xyz(mag-mat44f(V3f( 1.0f,-1.0f, 1.0f)), s)
+public defn reflect-z<?T> (s:?T&Poseable) -> T : xyz(mag-mat44f(V3f( 1.0f, 1.0f,-1.0f)), s)
+public defn reflect-xy<?T> (s:?T&Poseable) -> T : xyz(reflect-xy-mat44f(), s)
+public defn reflect-xz<?T> (s:?T&Poseable) -> T : xyz(reflect-xz-mat44f(), s)
+public defn reflect-yz<?T> (s:?T&Poseable) -> T : xyz(reflect-yz-mat44f(), s)
+public defn mag<?T> (fac:Float, s:?T&Poseable) -> T : xyz(mag-mat44f(fac), s)
+public defn mag1<?T> (sa:Float, s:?T&Poseable) -> T : xyz(mag-mat44f(sa), s)
+public defn mag<?T> (fac:V3f, s:?T&Poseable) -> T : xyz(mag-mat44f(fac), s)
+public defn mag-x<?T> (sx:Float, s:?T&Poseable) -> T : xyz(mag-mat44f(V3f(sx, 1.0f, 1.0f)), s)
+public defn mag-y<?T> (sy:Float, s:?T&Poseable) -> T : xyz(mag-mat44f(V3f(1.0f, sy, 1.0f)), s)
+public defn mag-z<?T> (sz:Float, s:?T&Poseable) -> T : xyz(mag-mat44f(V3f(1.0f, 1.0f, sz)), s)
+public defn mag   (s:V3f)    : mag{s, _}
+public defn mag1  (s:Float)  : mag-x{s, _}
+public defn mag-x (sx:Float) : mag-x{sx, _}
+public defn mag-y (sy:Float) : mag-y{sy, _}
+public defn mag-z (sz:Float) : mag-z{sz, _}
+
+public defn name (a:AnyShape, b:AnyShape) :
+  name(a) when name(a) is Symbol else name(b)
+
+public defn tags (a:AnyShape, b:AnyShape) :
+  to-tuple $ unique $ cat(tags(a), tags(b))
+
+public defn points (a:AnyShape, b:AnyShape) :
+  to-tuple $ unique $ cat(points(a), points(b))
+
+public defn color (a:AnyShape, b:AnyShape) :
+  color(a)
+
+public defn dim-min (d:Float) -> Float : d * -0.5f
+public defn dim-max (d:Float) -> Float : d *  0.5f
+
+public defn dim-min (dim:V3f) -> V3f : V3f(dim-min(x(dim)), dim-min(y(dim)), dim-min(z(dim)))
+public defn dim-max (dim:V3f) -> V3f : V3f(dim-max(x(dim)), dim-max(y(dim)), dim-max(z(dim)))
+
+;;;; SPACE
+
+public defmulti spacer<?T> (g:?T&Poseable, dims:V3f) -> T
+
+;; public defn space-x (gdim:Float, shape:AnyShape) : mag1(gdim / x(dims(bounds(shape))), shape)
+;; public defn space-y (gdim:Float, shape:AnyShape) : mag1(gdim / y(dims(bounds(shape))), shape)
+;; public defn space-z (gdim:Float, shape:AnyShape) : mag1(gdim / z(dims(bounds(shape))), shape)
+
+public defn spacer-x<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(gdim, 0.0f, 0.0f))
+public defn spacer-y<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(0.0f, gdim, 0.0f))
+public defn spacer-z<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(0.0f, 0.0f, gdim))
+
+public defn space<?T> (gdims:V3f, shape:?T&AnyShape) -> T :
+  val gratio = gdims / dims(bounds(shape))
+  val fac    = min(gratio)
+  mag1(fac, shape)
+
+public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<Box3f>, idx:Int, dir:Float) -> Seq<T> :
+  val [shapes, boundz] = [to-tuple(ishapes), to-tuple(iboundz)]
+  val tot = reduce(f+, for bounds in boundz seq : dims(bounds)[idx])
+  var tot-fac:Float = 0.0f
+  val res =
+    to-tuple $ generate<T&Poseable> :
+      for (child in shapes, bounds in boundz) do :
+        val now-fac = dims(bounds)[idx] / tot
+        val ctr     = center(bounds)[idx]
+        val amount  = dir * (tot / 2.0f - (tot-fac + now-fac / 2.0f) * tot) - ctr
+        val del     = amount * V3f-unit(idx)
+        ;; println("STACKING %_ DEL %_ TOT %_ BOUNDS %_ DIMS %_ VOLUME %_" % [child del tot bounds dims(bounds) volume(dims(bounds))])
+        yield(mov(del, child))
+        tot-fac = tot-fac + now-fac
+  ;; for r in res do :
+  ;;   println("STACKED %_ BOUNDS %_ DIMS %_ VOLUME %_" % [r bounds(r) dims(bounds(r)) volume(dims(bounds(r)))])
+  ;; val bdz = to-tuple $ seq({ volume(dims(bounds(_))) }, res)
+  val rres = to-tuple $ filter({ volume(dims(bounds(_))) > 0.0f }, res)
+  ;; println("STACKING RRES %_" % [rres])
+  filter({ volume(dims(bounds(_))) > 0.0f }, res)
+
+public defn stack-idx<?T> (ishapes:Seqable<?T&Poseable>, idx:Int, dir:Float) -> Seq<T> :
+  val shapes = to-tuple $ ishapes
+  stack-idx-using(shapes, seq(bounds, shapes), idx, dir)
+
+public defn stack-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-idx(shapes, 0,  1.0f)
+
+public defn stack-y<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-idx(shapes, 1,  1.0f)
+
+public defn stack-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-idx(shapes, 2,  1.0f)
+
+public deftype AnyGlue <: Poseable
+public defmulti amount (g:AnyGlue) -> Float
+
+public defn glue-amount<?T> (shape:?T&Poseable) -> Float :
+  match(shape) :
+    (g:AnyGlue) : amount(g)
+    (s)         : 0.0f
+
+public deftype AssemblyGlue <: AnyGlue & Assembly
+public deftype ShapeGlue <: AnyGlue & AnyShape
+defmulti glue (g:AssemblyGlue) -> ShapeGlue
+
+public defn AssemblyGlue (glue:ShapeGlue) :
+  new AssemblyGlue :
+    defmethod glue (this) : glue
+    defmethod color (this): BLACK
+    defmethod bounds (this) : bounds(glue)
+    defmethod amount (this) : amount(glue)
+
+public defmulti glue-of<?T> (s:?T&Poseable, a:Float) -> T
+
+public defn glue-when<?T> (first?:True|False, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  generate<T> :
+    for (shape in shapes, i in 0 to false) do :
+      if first? or i > 0:
+        yield(glue-of(shape, 1.0f))
+      yield(shape)
+
+public defn glue-even<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  glue-when(true, shapes)
+
+public defn glue-odd<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  glue-when(false, shapes)
+
+public defn glue<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  glue-odd(shapes)
+
+public defn assign-glue-idx<?T> (ishapes:Seqable<?T&Poseable>, target:Float, idx:Int) -> Seq<T> :
+  val shapes = to-tuple(ishapes)
+  val tot = reduce(f+, for shape in shapes seq : dims(bounds(shape))[idx])
+  val glue-tot = reduce(f+, for shape in shapes seq : glue-amount(shape))
+  val gap-tot = (target - tot)
+  for shape in shapes seq :
+    match(shape) :
+      (g:AnyGlue&T) :
+        val s = (amount(g) / glue-tot) * gap-tot * V3f-unit(idx)
+        spacer(shape, s)
+      (s)           : s
+
+;; public defn interleave<?T> (a:Seqable<?T&Poseable>, b:Seqable<?T&Poseable>) -> Seq<T> :
+;;   generate<T> :
+;;     val [sa, sb] = [to-seq(a), to-seq(b)]
+;;     let loop (a?:True|False = true) :
+;;       if not empty?(sa) and not empty?(sa):
+;;         yield(next(sa) when a? else next(sb))
+;;         loop(not a?)
+
+public defn stack-idx<?T> (d:Float, idx:Int, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-idx(assign-glue-idx(shapes, d, idx), idx, 1.0f)
+
+public defn stack-x<?T> (w:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-x(assign-glue-idx(shapes, w, 0))
+public defn stack-y<?T> (h:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-y(assign-glue-idx(shapes, h, 1))
+public defn stack-z<?T> (d:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-z(assign-glue-idx(shapes, d, 2))
+public defn stack-x (w:Float) : stack-x{w, _}
+public defn stack-y (h:Float) : stack-y{h, _}
+public defn stack-z (d:Float) : stack-z{d, _}
+
+public defn space-idx<?T> (iseps:Seqable<Float>, idx:Int, ishapes:Seqable<?T&Poseable>) -> Seq<T> :
+  val shapes = to-tuple $ ishapes
+  val seps = to-tuple $ for (sep in iseps, i in 0 to (length(shapes) - 1)) seq : sep
+  val tot = reduce(fn (a:Float, b:Float): a + b, 0.0f, seps)
+  val start = -0.5f * tot
+  val offs = generate<Float> :
+    let loop (off = start, i = 0) :
+      yield(off)
+      if i < length(seps) : loop(off + seps[i], i + 1)
+  for (shape in shapes, off in offs) seq :
+    mov(off * V3f-unit(idx), shape)
+
+public defn space-x<?T> (seps:Seqable<Float>, shapes:Seqable<?T&Poseable>) : space-idx(seps, 0, shapes)
+public defn space-y<?T> (seps:Seqable<Float>, shapes:Seqable<?T&Poseable>) : space-idx(seps, 1, shapes)
+public defn space-z<?T> (seps:Seqable<Float>, shapes:Seqable<?T&Poseable>) : space-idx(seps, 2, shapes)
+
+public defn space-idx<?T> (sep:Float, idx:Int, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  space-idx(repeatedly({ sep }), idx, shapes)
+
+public defn space-x<?T> (sep:Float, shapes:Seqable<?T&Poseable>) : space-idx(sep, 0, shapes)
+public defn space-y<?T> (sep:Float, shapes:Seqable<?T&Poseable>) : space-idx(sep, 1, shapes)
+public defn space-z<?T> (sep:Float, shapes:Seqable<?T&Poseable>) : space-idx(sep, 2, shapes)
+
+public defn space-idx (sep:Float, idx:Int) : space-idx{repeatedly({ sep }), idx, _}
+
+public defn space-x (sep:Float) : space-idx(sep, 0)
+public defn space-y (sep:Float) : space-idx(sep, 1)
+public defn space-z (sep:Float) : space-idx(sep, 2)
+
+defn align-it<?T> (ishapes:Seqable<?T&Poseable>, value:(Box3f) -> Float, mov:(Float, T) -> T) -> Seq<T> :
+  val shapes = to-tuple(ishapes)
+  val target = reduce(union, seq(bounds, shapes))
+  ;; val target = bounds(shapes[0])
+  for (child in shapes) seq :
+    mov(value(target) - value(bounds(child)), child)
+
+public defn attach<?T> (src:?T&Poseable, spos:V3f, dst:?T&Poseable, dpos:V3f) -> Seqable<T> :
+  [mov(dpos - spos, src), dst]
+
+public defn attach<?T> (src:?T&Poseable, si:Int, dst:?T&Poseable, di:Int) -> Seqable<T> :
+  attach(src, points(src)[si], dst, points(dst)[di])
+
+public defn align-min-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  align-it(shapes, { x(lo(_)) }, mov-x)
+
+public defn align-max-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  align-it(shapes, { x(hi(_)) }, mov-x)
+
+public defn align-min-y<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  align-it(shapes, { y(lo(_)) }, mov-y)
+
+public defn align-max-y<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  align-it(shapes, { y(hi(_)) }, mov-y)
+
+public defn align-min-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  align-it(shapes, { z(lo(_)) }, mov-z)
+
+public defn align-max-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  align-it(shapes, { z(hi(_)) }, mov-z)
+
+;;; SHAPE
+
+public deftype Shape <: AnyShape
+
+public defn shapes (any-shapes:Seqable<AnyShape>) -> Seqable<Shape> :
+  generate<Shape> : for e in any-shapes do : yield(e as Shape) when e is Shape
+
+public defn shapes (p:Poseable) : shapes(any-shapes(p))
+
+;;;; AGGREGATE GEOMS
+
+;;; HALF -- PLANE
+
+public defstruct Half :
+  normal:   V3f
+  distance: Float
+
+public defmethod print (o:OutputStream, g:Half) :
+  print-all(o, ["half(" normal(g) "," distance(g) ")"])
+
+public defn half (x:Float, y:Float, z:Float, d:Float) -> Half :
+  Half(V3f(x, y, z), d)
+
+public defn half (v:V3f, d:Float) -> Half :
+  Half(v, d)
+
+public defn half (p1:V3f, p2:V3f, p3:V3f) -> Half :
+  val normal = normalize((p2 - p1) % (p3 - p1))
+  val distance = dot(normal, p1)
+  Half(normal, distance)
+
+;; defn times (g:Half, m:Mat44f) -> Half :
+;;   var dir1:V3f       = V3f(1.0f, 0.0f, 0.0f) % normal(g)
+;;   var dir1-len:Float = dot(dir1, dir1)
+;;   var tmp:V3f        = V3f(0.0f, 1.0f, 0.0f) % normal(g)
+;;   var tmp-len:Float  = dot(tmp, tmp)
+;;   if tmp-len > dir1-len :
+;;     dir1     = tmp
+;;     dir1-len = tmp-len
+;;   tmp     = V3f(0.0f,0.0f, 1.0f) % normal(g)
+;;   tmp-len = dot(tmp, tmp)
+;;   if tmp-len > dir1-len :
+;;     dir1     = tmp
+;;   val dir2  = dir1 % normal(g)
+;;   val point = distance(g) * normal(g)
+;;   half(point * m, (point + dir2) * m, (point + dir1) * m)
+
+public defn distance-to (plane:Half, point:V3f) -> Float :
+  dot(point, normal(plane)) - distance(plane)
+
+public defn level (g:Half, point:V3f) -> Float :
+  (- distance-to(g, point))
+
+;;; LINE
+
+public defstruct Line <: Geom :
+  pos: V3f
+  dir: V3f
+
+public defn closest-point-to (l:Line, point:V3f) -> V3f :
+  dot((point - pos(l)), dir(l)) * dir(l) + pos(l)
+
+public defn line-of (p0:V3f, p1:V3f) -> Line :
+  Line(p0, normalize(p1 - p0))
+
+;; public defn extrude (p0:V3f, p1:V3f) -> Half :
+;;   val line   = line-of(p0, p1)
+;;   val normal = V3f(y(dir(line)), (- x(dir(line))))
+;;   val pt     = closest-point-to(line, V3f(0.0f, 0.0f))
+;;   val align  = dot(normal, normalize(pt))
+;;   ;; println-all(["CLOSEST POINT TO " x(pt) "," y(pt) " NORMAL " x(normal) "," y(normal) " ALIGN " align])
+;;   Half(normal, (if align > 0.0f : 1.0f else : -1.0f) * len(pt))
+
+public defstruct ImplicitLine :
+  a : Float
+  b : Float
+  c : Float
+
+public defn ImplicitLine (p:V2f, q:V2f) :
+  ImplicitLine(y(q) - y(p), x(p) - x(q), x(q) * y(p) - y(q) * x(p))
+
+public defn inside? (l:ImplicitLine, p:V2f) -> True|False :
+  (a(l) * x(p) + b(l) * y(p) + c(l)) < 0.0f
+
+public defstruct Triangle :
+  points : Tuple<V2f>
+  lines : Tuple<ImplicitLine>
+
+defmethod print (o:OutputStream, t:Triangle) :
+  print(o, "Triangle(%_)" % [points(t)])
+
+public defn Triangle (ipts:Tuple<V2f>) :
+  val order = xyz(ipts[1] - ipts[0]) % xyz(ipts[2] - ipts[0])
+  val pts = ipts when z(order) >= 0.0f else [ ipts[0] ipts[2] ipts[1] ]
+  val lines = for i in 0 to 3 seq : ImplicitLine(pts[i], pts[(i + 1) % 3])
+  Triangle(pts, to-tuple $ lines)
+
+public defn inside? (l:Triangle, p:V2f) -> True|False :
+  inside?(lines(l)[0], p) and inside?(lines(l)[1], p) and inside?(lines(l)[2], p)
+
+public defn bounds (t:Triangle) : reduce(union, seq(Box2f, points(t)))
+
+;;; CONTOUR
+
+public defstruct Contour <: Geom :
+  vertices: Tuple<V2f>
+
+public defn bounds (c:Contour) -> Box3f :
+  reduce(union, neg-inf-box3f(), seq(Box3f{xyz(_)}, vertices(c)))
+
+defmethod print (o:OutputStream, c:Contour) :
+  print("Contour(%,)" % [vertices(c)])
+
+defn do-print-svg (s:OutputStream, contour:Contour) :
+  print(s, "<path d=\"")
+  for (p in vertices(contour), i in 0 to false) do :  
+    print-all(s, [" " ("M" when i == 0 else "L") " " x(p) " " y(p)])
+  print(s, " Z \" fill=\"none\" stroke=\"red\" stroke-width=\"0.02\"/>")
+
+public defn circle-n (d:Float, n:Int) -> Polygon :
+  val r = 0.5f * d
+  val points = 
+    for i in 0 to n seq :
+      val a = to-float(i) * 2.0f * PI-F / to-float(n)
+      V2f(r * sin(a), r * cos(a))
+  to-polygon(Contour(to-tuple(points)))
+
+public defn to-polygon (c:Contour) -> Polygon :
+  Polygon([c])
+
+public defn times (mat:Mat44f, p:Contour) -> Contour :
+  Contour(for p in vertices(p) map : mat * p)
+
+public defn segments (contour:Contour) -> Seq<[V2f, V2f]> :
+  val pts = vertices(contour)
+  for i in 0 to length(pts) seq :
+    [pts[i], pts[(i + 1) % length(pts)]]
+
+;; ;;; STROKE
+;; 
+;; public defstruct Stroke <: Geom :
+;;   points: Tuple<V2f>
+;; 
+;; defmethod print (o:OutputStream, c:Stroke) :
+;;   print("Stroke(%,)" % [points(c)])
+;; 
+;; public defn times (mat:Mat44f, p:Stroke) -> Stroke :
+;;   Stroke(for p in points(p) map : mat * p)
+
+;;; POLYGON
+
+public defstruct Polygon <: AnyShape :
+  state: AnyShapeState with: (as-method => true)
+  contours: Tuple<Contour>
+
+public defn Polygon (contours:Seqable<Contour>) :
+  Polygon(AnyShapeState(false, WHITE, [], []), to-tuple $ contours)
+
+defmethod clone (poly:Polygon, state:AnyShapeState) -> Polygon :
+  Polygon(state, contours(poly))
+
+public defmethod bounds (p:Polygon) -> Box3f :
+  reduce(union, neg-inf-box3f(), seq(bounds, contours(p)))
+
+defmethod xyz (mat:Mat44f, poly:Polygon) -> Polygon :
+  Polygon(state(poly), to-tuple $ for c in contours(poly) map : mat * c)
+
+public defn to-v2f (vals:Seqable<Float>) -> V2f :
+  val elts = to-tuple $ vals
+  V2f(elts[0], elts[1])
+  
+public defn Polygon (cs:Seqable<Seqable<V2f>>) -> Polygon :
+  Polygon(to-tuple $ seq(Contour, seq(to-tuple, cs)))
+
+public defn vertices (p:Polygon) -> Tuple<V2f> :
+  to-tuple $ cat-all(for c in contours(p) seq : vertices(c))
+
+defmethod print (o:OutputStream, c:Polygon) :
+  print("Polygon(%,)" % [contours(c)])
+
+public defn segments (polygon:Polygon) -> Seq<[V2f, V2f]> :
+  cat-all(for c in contours(polygon) seq : segments(c))
+
+defn do-print-svg (s:OutputStream, polygon:Polygon, bounds:Box2f) :
+  println-all(s, ["<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"])
+  println-all(s, ["<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\""])
+  println-all(s, [" width=\"" x(dims(bounds)) "\" height=\"" y(dims(bounds)) "\" id=\"cons\">"])
+  val poly = mov(xyz(-1.0f * lo(bounds)), polygon)
+  for c in contours(poly) do :
+    do-print-svg(s, c)
+  println(s, "\n</svg>")
+
+public defn svg (polygon:Polygon, filename:String, bounds:Box2f) :
+  val s = FileOutputStream(filename)
+  try : do-print-svg(s, polygon, bounds)
+  finally : close(s)
+
+;;; POLYLINE
+
+#for (Prim in [Float Float]
+      Vec in [V2f V3f]
+      PolyLine in [PolyLine2f PolyLine3f]
+      Box in [Box2f Box3f]
+      neg-inf-box in [neg-inf-box2f neg-inf-box3f]
+      PolyLineName in ["PolyLine2f" "PolyLine3f"]) :
+
+  public defstruct PolyLine <: AnyShape :
+    state: AnyShapeState with: (as-method => true)
+    ;; strokes: Tuple<Stroke>
+    strokes: Tuple<Tuple<Vec>>
+
+  public defn PolyLine (strokes:Seqable<Tuple<Vec>>) :
+    PolyLine(AnyShapeState(false, WHITE, [], []), to-tuple $ strokes)
+
+  defmethod clone (poly:PolyLine, state:AnyShapeState) -> PolyLine :
+    PolyLine(state, strokes(poly))
+
+  defmethod xyz (mat:Mat44f, poly:PolyLine) -> PolyLine :
+    PolyLine(state(poly), for s in strokes(poly) map : for v in s map : mat * v)
+
+  defmethod print (o:OutputStream, c:PolyLine) :
+    print("%_(%,)" % [PolyLineName strokes(c)])
+
+  defmethod bounds (p:PolyLine) -> Box3f :
+    val boxes = seq(reduce{union, neg-inf-box(), seq(Box, _)}, strokes(p))
+    xyz(reduce(union, neg-inf-box(), boxes))
+
+  public defn segments (polyline:PolyLine) -> Seq<[Vec, Vec]> :
+    generate<[Vec, Vec]> :
+      for s in strokes(polyline) do :
+        for i in 0 to (length(s) - 1) do :
+          yield([s[i], s[i + 1]])
+
+;;; MESH
+ 
+public defstruct Mesh <: Geom :
+  vertices: Tuple<V3f>
+  faces:    Tuple<V3i>
+
+defmethod print (o:OutputStream, m:Mesh) :
+  print-all(o, ["Mesh(" vertices(m) "," faces(m) ")"])
+
+;; ;; public defn triangulate (p: Polygon) :
+;; ;;   val vertices = Vector<V3f>()
+;; ;;   val faces  = Vector<Int>()
+;; ;; 
+;; ;;   defn vertex-callback (index: Int) :
+;; ;;     ;; println("Vertex Callback")
+;; ;;     add(faces, index)
+;; ;; 
+;; ;;   defn combine-callback (x:Float, y:Float, z:Float) -> Int :
+;; ;;     ;; println("Combine Callback")
+;; ;;     add(vertices, V3f(x, y, z))
+;; ;;     length(vertices) - 1
+;; ;; 
+;; ;;   val tess-ptr = call-c(triangulator_new, vertex-callback, combine-callback)
+;; ;; 
+;; ;;   call-c(triangulator_begin_polygon, tess-ptr)
+;; ;;   for c in contours(p) do :
+;; ;;     call-c(triangulator_begin_contour, tess-ptr)
+;; ;;     for p in points(c) do :
+;; ;;       add(vertices, p)
+;; ;;       call-c(triangulator_vertex, tess-ptr, length(vertices) - 1, x(p), y(p), z(p))
+;; ;;     call-c(triangulator_end_contour, tess-ptr)
+;; ;;   call-c(triangulator_end_polygon, tess-ptr)
+;; ;; 
+;; ;;   Mesh(vertices, faces)
+

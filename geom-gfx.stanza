@@ -63,7 +63,7 @@ defmethod render (poly:PolyLine2f) -> False :
 
 defmethod render (contour:Contour) -> False :
   gl-begin(GL-LINE-LOOP)
-  for p in points(contour) do :
+  for p in vertices(contour) do :
     gl-vertex2(p)
   gl-end()
 
