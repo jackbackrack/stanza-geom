@@ -6,7 +6,7 @@ defpackage aabb-tree :
   import geom
 
 public deftype AABB <: Equalable
-public defmulti box (a:AABB) -> Boxf
+public defmulti box (a:AABB) -> Box2f
 public defmulti node (a:AABB) -> False|Node
 public defmulti set-node (a:AABB, n:False|Node) -> False
 
@@ -16,19 +16,19 @@ public deftype Node <: Equalable
 defmulti id (n:Node) -> Int
 defmulti parent (n:Node) -> False|Node
 defmulti set-parent (n:Node, p:False|Node) -> False
-public defmulti aabb (n:Node) -> Boxf
-defmulti set-aabb (n:Node, b:Boxf) -> False
+public defmulti aabb (n:Node) -> Box2f
+defmulti set-aabb (n:Node, b:Box2f) -> False
 
 public defstruct LeafNode <: Node :
   id : Int with: (as-method => true)
   parent : False|Node with : (as-method => true, setter => set-parent)
-  aabb : Boxf with: (as-method => true, setter => set-aabb)
+  aabb : Box2f with: (as-method => true, setter => set-aabb)
   data : False|AABB with: (setter => set-data)
 
 public defstruct BranchNode <: Node :
   id : Int with: (as-method => true)
   parent : False|Node with : (as-method => true, setter => set-parent)
-  aabb : Boxf with: (as-method => true, setter => set-aabb)
+  aabb : Box2f with: (as-method => true, setter => set-aabb)
   children : Tuple<Node> with : (setter => set-children)
   children-crossed? : True|False with : (setter => set-children-crossed?)
 
@@ -92,7 +92,7 @@ public defn query (t:AABBTree, target:AABB) -> Seqable<AABB> :
       generate<AABB> :
         let query (node:Node = r) :
           ;; println("I %_ => %_" % [aabb(node), intersects2?(box(target), aabb(node))])
-          if intersects2?(box(target), aabb(node)) :
+          if intersects?(box(target), aabb(node)) :
             match(node) :
               (node:LeafNode) :
                 if data(node) != target :
@@ -109,7 +109,7 @@ public defn add (t:AABBTree, aabb:AABB) :
     (r:False) : set-root(t, new-leaf)
     (r:Node) :  insert-node(t, new-leaf, { root(t) as Node }, set-root{t, _})
 
-defn area (box:Boxf) : area(dims(box))
+defn area (box:Box2f) : area(dims(box))
 
 defn set-child (n:BranchNode, i:Int, c:Node) :
   val cs = children(n)
@@ -120,7 +120,7 @@ defn insert-node (t:AABBTree, node:Node, dad:() -> Node, set-dad:BranchNode -> F
   val new-parent =
     match(p) :
       (p:LeafNode) :
-        val new-parent = BranchNode(next(gen-ids), false, min-box-f(), [node, p], false)
+        val new-parent = BranchNode(next(gen-ids), false, neg-inf-box2f(), [node, p], false)
         set-parent(new-parent, parent(p))
         set-parent(node, new-parent)
         set-parent(p, new-parent)
@@ -169,7 +169,7 @@ public defn update (t:AABBTree) :
       let loop (node:Node = r) :
         match(node) :
           (node:LeafNode) :
-            if intersects2?(aabb(node), box(data(node) as AABB)) :
+            if intersects?(aabb(node), box(data(node) as AABB)) :
               add(invalid-nodes(t), node)
           (node:BranchNode) :
             loop(children(node)[0])
@@ -201,22 +201,22 @@ public defn compute-pairs (t:AABBTree) -> Seqable<[AABB, AABB]> :
           (n0:LeafNode) :
             match(n1) :
               (n1:LeafNode) :
-                if intersects2?(box(data(n0) as AABB), box(data(n1) as AABB)) :
+                if intersects?(box(data(n0) as AABB), box(data(n1) as AABB)) :
                   yield([data(n0) as AABB, data(n1) as AABB])
               (n1:BranchNode) :
                 cross-children(n1)
-                if intersects2?(aabb(n0), aabb(n1)) :
+                if intersects?(aabb(n0), aabb(n1)) :
                   for child in children(n1) do : loop(n0, child)
           (n0:BranchNode) :
             match(n1) :
               (n1:LeafNode) :
                 cross-children(n0)
-                if intersects2?(aabb(n0), aabb(n1)) :
+                if intersects?(aabb(n0), aabb(n1)) :
                   for child in children(n0) do : loop(child, n1)
               (n1:BranchNode) :
                 cross-children(n0)
                 cross-children(n1)
-                if intersects2?(aabb(n0), aabb(n1)) :
+                if intersects?(aabb(n0), aabb(n1)) :
                   for c0 in children(n0) do : 
                     for c1 in children(n1) do :
                       loop(c0, c1)
