@@ -887,9 +887,9 @@ public defn rot-mat44f (r:V3f) -> Mat44f :
   val m22 = cos_ry * cos_rx
 
   Mat44f( m00,  m01,  m02, 0.0f,
-         m10,  m11,  m12, 0.0f,
-         m20,  m21,  m22, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f)
+          m10,  m11,  m12, 0.0f,
+          m20,  m21,  m22, 0.0f,
+         0.0f, 0.0f, 0.0f, 1.0f)
 
 public defn rot-mat44f (r:V3f, a:Float) -> Mat44f :
   val u = normalize(r)
@@ -909,22 +909,23 @@ public defn rot-mat44f (r:V3f, a:Float) -> Mat44f :
   val m22 = u[2] * u[2] * (1.0f - c) + c
 
   Mat44f( m00,  m01,  m02, 0.0f,
-         m10,  m11,  m12, 0.0f,
-         m20,  m21,  m22, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f)
+          m10,  m11,  m12, 0.0f,
+          m20,  m21,  m22, 0.0f,
+         0.0f, 0.0f, 0.0f, 1.0f)
 
 public defn rot-mat44f (a:V3f, b:V3f) -> Mat44f :
   val axis  = a % b
   val angle = angle(a, b)
-  rot-mat44f(axis, angle)
+  ;; rot-mat44f(axis, angle)
+  quat-to-mat44f(quat-from-axis(axis, angle))
 
 public defn rot-mat44f (src:V2f, dst:V2f) -> Mat44f :
   val a = atan2(y(dst), x(dst)) - atan2(y(src), x(src))
   val [c, s] = [cos(a), sin(a)]
   Mat44f(    c    s 0.0f 0.0f
-        (- s)    c 0.0f 0.0f
-         0.0f 0.0f 1.0f 0.0f
-         0.0f 0.0f 0.0f 1.0f)
+         (- s)    c 0.0f 0.0f
+          0.0f 0.0f 1.0f 0.0f
+          0.0f 0.0f 0.0f 1.0f)
 
 public defn times (m:Mat44f, v:V3f) -> V3f :
   val px = x(v) * m[0,0] + y(v) * m[1,0] + z(v) * m[2,0] + m[3,0]
@@ -1195,6 +1196,8 @@ public defn Assembly (mat:Mat44f, poseables:Seqable<Poseable>) -> Assembly :
 public defn Assembly (poseables:Seqable<Poseable>) -> Assembly :
   Assembly(id-mat44f(), poseables)
   
+public defn group (poseables:Seqable<Poseable>) : Assembly(poseables)
+
 defmethod print (s:OutputStream, a:Assembly) :
   print(s, "Assembly(%_ %,)" % [name(a), children(a)])
 
@@ -1284,6 +1287,19 @@ public defn mag-x (sx:Float) : mag-x{sx, _}
 public defn mag-y (sy:Float) : mag-y{sy, _}
 public defn mag-z (sz:Float) : mag-z{sz, _}
 
+public defn pose<?T> (a:V2f, b:V2f, p:?T&Poseable) -> T :
+  val v = b - a
+  val c = xyz(0.5f * (a + b))
+  mov(c, rot(V2f(1.0f, 0.0f), normalize(v), p))
+
+public defn pose<?T> (a:V3f, b:V3f, p:?T&Poseable) -> T :
+  val v = b - a
+  val c = 0.5f * (a + b)
+  mov(c, rot(V3f(0.0f, 0.0f, 1.0f), normalize(v), p))
+
+public defn pose (a:V2f, b:V2f) : pose{a, b, _}
+public defn pose (a:V3f, b:V3f) : pose{a, b, _}
+
 public defn name (a:AnyShape, b:AnyShape) :
   name(a) when name(a) is Symbol else name(b)
 
@@ -1314,10 +1330,11 @@ public defn spacer-x<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(gdim, 0.0f,
 public defn spacer-y<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(0.0f, gdim, 0.0f))
 public defn spacer-z<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(0.0f, 0.0f, gdim))
 
-public defn space<?T> (gdims:V3f, shape:?T&AnyShape) -> T :
-  val gratio = gdims / dims(bounds(shape))
-  val fac    = min(gratio)
-  mag1(fac, shape)
+public defn mag-to<?T> (gdims:V3f, shape:?T&AnyShape) -> T :
+  mag1(min(gdims / dims(bounds(shape))), shape)
+
+public defn mag-to<?T> (gdims:V2f, shape:?T&AnyShape) -> T :
+  mag1(min(gdims / xy(dims(bounds(shape)))), shape)
 
 public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<Box3f>, idx:Int, dir:Float) -> Seq<T> :
   val [shapes, boundz] = [to-tuple(ishapes), to-tuple(iboundz)]
@@ -1426,12 +1443,13 @@ public defn stack-z (d:Float) : stack-z{d, _}
 public defn space-idx<?T> (iseps:Seqable<Float>, idx:Int, ishapes:Seqable<?T&Poseable>) -> Seq<T> :
   val shapes = to-tuple $ ishapes
   val seps = to-tuple $ for (sep in iseps, i in 0 to (length(shapes) - 1)) seq : sep
-  val tot = reduce(fn (a:Float, b:Float): a + b, 0.0f, seps)
+  val tot = reduce(f+, 0.0f, seps)
   val start = -0.5f * tot
-  val offs = generate<Float> :
+  val offs = to-tuple $ generate<Float> :
     let loop (off = start, i = 0) :
       yield(off)
       if i < length(seps) : loop(off + seps[i], i + 1)
+  println("SHAPES %_ SEPS %_ TOT %_ START %_ OFFS %_" % [shapes, seps, tot, start, offs])
   for (shape in shapes, off in offs) seq :
     mov(off * V3f-unit(idx), shape)
 
@@ -1602,7 +1620,7 @@ defn do-print-svg (s:OutputStream, contour:Contour) :
     print-all(s, [" " ("M" when i == 0 else "L") " " x(p) " " y(p)])
   print(s, " Z \" fill=\"none\" stroke=\"red\" stroke-width=\"0.02\"/>")
 
-public defn circle-n (d:Float, n:Int) -> Polygon :
+public defn polygon-n (d:Float, n:Int) -> Polygon :
   val r = 0.5f * d
   val points = 
     for i in 0 to n seq :
@@ -1660,6 +1678,9 @@ public defn Polygon (cs:Seqable<Seqable<V2f>>) -> Polygon :
 public defn vertices (p:Polygon) -> Tuple<V2f> :
   to-tuple $ cat-all(for c in contours(p) seq : vertices(c))
 
+public defn bit-or (a:Polygon, b:Polygon) -> Polygon :
+  Polygon(cat(contours(a), contours(b)))
+   
 defmethod print (o:OutputStream, c:Polygon) :
   print("Polygon(%,)" % [contours(c)])
 
@@ -1710,6 +1731,9 @@ public defn svg (polygon:Polygon, filename:String, bounds:Box2f) :
     val boxes = seq(reduce{union, neg-inf-box(), seq(Box, _)}, strokes(p))
     xyz(reduce(union, neg-inf-box(), boxes))
 
+  public defn bit-or (a:PolyLine, b:PolyLine) -> PolyLine :
+    PolyLine(cat(strokes(a), strokes(b)))
+    
   public defn segments (polyline:PolyLine) -> Seq<[Vec, Vec]> :
     generate<[Vec, Vec]> :
       for s in strokes(polyline) do :
