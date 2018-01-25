@@ -61,6 +61,24 @@ defmethod render (poly:PolyLine2f) -> False :
       gl-vertex2(p)
     gl-end()
 
+defmethod render (seg:LineSegment2f) -> False :
+  gl-begin(GL-LINES)
+  gl-vertex2(start(seg))
+  gl-vertex2(end(seg))
+  gl-end()
+
+defmethod render (seg:LineSegment3f) -> False :
+  gl-begin(GL-LINES)
+  gl-vertex3(start(seg))
+  gl-vertex3(end(seg))
+  gl-end()
+
+defmethod render (tri:Triangle) -> False :
+  gl-begin(GL-LINE-LOOP)
+  for p in vertices(tri) do :
+    gl-vertex2(p)
+  gl-end()
+
 defmethod render (contour:Contour) -> False :
   gl-begin(GL-LINE-LOOP)
   for p in vertices(contour) do :

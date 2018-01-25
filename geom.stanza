@@ -913,8 +913,8 @@ public defn rot-mat44f (r:V3f, a:Float) -> Mat44f :
           m20,  m21,  m22, 0.0f,
          0.0f, 0.0f, 0.0f, 1.0f)
 
-public defn rot-mat44f (a:V3f, b:V3f) -> Mat44f :
-  val axis  = a % b
+public defn rot-mat44f (b:V3f, a:V3f) -> Mat44f :
+  val axis  = normalize(a % b)
   val angle = angle(a, b)
   ;; rot-mat44f(axis, angle)
   quat-to-mat44f(quat-from-axis(axis, angle))
@@ -1142,6 +1142,7 @@ public defmulti xyz<?T> (mat:Mat44f, p:?T&Poseable) -> T
 public defmulti any-shapes (p:Poseable) -> Seqable<AnyShape>
 
 public defn rgb<?T> (c:V4f, p:?T&Poseable) -> T : clone(p, name(p), c, points(p), tags(p))
+
 public defn mov<?T> (dp:V3f, s:?T&Poseable) -> T : xyz(mov-mat44f(dp), s)
 
 public defn mov-x<?T> (dx:Float, p:?T&Poseable) -> T : mov(V3f(dx, 0.0f, 0.0f), p)
@@ -1164,20 +1165,33 @@ public defn center-y<?T> (p:?T&Poseable) -> T :
 public defn center-z<?T> (p:?T&Poseable) -> T :
   mov-x((- z(center(bounds(p)))), p)
 
+public defn corners<?T> (box:Box2f, s:?T&Poseable) -> Seqable<T> :
+  seq(mov{xyz(_), s}, corners(box))
+
 public defn any-shapes (s:Seqable<AnyShape>) : s
 
 public defn rgb (c:V4f) : rgb{c, _}
 
+public defmulti bit-or<?T> (a:?T&AnyShape, b:T&AnyShape) -> T
+
+public defn union<?T> (args:Seqable<?T&AnyShape>) -> T :
+  ;; reduce(bit-or, empty(), cat-all(seq(shapes, args)))
+  ;; reduce(bit-or, empty(), args)
+  reduce(bit-or, args)
+
+public defn union-or<?T> (args:Seqable<?T&AnyShape>, default:T&AnyShape) -> T :
+  reduce(bit-or, default, args)
+
 ;;; ASSEMBLIES
 
-public deftype Assembly <: Poseable
+public deftype Assembly<T> <: Poseable
 public defmulti children (a:Assembly) -> Seqable<Poseable>
 public defmulti mat (l:Assembly) -> Mat44f
 
-public defn Assembly (mat:Mat44f, name:False|Symbol, color:V4f, poseables:Seqable<Poseable>) -> Assembly :
+public defn Assembly<?T> (mat:Mat44f, name:False|Symbol, color:V4f, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
   val children = to-tuple $ poseables
   if length(children) == 0 : fatal("EMPTY CHILDREN")
-  new Assembly :
+  new Assembly<T> :
     defmethod children (this) : children
     defmethod name (this) : name
     defmethod tags (this) : to-tuple $ unique $ cat-all $ seq(tags, children)
@@ -1190,10 +1204,10 @@ public defn Assembly (mat:Mat44f, name:False|Symbol, color:V4f, poseables:Seqabl
 defmethod clone (p:Assembly, name:False|Symbol, color:V4f, points:Tuple<V3f>, tags:Tuple<Symbol>) -> Assembly :
   Assembly(mat(p), name, color, children(p))
 
-public defn Assembly (mat:Mat44f, poseables:Seqable<Poseable>) -> Assembly :
+public defn Assembly<?T> (mat:Mat44f, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
   Assembly(mat, false, V4f(0.0f, 0.0f, 0.0f, 0.0f), poseables)
   
-public defn Assembly (poseables:Seqable<Poseable>) -> Assembly :
+public defn Assembly<?T> (poseables:Seqable<?T&Poseable>) -> Assembly<T> :
   Assembly(id-mat44f(), poseables)
   
 public defn group (poseables:Seqable<Poseable>) : Assembly(poseables)
@@ -1201,7 +1215,7 @@ public defn group (poseables:Seqable<Poseable>) : Assembly(poseables)
 defmethod print (s:OutputStream, a:Assembly) :
   print(s, "Assembly(%_ %,)" % [name(a), children(a)])
 
-public defmethod xyz (xf:Mat44f, a:Assembly) -> Assembly :
+public defmethod xyz (xf:Mat44f, a:Assembly) :
   Assembly(mat(a) * xf, name(a), color(a), children(a))
 
 ;;; ANYSHAPE
@@ -1295,7 +1309,7 @@ public defn pose<?T> (a:V2f, b:V2f, p:?T&Poseable) -> T :
 public defn pose<?T> (a:V3f, b:V3f, p:?T&Poseable) -> T :
   val v = b - a
   val c = 0.5f * (a + b)
-  mov(c, rot(V3f(0.0f, 0.0f, 1.0f), normalize(v), p))
+  mov(c, rot(V3f(0.0f, 0.0f, 1.0f), v, p))
 
 public defn pose (a:V2f, b:V2f) : pose{a, b, _}
 public defn pose (a:V3f, b:V3f) : pose{a, b, _}
@@ -1330,11 +1344,24 @@ public defn spacer-x<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(gdim, 0.0f,
 public defn spacer-y<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(0.0f, gdim, 0.0f))
 public defn spacer-z<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(0.0f, 0.0f, gdim))
 
-public defn mag-to<?T> (gdims:V3f, shape:?T&AnyShape) -> T :
+public defn resize-idx<?T> (gdim:Float, idx:Int, shape:?T&AnyShape) -> T :
+  mag1(gdim / dims(bounds(shape))[idx], shape)
+
+public defn resize<?T> (gdims:V3f, shape:?T&AnyShape) -> T :
   mag1(min(gdims / dims(bounds(shape))), shape)
 
-public defn mag-to<?T> (gdims:V2f, shape:?T&AnyShape) -> T :
+public defn resize<?T> (gdims:V2f, shape:?T&AnyShape) -> T :
   mag1(min(gdims / xy(dims(bounds(shape)))), shape)
+
+public defn resize-x<?T> (gdim:Float, shape:?T&AnyShape) -> T : resize-idx(gdim, 0, shape)
+public defn resize-y<?T> (gdim:Float, shape:?T&AnyShape) -> T : resize-idx(gdim, 1, shape)
+public defn resize-z<?T> (gdim:Float, shape:?T&AnyShape) -> T : resize-idx(gdim, 2, shape)
+
+public defn resize (gdims:V2f) : resize{gdims, _}
+public defn resize (gdims:V3f) : resize{gdims, _}
+public defn resize-x (gdim:Float) : resize-x{gdim, _}
+public defn resize-y (gdim:Float) : resize-y{gdim, _}
+public defn resize-z (gdim:Float) : resize-z{gdim, _}
 
 public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<Box3f>, idx:Int, dir:Float) -> Seq<T> :
   val [shapes, boundz] = [to-tuple(ishapes), to-tuple(iboundz)]
@@ -1585,12 +1612,12 @@ public defn ImplicitLine (p:V2f, q:V2f) :
 public defn inside? (l:ImplicitLine, p:V2f) -> True|False :
   (a(l) * x(p) + b(l) * y(p) + c(l)) < 0.0f
 
-public defstruct Triangle :
-  points : Tuple<V2f>
+public defstruct Triangle <: Geom :
+  vertices : Tuple<V2f>
   lines : Tuple<ImplicitLine>
 
 defmethod print (o:OutputStream, t:Triangle) :
-  print(o, "Triangle(%_)" % [points(t)])
+  print(o, "Triangle(%_)" % [vertices(t)])
 
 public defn Triangle (ipts:Tuple<V2f>) :
   val order = xyz(ipts[1] - ipts[0]) % xyz(ipts[2] - ipts[0])
@@ -1601,7 +1628,25 @@ public defn Triangle (ipts:Tuple<V2f>) :
 public defn inside? (l:Triangle, p:V2f) -> True|False :
   inside?(lines(l)[0], p) and inside?(lines(l)[1], p) and inside?(lines(l)[2], p)
 
-public defn bounds (t:Triangle) : reduce(union, seq(Box2f, points(t)))
+public defn bounds (t:Triangle) : reduce(union, seq(Box2f, vertices(t)))
+
+;;; LINESEGMENT
+
+#for (Prim in [Float Float]
+      Vec in [V2f V3f]
+      LineSegment in [LineSegment2f LineSegment3f]
+      Box in [Box2f Box3f]
+      LineSegmentName in ["LineSegment2f" "LineSegment3f"]) :
+
+  public defstruct LineSegment <: Geom :
+    start: Vec
+    end:   Vec
+
+  public defn magnitude (l:LineSegment) -> Prim :
+    magnitude(start(l) - end(l))
+
+  defmethod print (o:OutputStream, l:LineSegment) :
+    print("%_(%_ %_)" % [LineSegmentName start(l) end(l)])
 
 ;;; CONTOUR
 
@@ -1634,10 +1679,10 @@ public defn to-polygon (c:Contour) -> Polygon :
 public defn times (mat:Mat44f, p:Contour) -> Contour :
   Contour(for p in vertices(p) map : mat * p)
 
-public defn segments (contour:Contour) -> Seq<[V2f, V2f]> :
+public defn segments (contour:Contour) -> Seq<LineSegment2f> :
   val pts = vertices(contour)
   for i in 0 to length(pts) seq :
-    [pts[i], pts[(i + 1) % length(pts)]]
+    LineSegment2f(pts[i], pts[(i + 1) % length(pts)])
 
 ;; ;;; STROKE
 ;; 
@@ -1678,14 +1723,17 @@ public defn Polygon (cs:Seqable<Seqable<V2f>>) -> Polygon :
 public defn vertices (p:Polygon) -> Tuple<V2f> :
   to-tuple $ cat-all(for c in contours(p) seq : vertices(c))
 
-public defn bit-or (a:Polygon, b:Polygon) -> Polygon :
+public defn segments (polygon:Polygon) -> Seq<LineSegment2f> :
+  cat-all(seq(segments, contours(polygon)))
+
+public defn perimeter (polygon:Polygon) -> Float :
+  reduce(f+, seq(magnitude, segments(polygon)))
+
+public defmethod bit-or (a:Polygon, b:Polygon) -> Polygon :
   Polygon(cat(contours(a), contours(b)))
    
 defmethod print (o:OutputStream, c:Polygon) :
   print("Polygon(%,)" % [contours(c)])
-
-public defn segments (polygon:Polygon) -> Seq<[V2f, V2f]> :
-  cat-all(for c in contours(polygon) seq : segments(c))
 
 defn do-print-svg (s:OutputStream, polygon:Polygon, bounds:Box2f) :
   println-all(s, ["<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"])
@@ -1706,6 +1754,7 @@ public defn svg (polygon:Polygon, filename:String, bounds:Box2f) :
 #for (Prim in [Float Float]
       Vec in [V2f V3f]
       PolyLine in [PolyLine2f PolyLine3f]
+      LineSegment in [LineSegment2f LineSegment3f]
       Box in [Box2f Box3f]
       neg-inf-box in [neg-inf-box2f neg-inf-box3f]
       PolyLineName in ["PolyLine2f" "PolyLine3f"]) :
@@ -1731,21 +1780,41 @@ public defn svg (polygon:Polygon, filename:String, bounds:Box2f) :
     val boxes = seq(reduce{union, neg-inf-box(), seq(Box, _)}, strokes(p))
     xyz(reduce(union, neg-inf-box(), boxes))
 
-  public defn bit-or (a:PolyLine, b:PolyLine) -> PolyLine :
+  public defmethod bit-or (a:PolyLine, b:PolyLine) -> PolyLine :
     PolyLine(cat(strokes(a), strokes(b)))
     
-  public defn segments (polyline:PolyLine) -> Seq<[Vec, Vec]> :
-    generate<[Vec, Vec]> :
+  public defn segments (polyline:PolyLine) -> Seq<LineSegment> :
+    generate<LineSegment> :
       for s in strokes(polyline) do :
         for i in 0 to (length(s) - 1) do :
-          yield([s[i], s[i + 1]])
+          yield(LineSegment(s[i], s[i + 1]))
+
+  public defn perimeter (polyline:PolyLine) -> Float :
+    reduce(f+, seq(magnitude, segments(polyline)))
 
 ;;; MESH
  
-public defstruct Mesh <: Geom :
+public defstruct Mesh <: AnyShape :
+  state: AnyShapeState with: (as-method => true)
   vertices: Tuple<V3f>
   faces:    Tuple<V3i>
 
+public defn Mesh (vertices:Tuple<V3f>, faces:Tuple<V3i>) :
+  Mesh(AnyShapeState(false, WHITE, [], []), vertices, faces)
+
+defmethod clone (mesh:Mesh, state:AnyShapeState) -> Mesh :
+  Mesh(state, vertices(mesh), faces(mesh))
+
+defmethod xyz (mat:Mat44f, mesh:Mesh) -> Mesh :
+  Mesh(state(mesh), to-tuple $ for v in vertices(mesh) seq : mat * v, faces(mesh))
+
+defmethod bounds (p:Mesh) -> Box3f :
+  reduce(union, neg-inf-box3f(), seq(Box3f, vertices(p)))
+
+defmethod bit-or (a:Mesh, b:Mesh) -> Mesh :
+  val b-faces = for face in faces(b) seq : face + xyz(length(faces(a)))  
+  Mesh(state(a), to-tuple $ cat(vertices(a), vertices(b)), to-tuple $ cat(faces(a), b-faces))
+    
 defmethod print (o:OutputStream, m:Mesh) :
   print-all(o, ["Mesh(" vertices(m) "," faces(m) ")"])
 
