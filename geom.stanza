@@ -661,7 +661,7 @@ public defn times (mat:Mat44f, b:Box3f) -> Box3f :
 
 ;;; MAT
 
-public lostanza deftype Mat44f <: Array<Float> & Geom & Equalable :
+public lostanza deftype Mat44f <: Array<Float> & Equalable :
   m00: float
   m01: float
   m02: float
@@ -952,7 +952,7 @@ public defn times (a:Mat44f, b:Mat44f) -> Mat44f :
 
 ;;; QUAT
 
-public defstruct Quat <: Geom & Equalable :
+public defstruct Quat <: Equalable :
   w: Float
   v: V3f
 
@@ -1530,12 +1530,12 @@ public defn align-max-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
 
 ;;; SHAPE
 
-public deftype Shape <: AnyShape
-
-public defn shapes (any-shapes:Seqable<AnyShape>) -> Seqable<Shape> :
-  generate<Shape> : for e in any-shapes do : yield(e as Shape) when e is Shape
-
-public defn shapes (p:Poseable) : shapes(any-shapes(p))
+;; public deftype Shape <: AnyShape
+;; 
+;; public defn shapes (any-shapes:Seqable<AnyShape>) -> Seqable<Shape> :
+;;   generate<Shape> : for e in any-shapes do : yield(e as Shape) when e is Shape
+;; 
+;; public defn shapes (p:Poseable) : shapes(any-shapes(p))
 
 ;;;; AGGREGATE GEOMS
 
