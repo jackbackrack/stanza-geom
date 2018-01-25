@@ -98,7 +98,8 @@ defmethod render (mesh:Mesh) -> False :
     gl-vertex3(verts[z(t)])
     gl-end()
   gl-push-attrib(GL-CURRENT-BIT)
-  gl-color3f(1.0f, 0.5f, 0.5f)
+  gl-line-width(0.5f)
+  gl-color4f(0.5f, 0.1f, 0.1f, 0.1f)
   for t in faces(mesh) do :
     gl-begin(GL-LINE-LOOP)
     gl-vertex3(verts[x(t)])
