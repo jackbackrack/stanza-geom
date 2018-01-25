@@ -47,7 +47,7 @@ public defn LeafNode (data:AABB) :
 defn update-aabb (node:Node, margin:Float) :
   set-aabb(node, 
            match(node) :
-             (node:LeafNode) : fatten(box(data(node) as AABB), margin)
+             (node:LeafNode) : fatten(box(data(node) as AABB), xyz(margin))
              (node:BranchNode) : union(aabb(children(node)[0]), aabb(children(node)[1])))
    
 public defn LeafNode (data:AABB, margin:Float) :
