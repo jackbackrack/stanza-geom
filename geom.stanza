@@ -1476,7 +1476,7 @@ public defn space-idx<?T> (iseps:Seqable<Float>, idx:Int, ishapes:Seqable<?T&Pos
     let loop (off = start, i = 0) :
       yield(off)
       if i < length(seps) : loop(off + seps[i], i + 1)
-  println("SHAPES %_ SEPS %_ TOT %_ START %_ OFFS %_" % [shapes, seps, tot, start, offs])
+  ;; println("SHAPES %_ SEPS %_ TOT %_ START %_ OFFS %_" % [shapes, seps, tot, start, offs])
   for (shape in shapes, off in offs) seq :
     mov(off * V3f-unit(idx), shape)
 
@@ -1659,22 +1659,13 @@ public defn bounds (c:Contour) -> Box3f :
 defmethod print (o:OutputStream, c:Contour) :
   print("Contour(%,)" % [vertices(c)])
 
-defn do-print-svg (s:OutputStream, contour:Contour) :
+defn do-print-svg (s:OutputStream, points:Seqable<V2f>) :
   print(s, "<path d=\"")
-  for (p in vertices(contour), i in 0 to false) do :  
+  for (p in points, i in 0 to false) do :  
     print-all(s, [" " ("M" when i == 0 else "L") " " x(p) " " y(p)])
   print(s, " Z \" fill=\"none\" stroke=\"red\" stroke-width=\"0.02\"/>")
 
-public defn polygon-n (d:Float, n:Int) -> Polygon :
-  val r = 0.5f * d
-  val points = 
-    for i in 0 to n seq :
-      val a = to-float(i) * 2.0f * PI-F / to-float(n)
-      V2f(r * sin(a), r * cos(a))
-  to-polygon(Contour(to-tuple(points)))
-
-public defn to-polygon (c:Contour) -> Polygon :
-  Polygon([c])
+defn do-print-svg (s:OutputStream, contour:Contour) : do-print-svg(s, vertices(contour))
 
 public defn times (mat:Mat44f, p:Contour) -> Contour :
   Contour(for p in vertices(p) map : mat * p)
@@ -1704,6 +1695,20 @@ public defstruct Polygon <: AnyShape :
 public defn Polygon (contours:Seqable<Contour>) :
   Polygon(AnyShapeState(false, WHITE, [], []), to-tuple $ contours)
 
+public defn polygon-n (d:Float, n:Int) -> Polygon :
+  val r = 0.5f * d
+  val points = 
+    for i in 0 to n seq :
+      val a = to-float(i) * 2.0f * PI-F / to-float(n)
+      V2f(r * sin(a), r * cos(a))
+  to-polygon(Contour(to-tuple(points)))
+
+public defn to-polygon (c:Contour) -> Polygon :
+  Polygon([c])
+
+public defn to-polyline (p:Polygon) -> PolyLine2f :
+  PolyLine2f(to-tuple $ seq(vertices, contours(p)))
+
 defmethod clone (poly:Polygon, state:AnyShapeState) -> Polygon :
   Polygon(state, contours(poly))
 
@@ -1727,7 +1732,7 @@ public defn segments (polygon:Polygon) -> Seq<LineSegment2f> :
   cat-all(seq(segments, contours(polygon)))
 
 public defn perimeter (polygon:Polygon) -> Float :
-  reduce(f+, seq(magnitude, segments(polygon)))
+  reduce(f+, 0.0f, seq(magnitude, segments(polygon)))
 
 public defmethod bit-or (a:Polygon, b:Polygon) -> Polygon :
   Polygon(cat(contours(a), contours(b)))
@@ -1735,18 +1740,22 @@ public defmethod bit-or (a:Polygon, b:Polygon) -> Polygon :
 defmethod print (o:OutputStream, c:Polygon) :
   print("Polygon(%,)" % [contours(c)])
 
-defn do-print-svg (s:OutputStream, polygon:Polygon, bounds:Box2f) :
+defn do-print-svg-header (s:OutputStream, bounds:Box2f, f:OutputStream -> False) :
   println-all(s, ["<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"])
   println-all(s, ["<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\""])
   println-all(s, [" width=\"" x(dims(bounds)) "\" height=\"" y(dims(bounds)) "\" id=\"cons\">"])
-  val poly = mov(xyz(-1.0f * lo(bounds)), polygon)
-  for c in contours(poly) do :
-    do-print-svg(s, c)
+  f(s)
   println(s, "\n</svg>")
 
-public defn svg (polygon:Polygon, filename:String, bounds:Box2f) :
+defn do-print-svg (s:OutputStream, polygon:Polygon, bbox:Box2f) :
+  do-print-svg-header(s, bbox, {
+    val poly = mov(xyz(-1.0f * lo(bbox)), polygon)
+    for c in contours(poly) do :
+      do-print-svg(s, c) })
+
+public defn svg (polygon:Polygon, filename:String, bbox:Box2f) :
   val s = FileOutputStream(filename)
-  try : do-print-svg(s, polygon, bounds)
+  try : do-print-svg(s, polygon, bbox)
   finally : close(s)
 
 ;;; POLYLINE
@@ -1790,7 +1799,17 @@ public defn svg (polygon:Polygon, filename:String, bounds:Box2f) :
           yield(LineSegment(s[i], s[i + 1]))
 
   public defn perimeter (polyline:PolyLine) -> Float :
-    reduce(f+, seq(magnitude, segments(polyline)))
+    reduce(f+, 0.0f, seq(magnitude, segments(polyline)))
+
+defn do-print-svg (s:OutputStream, polyline:PolyLine2f, bbox:Box2f) :
+  do-print-svg-header(s, bbox, {
+    val poly = mov(xyz(-1.0f * lo(bbox)), polyline)
+    for line in strokes(polyline) do : do-print-svg(s, line) })
+
+public defn svg (polyline:PolyLine2f, filename:String, bbox:Box2f) :
+  val s = FileOutputStream(filename)
+  try : do-print-svg(s, polyline, bbox)
+  finally : close(s)
 
 ;;; MESH
  
