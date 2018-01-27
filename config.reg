@@ -5,6 +5,6 @@ defregistry stanza-geom :
   file "grid.stanza" :
     package grid :
       dependency "${GEN}/grid.o"
-      link * "${GEN}/grid.o"
+      link * ["${GEN}/grid.o"]
   file "nester.stanza"
   file "aabb-tree.stanza"
