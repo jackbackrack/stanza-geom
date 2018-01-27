@@ -48,18 +48,24 @@ defmethod render (msg:Msg) -> False :
   draw-text(2.0f, 2.0f, *font*, value(msg))
 
 defmethod render (poly:PolyLine3f) -> False :
+  gl-push-attrib(GL-CURRENT-BIT)
+  gl-color(color(poly))
   for s in strokes(poly) do :
     gl-begin(GL-LINE-STRIP)
     for p in s do :
       gl-vertex3(p)
     gl-end()
+  gl-pop-attrib()
 
 defmethod render (poly:PolyLine2f) -> False :
+  gl-push-attrib(GL-CURRENT-BIT)
+  gl-color(color(poly))
   for s in strokes(poly) do :
     gl-begin(GL-LINE-STRIP)
     for p in s do :
       gl-vertex2(p)
     gl-end()
+  gl-pop-attrib()
 
 defmethod render (seg:LineSegment2f) -> False :
   gl-begin(GL-LINES)
@@ -86,18 +92,32 @@ defmethod render (contour:Contour) -> False :
   gl-end()
 
 defmethod render (poly:Polygon) -> False :
+  gl-push-attrib(GL-CURRENT-BIT)
+  gl-color(color(poly))
   for c in contours(poly) do :
     render(c)
+  gl-pop-attrib()
+
+defmethod render (a:Assembly) -> False :
+  gl-push-attrib(GL-CURRENT-BIT)
+  gl-color(color(a))
+  gl-push-matrix()
+  gl-mult-matrix(mat(a))
+  for c in children(a) do :
+    render(c)
+  gl-pop-matrix()
+  gl-pop-attrib()
 
 defmethod render (mesh:Mesh) -> False :
   val verts = vertices(mesh)
+  gl-push-attrib(GL-CURRENT-BIT)
+  gl-color(color(mesh))
   for t in faces(mesh) do :
     gl-begin(GL-TRIANGLES)
     gl-vertex3(verts[x(t)])
     gl-vertex3(verts[y(t)])
     gl-vertex3(verts[z(t)])
     gl-end()
-  gl-push-attrib(GL-CURRENT-BIT)
   gl-line-width(0.5f)
   gl-color4f(0.5f, 0.1f, 0.1f, 0.1f)
   for t in faces(mesh) do :

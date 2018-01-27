@@ -1185,7 +1185,7 @@ public defn union-or<?T> (args:Seqable<?T&AnyShape>, default:T&AnyShape) -> T :
 ;;; ASSEMBLIES
 
 public deftype Assembly<T> <: Poseable
-public defmulti children (a:Assembly) -> Seqable<Poseable>
+public defmulti children (a:Assembly) -> Tuple<Poseable>
 public defmulti mat (l:Assembly) -> Mat44f
 
 public defn Assembly<?T> (mat:Mat44f, name:False|Symbol, color:V4f, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
@@ -1205,7 +1205,7 @@ defmethod clone (p:Assembly, name:False|Symbol, color:V4f, points:Tuple<V3f>, ta
   Assembly(mat(p), name, color, children(p))
 
 public defn Assembly<?T> (mat:Mat44f, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
-  Assembly(mat, false, V4f(0.0f, 0.0f, 0.0f, 0.0f), poseables)
+  Assembly(mat, false, WHITE, poseables)
   
 public defn Assembly<?T> (poseables:Seqable<?T&Poseable>) -> Assembly<T> :
   Assembly(id-mat44f(), poseables)
@@ -1233,6 +1233,13 @@ public defmethod name (p:AnyShape) : name(state(p))
 public defmethod color (p:AnyShape) : color(state(p))
 public defmethod tags (p:AnyShape) : tags(state(p))
 public defmethod points (p:AnyShape) : points(state(p))
+
+defn bit-or (a:AnyShapeState, b:AnyShapeState) -> AnyShapeState :
+  AnyShapeState(name(a) when name(a) is Symbol else name(b), color(a),
+                to-tuple $ cat(tags(a), tags(b)), to-tuple $ cat(points(a), points(b)))
+
+defmethod clone (s:AnyShape, name:False|Symbol, color:V4f, points:Tuple<V3f>, tags:Tuple<Symbol>) :
+  clone(s, AnyShapeState(name, color, tags, points))
 
 public defn add-points<?T> (s:?T&AnyShape, points:Tuple<V3f>) -> T :
   clone(s, AnyShapeState(name(s), color(s), tags(s), points))
@@ -1688,12 +1695,14 @@ public defn segments (contour:Contour) -> Seq<LineSegment2f> :
 
 ;;; POLYGON
 
+defn default-anyshape-state () : AnyShapeState(false, WHITE, [], [])
+
 public defstruct Polygon <: AnyShape :
   state: AnyShapeState with: (as-method => true)
   contours: Tuple<Contour>
 
 public defn Polygon (contours:Seqable<Contour>) :
-  Polygon(AnyShapeState(false, WHITE, [], []), to-tuple $ contours)
+  Polygon(default-anyshape-state(), to-tuple $ contours)
 
 public defn polygon-n (d:Float, n:Int) -> Polygon :
   val r = 0.5f * d
@@ -1735,7 +1744,7 @@ public defn perimeter (polygon:Polygon) -> Float :
   reduce(f+, 0.0f, seq(magnitude, segments(polygon)))
 
 public defmethod bit-or (a:Polygon, b:Polygon) -> Polygon :
-  Polygon(cat(contours(a), contours(b)))
+  Polygon(state(a) | state(b), to-tuple $ cat(contours(a), contours(b)))
    
 defmethod print (o:OutputStream, c:Polygon) :
   print("Polygon(%,)" % [contours(c)])
@@ -1774,7 +1783,7 @@ public defn svg (polygon:Polygon, filename:String, bbox:Box2f) :
     strokes: Tuple<Tuple<Vec>>
 
   public defn PolyLine (strokes:Seqable<Tuple<Vec>>) :
-    PolyLine(AnyShapeState(false, WHITE, [], []), to-tuple $ strokes)
+    PolyLine(default-anyshape-state(), to-tuple $ strokes)
 
   defmethod clone (poly:PolyLine, state:AnyShapeState) -> PolyLine :
     PolyLine(state, strokes(poly))
@@ -1790,7 +1799,7 @@ public defn svg (polygon:Polygon, filename:String, bbox:Box2f) :
     xyz(reduce(union, neg-inf-box(), boxes))
 
   public defmethod bit-or (a:PolyLine, b:PolyLine) -> PolyLine :
-    PolyLine(cat(strokes(a), strokes(b)))
+    PolyLine(state(a) | state(b), to-tuple $ cat(strokes(a), strokes(b)))
     
   public defn segments (polyline:PolyLine) -> Seq<LineSegment> :
     generate<LineSegment> :
@@ -1819,7 +1828,7 @@ public defstruct Mesh <: AnyShape :
   faces:    Tuple<V3i>
 
 public defn Mesh (vertices:Tuple<V3f>, faces:Tuple<V3i>) :
-  Mesh(AnyShapeState(false, WHITE, [], []), vertices, faces)
+  Mesh(default-anyshape-state(), vertices, faces)
 
 defmethod clone (mesh:Mesh, state:AnyShapeState) -> Mesh :
   Mesh(state, vertices(mesh), faces(mesh))
@@ -1832,7 +1841,7 @@ defmethod bounds (p:Mesh) -> Box3f :
 
 defmethod bit-or (a:Mesh, b:Mesh) -> Mesh :
   val b-faces = for face in faces(b) seq : face + xyz(length(faces(a)))  
-  Mesh(state(a), to-tuple $ cat(vertices(a), vertices(b)), to-tuple $ cat(faces(a), b-faces))
+  Mesh(state(a) | state(b), to-tuple $ cat(vertices(a), vertices(b)), to-tuple $ cat(faces(a), b-faces))
     
 defmethod print (o:OutputStream, m:Mesh) :
   print-all(o, ["Mesh(" vertices(m) "," faces(m) ")"])
