@@ -659,6 +659,9 @@ public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
 public defn times (mat:Mat44f, b:Box3f) -> Box3f :
   reduce(union, map(Box3f{ mat * _ }, corners(b)))
 
+public defn times (mat:Mat44f, b:Box2f) -> Box2f :
+  reduce(union, map(Box2f{ xy(mat * xyz(_)) }, corners(b)))
+
 ;;; MAT
 
 public lostanza deftype Mat44f <: Array<Float> & Equalable :
