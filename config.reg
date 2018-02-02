@@ -5,6 +5,7 @@ defregistry stanza-geom :
   file "grid.stanza" :
     package grid :
       dependency "${GEN}/grid.o"
-      link * ["${GEN}/grid.o"]
+      link Darwin ["${GEN}/grid.o -lc++"]
+      link GNU/Linux ["${GEN}/grid.o -lstdc++"]
   file "nester.stanza"
   file "aabb-tree.stanza"
