@@ -6,11 +6,6 @@ defpackage geom:
   import collections
   import utils
 
-public deftype Geom
-
-public defstruct Msg <: Geom :
-  value : String
-
 public defn ensure-index-in-bounds (i:Int, n:Int) :
   #if-defined(OPTIMIZE) :
     false
@@ -18,12 +13,10 @@ public defn ensure-index-in-bounds (i:Int, n:Int) :
     if i < 0 or i >= n :
       fatal("Index (%_) out of bounds." % [i])
 
-public val pos-inf-f =  1.0e6f
-public val neg-inf-f = -1.0e6f
-public val pos-inf-d =  1.0e6
-public val neg-inf-d = -1.0e6
-public val pos-inf-i =  (1 << 30)
-public val neg-inf-i = (-(1 << 30))
+public deftype Geom
+
+public defstruct Msg <: Geom :
+  value : String
 
 ;;; PIXELS
 
@@ -46,20 +39,6 @@ public defn get (g:Pixels, pos:V3i) -> Byte :
 
 public defn set (g:Pixels, pos:V3i, v:Byte) -> False :
   data(g)[index(g, pos)] = v
-
-public defn indices (dims:V3i) -> Seq<V3i> :
-  generate<V3i> :
-    for k in 0 to z(dims) do :
-      for j in 0 to y(dims) do :
-        for i in 0 to x(dims) do :
-          yield(V3i(i, j, k))
-
-public defn indices (bounds:Box3i) -> Seq<V3i> :
-  generate<V3i> :
-    for k in z(lo(bounds)) through z(hi(bounds)) do :
-      for j in y(lo(bounds)) through y(hi(bounds)) do :
-        for i in x(lo(bounds)) through x(hi(bounds)) do :
-          yield(V3i(i, j, k))
 
 ;;; VECS
 
@@ -321,6 +300,13 @@ defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
   public defn max-idx (v:PrimVec) -> Int :
     sorted-indices(v)[2]
 
+public defn indices (dims:V3i) -> Seq<V3i> :
+  generate<V3i> :
+    for k in 0 to z(dims) do :
+      for j in 0 to y(dims) do :
+        for i in 0 to x(dims) do :
+          yield(V3i(i, j, k))
+
 #for (Prim in [Float Double]
       PrimVec in [V3f V3d]) :
   public defn angle (a:PrimVec, b:PrimVec) -> Prim :
@@ -443,6 +429,11 @@ defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
 
   public defn max-idx (v:PrimVec) -> Int :
     1 when x(v) < y(v) else 0
+
+#for (Prim in [Float Double]
+      PrimVec in [V2f V2d]) :
+  public defn angle (a:PrimVec, b:PrimVec) -> Prim :
+    acos(dot(a, b) / (magnitude(a) * magnitude(b)))
 
 public defn to-v3d (v:V3f) -> V3d :
   V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
@@ -582,6 +573,13 @@ public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
   defmethod equal? (b1:Box, b2:Box) :
     lo(b1) == lo(b2) and hi(b1) == hi(b2)
 
+public defn indices (bounds:Box3i) -> Seq<V3i> :
+  generate<V3i> :
+    for k in z(lo(bounds)) through z(hi(bounds)) do :
+      for j in y(lo(bounds)) through y(hi(bounds)) do :
+        for i in x(lo(bounds)) through x(hi(bounds)) do :
+          yield(V3i(i, j, k))
+
 #for (BoxElt in [Int Float Double]
       Box in [Box1i Box1f Box1d]
       Box2 in [Box2i Box2f Box2d]
@@ -661,6 +659,13 @@ public defn times (mat:Mat44f, b:Box3f) -> Box3f :
 
 public defn times (mat:Mat44f, b:Box2f) -> Box2f :
   reduce(union, map(Box2f{ xy(mat * xyz(_)) }, corners(b)))
+
+public val pos-inf-f =  1.0e6f
+public val neg-inf-f = -1.0e6f
+public val pos-inf-d =  1.0e6
+public val neg-inf-d = -1.0e6
+public val pos-inf-i =  (1 << 30)
+public val neg-inf-i = (-(1 << 30))
 
 ;;; MAT
 
@@ -894,33 +899,11 @@ public defn rot-mat44f (r:V3f) -> Mat44f :
           m20,  m21,  m22, 0.0f,
          0.0f, 0.0f, 0.0f, 1.0f)
 
-public defn rot-mat44f (r:V3f, a:Float) -> Mat44f :
-  val u = normalize(r)
-  val s = sin(a)
-  val c = cos(a)
-
-  val m00 = u[0] * u[0] * (1.0f - c) + c
-  val m01 = u[1] * u[0] * (1.0f - c) + u[2] * s
-  val m02 = u[2] * u[0] * (1.0f - c) - u[1] * s
-
-  val m10 = u[0] * u[1] * (1.0f - c) - u[2] * s
-  val m11 = u[1] * u[1] * (1.0f - c) + c
-  val m12 = u[2] * u[1] * (1.0f - c) + u[0] * s
-
-  val m20 = u[0] * u[2] * (1.0f - c) - u[1] * s
-  val m21 = u[1] * u[2] * (1.0f - c) + u[0] * s
-  val m22 = u[2] * u[2] * (1.0f - c) + c
-
-  Mat44f( m00,  m01,  m02, 0.0f,
-          m10,  m11,  m12, 0.0f,
-          m20,  m21,  m22, 0.0f,
-         0.0f, 0.0f, 0.0f, 1.0f)
+public defn rot-mat44f (axis:V3f, angle:Float) -> Mat44f :
+  quat-to-mat44f(quat-from-axis(normalize(axis), angle))
 
 public defn rot-mat44f (b:V3f, a:V3f) -> Mat44f :
-  val axis  = normalize(a % b)
-  val angle = angle(a, b)
-  ;; rot-mat44f(axis, angle)
-  quat-to-mat44f(quat-from-axis(axis, angle))
+  quat-to-mat44f(quat-from-axis(normalize(a % b), angle(a, b)))
 
 public defn rot-mat44f (src:V2f, dst:V2f) -> Mat44f :
   val a = atan2(y(dst), x(dst)) - atan2(y(src), x(src))
@@ -1290,6 +1273,11 @@ public defn rot-z<?T> (d:Float, s:?T&Poseable) -> T :
 
 public defn rot<?T> (axis:V3f, ang:Float, s:?T&Poseable) -> T :
   xyz(rot-mat44f(axis, degrees-to-radians(ang)), s)
+
+public defn rot<?T> (axis:V3f, ang:Float, pt:V3f, s:?T&Poseable) -> T :
+  val r = rot-mat44f(axis, degrees-to-radians(ang))
+  val t = mov-mat44f(pt - (r * pt))
+  xyz(r * t, s) 
 
 public defn rot<?T> (a:V3f, b:V3f, s:?T&Poseable) -> T :
   xyz(rot-mat44f(a, b), s)
@@ -1829,7 +1817,7 @@ public defn svg (polygon:Polygon, filename:String, bbox:Box2f) :
 defn do-print-svg (s:OutputStream, polyline:PolyLine2f, bbox:Box2f) :
   do-print-svg-header(s, bbox, {
     val poly = mov(xyz(-1.0f * lo(bbox)), polyline)
-    for line in strokes(polyline) do : do-print-svg(s, color(polyline), line) })
+    for line in strokes(poly) do : do-print-svg(s, color(polyline), line) })
 
 public defn svg (polyline:PolyLine2f, filename:String, bbox:Box2f) :
   val s = FileOutputStream(filename)
