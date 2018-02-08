@@ -948,6 +948,17 @@ public defn quat-from-axis (axis:V3f, rads:Float) -> Quat :
   val n = normalize(axis)
   Quat(cos(angle), sin-angle * n)
 
+public defn sin-cos (a:Float) : [ sin(a) cos(a) ]
+
+public defn quat-from-euler (radz:V3f) -> Quat :
+  val [sr cr] = sin-cos(0.5f * x(radz))
+  val [sp cp] = sin-cos(0.5f * y(radz))
+  val [sy cy] = sin-cos(0.5f * z(radz))
+  Quat(    cy * cr * cp + sy * sr * sp,
+       V3f(cy * sr * cp - sy * cr * sp,
+           cy * cr * sp + sy * sr * cp,
+           sy * cr * cp - cy * sr * sp))
+
 val zero-quat = quat-from-axis(V3f(1.0f, 0.0f, 0.0f), 0.0f)
 
 public defn zero? (q:Quat) : q == zero-quat
@@ -1204,16 +1215,11 @@ defmethod print (s:OutputStream, a:Assembly) :
 public defmethod xyz (xf:Mat44f, a:Assembly) :
   Assembly(mat(a) * xf, name(a), color(a), children(a))
 
-public defn svg (assembly:Assembly, filename:String, bbox:Box2f) :
-  val s = FileOutputStream(filename)
-  try : 
-    do-print-svg-header(s, bbox, {
-      for c in children(assembly) do :
-        match(c) :
-          (c:PolyLine2f|Polygon) : do-print-svg(s, c, bbox)
-          (c) : false })
-  finally :
-    close(s)
+defn do-print-svg (s:OutputStream, assembly:Assembly) :
+  for elt in children(assembly) do :
+    match(elt) :
+      (c:PolyLine2f|Polygon|Assembly) : do-print-svg(s, c)
+      (c) : false
 
 ;;; ANYSHAPE
 
@@ -1261,6 +1267,12 @@ public defn degrees-to-radians (d:Float) -> Float :
 
 public defn radians-to-degrees (a:Float) -> Float :
   a * 180.0f / to-float(PI-F)
+
+public defn degrees-to-radians (a:V3f) -> V3f :
+  V3f(degrees-to-radians(x(a)), degrees-to-radians(z(a)), degrees-to-radians(z(a)))
+
+public defn radians-to-degrees (a:V3f) -> V3f :
+  V3f(radians-to-degrees(x(a)), radians-to-degrees(z(a)), radians-to-degrees(z(a)))
 
 public defn rot-x<?T> (d:Float, s:?T&Poseable) -> T :
   xyz(rot-mat44f(V3f(degrees-to-radians(d), 0.0f, 0.0f)), s)
@@ -1310,18 +1322,25 @@ public defn mag-x (sx:Float) : mag-x{sx, _}
 public defn mag-y (sy:Float) : mag-y{sy, _}
 public defn mag-z (sz:Float) : mag-z{sz, _}
 
-public defn pose<?T> (a:V2f, b:V2f, p:?T&Poseable) -> T :
+public defn pose-to-points<?T> (a:V2f, b:V2f, p:?T&Poseable) -> T :
   val v = b - a
   val c = xyz(0.5f * (a + b))
   mov(c, rot(V2f(1.0f, 0.0f), normalize(v), p))
 
-public defn pose<?T> (a:V3f, b:V3f, p:?T&Poseable) -> T :
+public defn pose-to-points<?T> (a:V3f, b:V3f, p:?T&Poseable) -> T :
   val v = b - a
   val c = 0.5f * (a + b)
   mov(c, rot(V3f(0.0f, 0.0f, 1.0f), v, p))
 
-public defn pose (a:V2f, b:V2f) : pose{a, b, _}
-public defn pose (a:V3f, b:V3f) : pose{a, b, _}
+public defn pose-to-points (a:V2f, b:V2f) : pose-to-points{a, b, _}
+public defn pose-to-points (a:V3f, b:V3f) : pose-to-points{a, b, _}
+
+public defstruct Pose :
+  mov: V3f
+  rot: V3f
+
+public defn to-mat44f (p:Pose) -> Mat44f :
+  mov-mat44f(mov(p)) * (quat-to-mat44f $ quat-from-euler $ degrees-to-radians $ rot(p))
 
 public defn name (a:AnyShape, b:AnyShape) :
   name(a) when name(a) is Symbol else name(b)
@@ -1668,15 +1687,15 @@ public defn bounds (c:Contour) -> Box3f :
 defmethod print (o:OutputStream, c:Contour) :
   print("Contour(%,)" % [vertices(c)])
 
-defn do-print-svg (s:OutputStream, color:V4f, points:Seqable<V2f>) :
+defn do-print-svg (s:OutputStream, color:V4f, points:Seqable<V2f>, close?:True|False) :
   print(s, "<path d=\"")
   for (p in points, i in 0 to false) do :  
     print-all(s, [" " ("M" when i == 0 else "L") " " x(p) " " y(p)])
-  print(s, " Z \" fill=\"none\" stroke=\"rgb(%_%%, %_%%, %_%%)\" stroke-width=\"0.02\"/>" %
-           [100.0f * x(color), 100.0f * y(color), 100.0f * z(color)])
+  print(s, " %_\" fill=\"none\" stroke=\"rgb(%_%%, %_%%, %_%%)\" stroke-width=\"0.001\"/>" %
+           [("Z " when close? else "") 100.0f * x(color), 100.0f * y(color), 100.0f * z(color)])
 
 defn do-print-svg (s:OutputStream, color:V4f, contour:Contour) :
-  do-print-svg(s, color, vertices(contour))
+  do-print-svg(s, color, vertices(contour), true)
 
 public defn times (mat:Mat44f, p:Contour) -> Contour :
   Contour(for p in vertices(p) map : mat * p)
@@ -1760,16 +1779,9 @@ defn do-print-svg-header (s:OutputStream, bounds:Box2f, f:OutputStream -> False)
   f(s)
   println(s, "\n</svg>")
 
-defn do-print-svg (s:OutputStream, polygon:Polygon, bbox:Box2f) :
-  do-print-svg-header(s, bbox, {
-    val poly = mov(xyz(-1.0f * lo(bbox)), polygon)
-    for c in contours(poly) do :
-      do-print-svg(s, color(poly), c) })
-
-public defn svg (polygon:Polygon, filename:String, bbox:Box2f) :
-  val s = FileOutputStream(filename)
-  try : do-print-svg(s, polygon, bbox)
-  finally : close(s)
+defn do-print-svg (s:OutputStream, polygon:Polygon) :
+  for c in contours(polygon) do :
+    do-print-svg(s, color(polygon), c)
 
 ;;; POLYLINE
 
@@ -1814,14 +1826,18 @@ public defn svg (polygon:Polygon, filename:String, bbox:Box2f) :
   public defn perimeter (polyline:PolyLine) -> Float :
     reduce(f+, 0.0f, seq(magnitude, segments(polyline)))
 
-defn do-print-svg (s:OutputStream, polyline:PolyLine2f, bbox:Box2f) :
-  do-print-svg-header(s, bbox, {
-    val poly = mov(xyz(-1.0f * lo(bbox)), polyline)
-    for line in strokes(poly) do : do-print-svg(s, color(polyline), line) })
+defn do-print-svg (s:OutputStream, polyline:PolyLine2f) :
+  for line in strokes(polyline) do :
+    do-print-svg(s, color(polyline), line, false)
 
-public defn svg (polyline:PolyLine2f, filename:String, bbox:Box2f) :
+defn svg (s:OutputStream, g:Assembly|PolyLine2f|Polygon, bbox:Box2f) :
+  do-print-svg-header(s, bbox, {
+    val mg = mov(xyz(-1.0f * lo(bbox)), g)
+    do-print-svg(s, mg) })
+
+public defn svg (g:Assembly|PolyLine2f|Polygon, filename:String, bbox:Box2f) :
   val s = FileOutputStream(filename)
-  try : do-print-svg(s, polyline, bbox)
+  try : svg(s, g, bbox)
   finally : close(s)
 
 ;;; MESH

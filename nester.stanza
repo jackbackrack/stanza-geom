@@ -6,7 +6,7 @@ defpackage nester :
   import geom
   import grid
 
-public defstruct Pose :
+public defstruct Pose3i :
   translation : V3i
   angle : Int
 
@@ -49,26 +49,26 @@ public defn SuperPart (id:Int, img:Grid) :
 public defstruct Page :
   stock : Part
   result : Grid
-  parts : Vector<KeyValue<Pose, Part>>
+  parts : Vector<KeyValue<Pose3i, Part>>
 
 public defn Page (sdims:V3i, sdim:Float) :
-  Page(Part(-2, 0, sdims, sdim), Grid(sdims + V3i(2, 2, 0), sdim), Vector<KeyValue<Pose, Part>>())
+  Page(Part(-2, 0, sdims, sdim), Grid(sdims + V3i(2, 2, 0), sdim), Vector<KeyValue<Pose3i, Part>>())
 
-public defstruct PagePose :
+public defstruct PagePose3i :
   page : Int
-  pose : Pose
+  pose : Pose3i
 
 public defstruct Arrangement :
   stock-dims : V3i
   stock-dim : Float
   unique-parts : HashTable<Grid, Part>
-  poses : Vector<PagePose>
+  poses : Vector<PagePose3i>
   pages : Vector<Page>
 
 public defn Arrangement (sdims:V3i, sdim:Float) :
   val pages = Vector<Page>()
   add(pages, Page(sdims, sdim))
-  Arrangement(sdims, sdim, HashTable<Grid, Part>(), Vector<PagePose>(), pages)
+  Arrangement(sdims, sdim, HashTable<Grid, Part>(), Vector<PagePose3i>(), pages)
 
 public defn uniquify (part:Part, assembly:Arrangement) :
   ;; println-all(["UNIQUE " id(part) " " key?(unique-parts(assembly), image(part))])
@@ -164,7 +164,7 @@ public defn add (assembly:Arrangement, new-super-part:SuperPart) -> True|False :
     for (page in pages(assembly), n in 0 to false) do :
       if add(assembly, page, new-super-part) :
         val parts = parts(page)
-        add(poses(assembly), PagePose(n, key(parts[length(parts) - 1])))
+        add(poses(assembly), PagePose3i(n, key(parts[length(parts) - 1])))
         return(true)
     add(pages(assembly), Page(stock-dims(assembly), stock-dim(assembly)))
     add(assembly, pages(assembly)[length(pages(assembly)) - 1], new-super-part)
@@ -222,7 +222,7 @@ public defn add (assembly:Arrangement, page:Page, new-super-part:SuperPart) -> T
   val res = 
     if best-area < infi :
       println-all(["ADD " id(best-part) "/" rot(best-part) " AT " best-pos])
-      add(parts(page), Pose(best-pos, rot(best-part)) => best-part)
+      add(parts(page), Pose3i(best-pos, rot(best-part)) => best-part)
       true
     else :
       if trace?: println-all(["FAILED TO ADD " id(new-super-part)])
