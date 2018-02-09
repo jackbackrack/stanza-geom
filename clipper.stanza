@@ -1,0 +1,72 @@
+defpackage clipper :
+  import core
+  import math
+  import collections
+  import geom
+
+lostanza deftype clipper_vec2 :
+  x : float
+  y : float
+
+lostanza deftype clipper_path :
+  pts : ptr<clipper_vec2>
+  count : int
+
+lostanza deftype clipper_paths :
+  ps : ptr<clipper_path>
+  count : int
+
+lostanza deftype ClipperPaths :
+  value : ptr<clipper_paths>
+
+extern memcpy: (ptr<byte>, ptr<byte>, int) -> ptr<byte>
+extern malloc: (int) -> ptr<byte>
+
+extern clipper_offset: (ptr<clipper_paths>, float, float) -> ptr<clipper_paths>
+extern clipper_fab_paths: (int) -> ptr<clipper_paths>
+extern clipper_fab_path: (ptr<clipper_paths>, int, int) -> ptr<clipper_paths>
+extern clipper_paths_set_point: (ptr<clipper_paths>, int, int, float, float) -> int
+extern clipper_paths_delete: (ptr<clipper_paths>) -> int
+extern printf: (ptr<?>, ? ...) -> int
+extern free: (ptr<?>) -> int
+
+lostanza defn get (paths:ref<ClipperPaths>, p:ref<Int>, i:ref<Int>) -> ref<V2f> :
+  val path = paths.value.ps[p.value]
+  val pt   = path.pts[i.value]
+  return V2f(new Float{pt.x}, new Float{pt.y})
+
+lostanza defn get-path-size (paths:ref<ClipperPaths>, i:ref<Int>) -> ref<Int> :
+  val path = paths.value.ps[i.value]
+  return new Int{path.count}
+
+lostanza defn num-paths (ps:ref<ClipperPaths>) -> ref<Int> :
+  return new Int{ps.value.count}
+
+defn to-polygon (ps:ClipperPaths) -> Polygon :
+  val contours =
+    for pi in 0 to num-paths(ps) seq :
+      val points = for j in 0 to get-path-size(ps, pi) seq : ps[pi, j]
+      Contour(to-tuple $ points)
+  Polygon(to-tuple $ contours)
+
+lostanza defn to-paths (cs:ref<Polygon>) -> ref<ClipperPaths> :
+  val num-paths = length(contours(cs)).value
+  val paths = call-c clipper_fab_paths(num-paths)
+  for (var j:int = 0, j < num-paths, j = j + 1) :
+    val contour = get(contours(cs), new Int{j})
+    val pts = vertices(contour)
+    call-c clipper_fab_path(paths, j, length(pts).value + 1)
+    val len = length(pts).value
+    for (var i:int = 0, i < len, i = i + 1) :
+      val pt = get(pts, new Int{i})
+      call-c clipper_paths_set_point(paths, j, i, x(pt).value, y(pt).value)
+  return new ClipperPaths{paths}
+
+public lostanza defn offset (p:ref<Polygon>, amount:ref<Float>) -> ref<Polygon> :
+  val in = to-paths(p)
+  val out = call-c clipper_offset(in.value, amount.value, 1024.0 as float)
+  val ret = new ClipperPaths{out}
+  val poly = to-polygon(ret)
+  call-c clipper_paths_delete(out)
+  return poly
+

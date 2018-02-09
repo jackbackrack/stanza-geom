@@ -1269,10 +1269,10 @@ public defn radians-to-degrees (a:Float) -> Float :
   a * 180.0f / to-float(PI-F)
 
 public defn degrees-to-radians (a:V3f) -> V3f :
-  V3f(degrees-to-radians(x(a)), degrees-to-radians(z(a)), degrees-to-radians(z(a)))
+  V3f(degrees-to-radians(x(a)), degrees-to-radians(y(a)), degrees-to-radians(z(a)))
 
 public defn radians-to-degrees (a:V3f) -> V3f :
-  V3f(radians-to-degrees(x(a)), radians-to-degrees(z(a)), radians-to-degrees(z(a)))
+  V3f(radians-to-degrees(x(a)), radians-to-degrees(y(a)), radians-to-degrees(z(a)))
 
 public defn rot-x<?T> (d:Float, s:?T&Poseable) -> T :
   xyz(rot-mat44f(V3f(degrees-to-radians(d), 0.0f, 0.0f)), s)
@@ -1340,7 +1340,7 @@ public defstruct Pose :
   rot: V3f
 
 public defn to-mat44f (p:Pose) -> Mat44f :
-  mov-mat44f(mov(p)) * (quat-to-mat44f $ quat-from-euler $ degrees-to-radians $ rot(p))
+  (quat-to-mat44f $ quat-from-euler $ degrees-to-radians $ rot(p)) * mov-mat44f(mov(p))
 
 public defn name (a:AnyShape, b:AnyShape) :
   name(a) when name(a) is Symbol else name(b)
@@ -1700,6 +1700,9 @@ defn do-print-svg (s:OutputStream, color:V4f, contour:Contour) :
 public defn times (mat:Mat44f, p:Contour) -> Contour :
   Contour(for p in vertices(p) map : mat * p)
 
+public defn to-stroke (contour:Contour) -> Tuple<V2f> :
+  to-tuple $ cat(vertices(contour), [ vertices(contour)[0] ])
+
 public defn segments (contour:Contour) -> Seq<LineSegment2f> :
   val pts = vertices(contour)
   for i in 0 to length(pts) seq :
@@ -1739,7 +1742,7 @@ public defn to-polygon (c:Contour) -> Polygon :
   Polygon([c])
 
 public defn to-polyline (p:Polygon) -> PolyLine2f :
-  PolyLine2f(to-tuple $ seq(vertices, contours(p)))
+  PolyLine2f(to-tuple $ seq(to-stroke, contours(p)))
 
 defmethod clone (poly:Polygon, state:AnyShapeState) -> Polygon :
   Polygon(state, contours(poly))
@@ -1839,6 +1842,18 @@ public defn svg (g:Assembly|PolyLine2f|Polygon, filename:String, bbox:Box2f) :
   val s = FileOutputStream(filename)
   try : svg(s, g, bbox)
   finally : close(s)
+
+public defn to-polyline2f (g:PolyLine3f) -> PolyLine2f :
+  val stks = for s in strokes(g) seq : to-tuple(seq(xy, s))
+  PolyLine2f(to-tuple(stks))
+
+public defn to-polygon (g:PolyLine2f) -> Polygon :
+  val cts = for s in strokes(g) seq : Contour(to-tuple(s[0 to length(s) - 1]))
+  Polygon(to-tuple(cts))
+
+public defn to-polyline3f (g:PolyLine2f) -> PolyLine3f :
+  val stks = for s in strokes(g) seq : to-tuple(seq(xyz, s))
+  PolyLine3f(to-tuple(stks))
 
 ;;; MESH
  

@@ -5,7 +5,13 @@ defregistry stanza-geom :
   file "grid.stanza" :
     package grid :
       dependency "${GEN}/grid.o"
-      link Darwin ["${GEN}/grid.o -lc++"]
-      link GNU/Linux ["${GEN}/grid.o -lstdc++"]
+      link Darwin ["${GEN}/grid.o" "-lc++"]
+      link GNU/Linux ["${GEN}/grid.o" "-lstdc++"]
+  file "clipper.cpp"
+  file "clipper.stanza" :
+    package clipper :
+      dependency "${GEN}/clipper.o"
+      link Darwin ["${GEN}/clipper.o" "-lpolyclipping" "-lc++"]
+      link GNU/Linux ["${GEN}/clipper.o" "-lpolyclipping" "-lstdc++"]
   file "nester.stanza"
   file "aabb-tree.stanza"
