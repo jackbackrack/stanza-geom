@@ -23,6 +23,7 @@ extern memcpy: (ptr<byte>, ptr<byte>, int) -> ptr<byte>
 extern malloc: (int) -> ptr<byte>
 
 extern clipper_offset: (ptr<clipper_paths>, float, float) -> ptr<clipper_paths>
+extern clipper_op: (ptr<clipper_paths>, ptr<clipper_paths>, int, float) -> ptr<clipper_paths>
 extern clipper_fab_paths: (int) -> ptr<clipper_paths>
 extern clipper_fab_path: (ptr<clipper_paths>, int, int) -> ptr<clipper_paths>
 extern clipper_paths_set_point: (ptr<clipper_paths>, int, int, float, float) -> int
@@ -57,8 +58,8 @@ lostanza defn to-paths (cs:ref<Polygon>) -> ref<ClipperPaths> :
     val pts = vertices(contour)
     call-c clipper_fab_path(paths, j, length(pts).value + 1)
     val len = length(pts).value
-    for (var i:int = 0, i < len, i = i + 1) :
-      val pt = get(pts, new Int{i})
+    for (var i:int = 0, i < (len + 1), i = i + 1) :
+      val pt = get(pts, new Int{i % len})
       call-c clipper_paths_set_point(paths, j, i, x(pt).value, y(pt).value)
   return new ClipperPaths{paths}
 
@@ -67,6 +68,31 @@ public lostanza defn offset (p:ref<Polygon>, amount:ref<Float>) -> ref<Polygon> 
   val out = call-c clipper_offset(in.value, amount.value, 1024.0 as float)
   val ret = new ClipperPaths{out}
   val poly = to-polygon(ret)
+  call-c clipper_paths_delete(in.value)
   call-c clipper_paths_delete(out)
   return poly
 
+lostanza defn op (a:ref<Polygon>, b:ref<Polygon>, op:ref<Int>) -> ref<Polygon> :
+  val ain = to-paths(a)
+  val bin = to-paths(b)
+  val out = call-c clipper_op(ain.value, bin.value, op.value, 1024.0 as float)
+  val ret = new ClipperPaths{out}
+  val poly = to-polygon(ret)
+  call-c clipper_paths_delete(ain.value)
+  call-c clipper_paths_delete(bin.value)
+  call-c clipper_paths_delete(out)
+  return poly
+
+val CLIPPER-INTERSECTION = 0
+val CLIPPER-UNION = 1
+val CLIPPER-DIFFERENCE = 2
+
+public defmethod bit-or (a:Polygon, b:Polygon) -> Polygon :
+  Polygon(state(a) | state(b), contours(op(a, b, CLIPPER-UNION)))
+   
+public defn bit-and (a:Polygon, b:Polygon) -> Polygon :
+  Polygon(state(a) | state(b), contours(op(a, b, CLIPPER-INTERSECTION)))
+    
+public defn rem (a:Polygon, b:Polygon) -> Polygon :
+  Polygon(state(a), contours(op(a, b, CLIPPER-DIFFERENCE)))
+    

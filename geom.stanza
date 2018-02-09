@@ -1237,7 +1237,7 @@ public defmethod color (p:AnyShape) : color(state(p))
 public defmethod tags (p:AnyShape) : tags(state(p))
 public defmethod points (p:AnyShape) : points(state(p))
 
-defn bit-or (a:AnyShapeState, b:AnyShapeState) -> AnyShapeState :
+public defn bit-or (a:AnyShapeState, b:AnyShapeState) -> AnyShapeState :
   AnyShapeState(name(a) when name(a) is Symbol else name(b), color(a),
                 to-tuple $ cat(tags(a), tags(b)), to-tuple $ cat(points(a), points(b)))
 
@@ -1769,9 +1769,6 @@ public defn segments (polygon:Polygon) -> Seq<LineSegment2f> :
 public defn perimeter (polygon:Polygon) -> Float :
   reduce(f+, 0.0f, seq(magnitude, segments(polygon)))
 
-public defmethod bit-or (a:Polygon, b:Polygon) -> Polygon :
-  Polygon(state(a) | state(b), to-tuple $ cat(contours(a), contours(b)))
-   
 defmethod print (o:OutputStream, c:Polygon) :
   print("Polygon(%,)" % [contours(c)])
 
