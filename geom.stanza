@@ -163,6 +163,10 @@ defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
       PrimVec in [V3i V3f V3d]
       PrimVecName in ["V3i" "V3f" "V3d"]
       PrimVec2 in [V2i V2f V2d]
+      eset in [e3i e3f e3d]
+      xset in [x3i x3f x3d]
+      yset in [y3i y3f y3d]
+      zset in [z3i z3f z3d]
       prim-fill in [V3i-fill V3f-fill V3d-fill]
       prim-unit in [V3i-unit V3f-unit V3d-unit]
       x0 in [0 0.0f 0.0]
@@ -194,6 +198,11 @@ defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
     if i == 0 :      PrimVec(x1, x0, x0)
     else if i == 1 : PrimVec(x0, x1, x0)
     else :           PrimVec(x0, x0, x1)
+
+  public defn eset (i:Int, a:Prim) -> PrimVec : a * prim-unit(i)
+  public defn xset (a:Prim) -> PrimVec : PrimVec(a, x0, x0)
+  public defn yset (a:Prim) -> PrimVec : PrimVec(x0, a, x0)
+  public defn zset (a:Prim) -> PrimVec : PrimVec(x0, x0, a)
 
   public defn set-elt (v:PrimVec, i:Int, a:Prim) -> PrimVec :
     PrimVec(a when i == 0 else v[0], a when i == 1 else v[1], a when i == 2 else v[2])
@@ -319,6 +328,9 @@ public defn indices (dims:V3i) -> Seq<V3i> :
       PrimVec in [V2i V2f V2d]
       PrimVecName in ["V2i" "V2f" "V2d"]
       PrimVec3 in [V3i V3f V3d]
+      eset in [e2i e2f e2d]
+      xset in [x2i x2f x2d]
+      yset in [y2i y2f y2d]
       prim-fill in [V2i-fill V2f-fill V2d-fill]
       prim-unit in [V2i-unit V2f-unit V2d-unit]
       x0 in [0 0.0f 0.0]
@@ -342,6 +354,10 @@ public defn indices (dims:V3i) -> Seq<V3i> :
   public defn prim-unit (i:Int) :
     if i == 0 : PrimVec(x1, x0)
     else :      PrimVec(x0, x1)
+
+  public defn eset (i:Int, a:Prim) -> PrimVec : a * prim-unit(i)
+  public defn xset (a:Prim) -> PrimVec : PrimVec(a, x0)
+  public defn yset (a:Prim) -> PrimVec : PrimVec(x0, a)
 
   public defn set-elt (v:PrimVec, i:Int, a:Prim) -> PrimVec :
     PrimVec(a when i == 0 else v[0], a when i == 1 else v[1])
@@ -1137,8 +1153,11 @@ public defmulti points (p:Poseable) -> Tuple<V3f>
 public defmulti bounds (p:Poseable) -> Box3f
 public defmulti xyz<?T> (mat:Mat44f, p:?T&Poseable) -> T
 public defmulti any-shapes (p:Poseable) -> Seqable<AnyShape>
+public defmulti get (s:Poseable, iname:Symbol) -> False|Poseable
+public defmulti update (s:Poseable, iname:Symbol, value:Poseable) -> Poseable
 
 public defn rgb<?T> (c:V4f, p:?T&Poseable) -> T : clone(p, name(p), c, points(p), tags(p))
+public defn set-name<?T> (name:Symbol, p:?T&Poseable) -> T : clone(p, name, color(p), points(p), tags(p))
 
 public defn mov<?T> (dp:V3f, s:?T&Poseable) -> T : xyz(mov-mat44f(dp), s)
 
@@ -1187,7 +1206,7 @@ public defmulti mat (l:Assembly) -> Mat44f
 
 public defn Assembly<?T> (mat:Mat44f, name:False|Symbol, color:V4f, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
   val children = to-tuple $ poseables
-  if length(children) == 0 : fatal("EMPTY CHILDREN")
+  ;; if length(children) == 0 : fatal("EMPTY CHILDREN")
   new Assembly<T> :
     defmethod children (this) : children
     defmethod name (this) : name
@@ -1207,6 +1226,30 @@ public defn Assembly<?T> (mat:Mat44f, poseables:Seqable<?T&Poseable>) -> Assembl
 public defn Assembly<?T> (poseables:Seqable<?T&Poseable>) -> Assembly<T> :
   Assembly(id-mat44f(), poseables)
   
+public defmethod get (s:AnyShape, iname:Symbol) -> False|AnyShape :
+  s when iname == name(s)
+
+public defmethod get (a:Assembly, iname:Symbol) -> False|Poseable :
+  if iname == name(a) :
+    a
+  else :
+    label<False|Poseable> return :
+      for c in children(a) do :
+        val e = c[iname]
+        return(e) when e is-not False
+
+public defmethod update (s:AnyShape, iname:Symbol, value:AnyShape) -> AnyShape :
+  value when iname == name(s) else s
+
+public defmethod update (a:Assembly, iname:Symbol, value:Poseable) -> Poseable :
+  if iname == name(a) :
+    value
+  else :
+    label<Assembly> return :
+      val ncs = for c in children(a) seq :
+        update(c, iname, value)
+      Assembly(mat(a), name(a), color(a), ncs)
+
 public defn group (poseables:Seqable<Poseable>) : Assembly(poseables)
 
 defmethod print (s:OutputStream, a:Assembly) :
@@ -1218,7 +1261,7 @@ public defmethod xyz (xf:Mat44f, a:Assembly) :
 defn do-print-svg (s:OutputStream, assembly:Assembly) :
   for elt in children(assembly) do :
     match(elt) :
-      (c:PolyLine2f|Polygon|Assembly) : do-print-svg(s, c)
+      (c:PolyLine2f|Polygon|Assembly) : do-print-svg(s, xyz(mat(assembly), c))
       (c) : false
 
 ;;; ANYSHAPE
@@ -1392,6 +1435,7 @@ public defn resize-y (gdim:Float) : resize-y{gdim, _}
 public defn resize-z (gdim:Float) : resize-z{gdim, _}
 
 public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<Box3f>, idx:Int, dir:Float) -> Seq<T> :
+  defn area* (dims:V3f) -> Float : dims[max-idx(dims)] * dims[mid-idx(dims)]
   val [shapes, boundz] = [to-tuple(ishapes), to-tuple(iboundz)]
   val tot = reduce(f+, for bounds in boundz seq : dims(bounds)[idx])
   var tot-fac:Float = 0.0f
@@ -1410,7 +1454,7 @@ public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<B
   ;; val bdz = to-tuple $ seq({ volume(dims(bounds(_))) }, res)
   val rres = to-tuple $ filter({ volume(dims(bounds(_))) > 0.0f }, res)
   ;; println("STACKING RRES %_" % [rres])
-  filter({ volume(dims(bounds(_))) > 0.0f }, res)
+  filter({ area*(dims(bounds(_))) > 0.0f }, res)
 
 public defn stack-idx<?T> (ishapes:Seqable<?T&Poseable>, idx:Int, dir:Float) -> Seq<T> :
   val shapes = to-tuple $ ishapes
@@ -1556,6 +1600,50 @@ public defn align-min-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
 public defn align-max-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   align-it(shapes, { z(hi(_)) }, mov-z)
 
+;; TODO: LIMITED TO AXIS ALIGNED SHAPES
+public defn smash<?T> (s:?T&Poseable) -> T :
+  val bb    = bounds(s)
+  val dims  = dims(bb)
+  val idx   = min-idx(dims)
+  val ctr   = center(bb)
+  defn rot (s) : if idx == 0 : reflect-xz(s) else if idx == 1 : reflect-yz(s) else : s
+  val res = rot(mov((- ctr), s))
+  ;; println("SMASH %_ (%_ %_) -> %_" % [s bb ctr res])
+  res
+
+defn segment<?T> (shapes:Seqable<?T>, width:T -> Float, max-width:Float, space:Float) -> Seqable<Tuple<T>> :
+  val row = Vector<T>()
+  generate<Tuple<T>> :
+    for pc in shapes do :
+      val off = reduce(f+, join(seq(width, cat(row, [pc])), space))
+      if off > max-width :
+        yield(to-tuple $ row)
+        ;; println("OFF %_ > %_" % [off max-width])
+        clear(row)
+      ;; println("ADD ROW")
+      add(row, pc)
+    if length(row) > 0 : yield(to-tuple $ row)
+
+public defn nest (pcs:Seqable<Poseable>, size:V2f, spacer:V3f -> Poseable, space:Float) -> Seqable<Assembly> :
+  val apcs  = to-tuple $ pcs
+  ;; println("NEST A %_" % [apcs])
+  val rpcs  = to-tuple $ seq(fn (pc): reflect-xy(pc) when max-idx(dims(bounds(pc))) != max-idx(size) else pc, apcs)
+  ;; println("NEST R %_" % [rpcs])
+  val spcs  = to-tuple $ lazy-qsort({ y(dims(bounds(_))) }, rpcs)
+  ;; println("NEST S %_" % [spcs])
+  val rows  = to-tuple $ segment(spcs, { x(dims(bounds(_))) }, x(size), space)
+  ;; println("NEST ROWS %_" % [rows])
+  ;; val pages = segment(rows, { y(dims(bounds(union(shapes $ Assembly $ _)))) }, y(size), space)
+  val pages = to-tuple $ segment(rows, { y(dims(bounds(Assembly $ _))) }, y(size), space)
+  ;; println("PAGES %_" % [pages])
+  val res = to-tuple $ for page in pages seq :
+    val rrows = for row in page seq:
+      ;; println("ROW %_" % [row])
+      Assembly(stack-x(join(row, spacer(x3f(space)))))
+    Assembly(stack-y(join(rrows, Assembly([ spacer(y3f(space)) ]))))
+  ;; println("NEST RES %_" % [res])
+  res
+
 ;;; SHAPE
 
 ;; public deftype Shape <: AnyShape
@@ -1691,7 +1779,7 @@ defn do-print-svg (s:OutputStream, color:V4f, points:Seqable<V2f>, close?:True|F
   print(s, "<path d=\"")
   for (p in points, i in 0 to false) do :  
     print-all(s, [" " ("M" when i == 0 else "L") " " x(p) " " y(p)])
-  print(s, " %_\" fill=\"none\" stroke=\"rgb(%_%%, %_%%, %_%%)\" stroke-width=\"0.001\"/>" %
+  print(s, " %_\" fill=\"none\" stroke=\"rgb(%_%%, %_%%, %_%%)\" stroke-width=\"0.1\"/>" %
            [("Z " when close? else "") 100.0f * x(color), 100.0f * y(color), 100.0f * z(color)])
 
 defn do-print-svg (s:OutputStream, color:V4f, contour:Contour) :
@@ -1730,6 +1818,9 @@ public defstruct Polygon <: AnyShape :
 public defn Polygon (contours:Seqable<Contour>) :
   Polygon(default-anyshape-state(), to-tuple $ contours)
 
+public defn get (p:Polygon, i:Int) -> Contour : contours(p)[i]
+public defn get (c:Contour, i:Int) -> V2f : vertices(c)[i]
+
 public defn polygon-n (d:Float, n:Int) -> Polygon :
   val r = 0.5f * d
   val points = 
@@ -1737,6 +1828,12 @@ public defn polygon-n (d:Float, n:Int) -> Polygon :
       val a = to-float(i) * 2.0f * PI-F / to-float(n)
       V2f(r * sin(a), r * cos(a))
   to-polygon(Contour(to-tuple(points)))
+
+public defn polygon-rect (dims:V2f) -> Polygon :
+  to-polygon(Contour(to-tuple(corners(dims-to-box(dims)))))
+
+defmethod spacer (g:Polygon, gdims:V3f) :
+  polygon-rect(xy(gdims))
 
 public defn to-polygon (c:Contour) -> Polygon :
   Polygon([c])

@@ -1,7 +1,8 @@
 defregistry stanza-geom :
   file "geom.stanza"
   file "geom-gfx.stanza"
-  file "grid.cpp"
+  file "grid.cpp" :
+    flags "-O3"
   file "grid.stanza" :
     package grid :
       dependency "${GEN}/grid.o"
