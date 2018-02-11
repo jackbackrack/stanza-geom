@@ -1775,12 +1775,15 @@ public defn bounds (c:Contour) -> Box3f :
 defmethod print (o:OutputStream, c:Contour) :
   print("Contour(%,)" % [vertices(c)])
 
+public var *line-width* = 0.001
+public defn set-line-width (x:Float) : *line-width* = x
+
 defn do-print-svg (s:OutputStream, color:V4f, points:Seqable<V2f>, close?:True|False) :
   print(s, "<path d=\"")
   for (p in points, i in 0 to false) do :  
     print-all(s, [" " ("M" when i == 0 else "L") " " x(p) " " y(p)])
-  print(s, " %_\" fill=\"none\" stroke=\"rgb(%_%%, %_%%, %_%%)\" stroke-width=\"0.001\"/>" %
-           [("Z " when close? else "") 100.0f * x(color), 100.0f * y(color), 100.0f * z(color)])
+  print(s, " %_\" fill=\"none\" stroke=\"rgb(%_%%, %_%%, %_%%)\" stroke-width=\"%_\"/>" %
+           [("Z " when close? else "") 100.0f * x(color), 100.0f * y(color), 100.0f * z(color), *line-width*])
 
 defn do-print-svg (s:OutputStream, color:V4f, contour:Contour) :
   do-print-svg(s, color, vertices(contour), true)
