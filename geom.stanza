@@ -693,6 +693,8 @@ public val neg-inf-i = (-(1 << 30))
 
 ;;; MAT
 
+val @doc-mat44f = "MAT44f -- 4D affine transformation matrix"
+
 public lostanza deftype Mat44f <: Array<Float> & Equalable :
   m00: float
   m01: float
