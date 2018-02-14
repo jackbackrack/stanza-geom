@@ -6,6 +6,8 @@ defpackage geom:
   import collections
   import utils
 
+val @doc-geom = "## GEOM -- explicit geometry and support data types"
+
 public defn ensure-index-in-bounds (i:Int, n:Int) :
   #if-defined(OPTIMIZE) :
     false
@@ -157,6 +159,8 @@ defmethod print (o:OutputStream, v:Vb) :
 
 defn round (x:Int) : x
 defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
+
+val @doc-vx = "2/3 DIM VECTORS -- ponts and dimensions"
 
 #for (Prim in [Int Float Double]
       prim in [int float double]
@@ -474,6 +478,8 @@ public defn to-v2f (v:V2i) -> V2f :
 ;;   z: Float
 ;;   a: Float
 
+val @doc-v4f = "4 DIM VECTORS -- color"
+
 public lostanza deftype V4f <: Array<Float> & Geom & Hashable :
   x: float
   y: float
@@ -520,6 +526,8 @@ public val BLACK  = V4f(0.0f, 0.0f, 0.0f, 1.0f)
 public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
 
 ;;; BOX2 and BOX3
+
+val @doc-box = "BOXES -- tracking bounds"
 
 #for (Prim in [Int Float Double Int Float Double Int Float Double]
       BoxElt in [V3i V3f V3d V2i V2f V2d Int Float Double ]
@@ -916,10 +924,20 @@ public defn rot-mat44f (r:V3f) -> Mat44f :
          0.0f, 0.0f, 0.0f, 1.0f)
 
 public defn rot-mat44f (axis:V3f, angle:Float) -> Mat44f :
-  quat-to-mat44f(quat-from-axis(normalize(axis), angle))
+  if abs(sin(angle)) < 1.0e-06f :
+    id-mat44f()
+  else :
+    quat-to-mat44f(quat-from-axis(normalize(axis), angle))
 
 public defn rot-mat44f (b:V3f, a:V3f) -> Mat44f :
-  quat-to-mat44f(quat-from-axis(normalize(a % b), angle(a, b)))
+  val ang = angle(a, b)
+  val vec =
+    if abs(ang - PI-F) < 1.0e-06f :
+      val e = V3f-unit(min-idx(a))
+      e - dot(e, a) * a
+    else :
+      a % b
+  rot-mat44f(vec, ang)
 
 public defn rot-mat44f (src:V2f, dst:V2f) -> Mat44f :
   val a = atan2(y(dst), x(dst)) - atan2(y(src), x(src))
@@ -953,6 +971,8 @@ public defn times (a:Mat44f, b:Mat44f) -> Mat44f :
   res
 
 ;;; QUAT
+
+val @doc-quat = "QUAT -- quaternions for interpolatable rotations"
 
 public defstruct Quat <: Equalable :
   w: Float
@@ -1144,6 +1164,8 @@ public defn reset! (t:Transformation) :
 
 ;;;; POSEABLES
 
+val @doc-poseable = "POSEABLES -- geom with attributes and bounds and moveable"
+
 public deftype Poseable <: Geom
 public defmulti clone<?T> (s:?T&Poseable, name:False|Symbol, color:V4f, points:Tuple<V3f>, tags:Tuple<Symbol>) -> T
 public defmulti name (p:Poseable) -> False|Symbol
@@ -1199,6 +1221,8 @@ public defn union-or<?T> (args:Seqable<?T&AnyShape>, default:T&AnyShape) -> T :
   reduce(bit-or, default, args)
 
 ;;; ASSEMBLIES
+
+val @doc-assembly = "ASSEMBLY -- grouping poseables"
 
 public deftype Assembly<T> <: Poseable
 public defmulti children (a:Assembly) -> Tuple<Poseable>
@@ -1271,6 +1295,8 @@ public defstruct AnyShapeState :
   color : V4f
   tags : Tuple<Symbol>
   points : Tuple<V3f>
+
+val @doc-anyshape = "ANYSHAPE -- leaf poseables allowing more transformations"
 
 public deftype AnyShape <: Poseable
 public defmulti state (a:AnyShape) -> AnyShapeState
@@ -1378,13 +1404,6 @@ public defn pose-to-points<?T> (a:V3f, b:V3f, p:?T&Poseable) -> T :
 public defn pose-to-points (a:V2f, b:V2f) : pose-to-points{a, b, _}
 public defn pose-to-points (a:V3f, b:V3f) : pose-to-points{a, b, _}
 
-public defstruct Pose :
-  mov: V3f
-  rot: V3f
-
-public defn to-mat44f (p:Pose) -> Mat44f :
-  (quat-to-mat44f $ quat-from-euler $ degrees-to-radians $ rot(p)) * mov-mat44f(mov(p))
-
 public defn name (a:AnyShape, b:AnyShape) :
   name(a) when name(a) is Symbol else name(b)
 
@@ -1461,13 +1480,13 @@ public defn stack-idx<?T> (ishapes:Seqable<?T&Poseable>, idx:Int, dir:Float) -> 
   stack-idx-using(shapes, seq(bounds, shapes), idx, dir)
 
 public defn stack-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  stack-idx(shapes, 0,  1.0f)
+  stack-idx(shapes, 0,  -1.0f)
 
 public defn stack-y<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  stack-idx(shapes, 1,  1.0f)
+  stack-idx(shapes, 1,  -1.0f)
 
 public defn stack-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  stack-idx(shapes, 2,  1.0f)
+  stack-idx(shapes, 2,  -1.0f)
 
 public deftype AnyGlue <: Poseable
 public defmulti amount (g:AnyGlue) -> Float
@@ -1697,7 +1716,18 @@ public defn distance-to (plane:Half, point:V3f) -> Float :
 public defn level (g:Half, point:V3f) -> Float :
   (- distance-to(g, point))
 
+val @doc-pose = "POSE -- representing translation and rotation"
+
+public defstruct Pose :
+  mov: V3f
+  rot: V3f
+
+public defn to-mat44f (p:Pose) -> Mat44f :
+  (quat-to-mat44f $ quat-from-euler $ degrees-to-radians $ rot(p)) * mov-mat44f(mov(p))
+
 ;;; LINE
+
+val @doc-line = "LINE -- infinite line"
 
 public defstruct Line <: Geom :
   pos: V3f
@@ -1717,6 +1747,8 @@ public defn line-of (p0:V3f, p1:V3f) -> Line :
 ;;   ;; println-all(["CLOSEST POINT TO " x(pt) "," y(pt) " NORMAL " x(normal) "," y(normal) " ALIGN " align])
 ;;   Half(normal, (if align > 0.0f : 1.0f else : -1.0f) * len(pt))
 
+val @doc-implicitline = "IMPLICITLINE -- half space"
+
 public defstruct ImplicitLine :
   a : Float
   b : Float
@@ -1727,6 +1759,8 @@ public defn ImplicitLine (p:V2f, q:V2f) :
 
 public defn inside? (l:ImplicitLine, p:V2f) -> True|False :
   (a(l) * x(p) + b(l) * y(p) + c(l)) < 0.0f
+
+val @doc-triangle = "TRIANGLE -- using intersecting half spaces"
 
 public defstruct Triangle <: Geom :
   vertices : Tuple<V2f>
@@ -1748,6 +1782,8 @@ public defn bounds (t:Triangle) : reduce(union, seq(Box2f, vertices(t)))
 
 ;;; LINESEGMENT
 
+val @doc-linesegment = "LINESEGMENT -- line between two points"
+
 #for (Prim in [Float Float]
       Vec in [V2f V3f]
       LineSegment in [LineSegment2f LineSegment3f]
@@ -1765,6 +1801,8 @@ public defn bounds (t:Triangle) : reduce(union, seq(Box2f, vertices(t)))
     print("%_(%_ %_)" % [LineSegmentName start(l) end(l)])
 
 ;;; CONTOUR
+
+val @doc-contour = "CONTOUR -- closed paths"
 
 public defstruct Contour <: Geom :
   vertices: Tuple<V2f>
@@ -1813,6 +1851,8 @@ public defn segments (contour:Contour) -> Seq<LineSegment2f> :
 ;;; POLYGON
 
 defn default-anyshape-state () : AnyShapeState(false, WHITE, [], [])
+
+val @doc-polygon = "POLYGON -- list of contours"
 
 public defstruct Polygon <: AnyShape :
   state: AnyShapeState with: (as-method => true)
@@ -1885,6 +1925,8 @@ defn do-print-svg (s:OutputStream, polygon:Polygon) :
 
 ;;; POLYLINE
 
+val @doc-polyline = "POLYLINE -- lists of open paths called strokes"
+
 #for (Prim in [Float Float]
       Vec in [V2f V3f]
       PolyLine in [PolyLine2f PolyLine3f]
@@ -1940,6 +1982,9 @@ public defn svg (g:Assembly|PolyLine2f|Polygon, filename:String, bbox:Box2f) :
   try : svg(s, g, bbox)
   finally : close(s)
 
+public defn svg (g:Assembly|PolyLine2f|Polygon, filename:String, margin:V2f) :
+  svg(g, filename, fatten(xy(bounds(g)), margin))
+
 public defn to-polyline2f (g:PolyLine3f) -> PolyLine2f :
   val stks = for s in strokes(g) seq : to-tuple(seq(xy, s))
   PolyLine2f(to-tuple(stks))
@@ -1954,6 +1999,8 @@ public defn to-polyline3f (g:PolyLine2f) -> PolyLine3f :
 
 ;;; MESH
  
+val @doc-mesh = "MESH -- triangulated surfaces"
+
 public defstruct Mesh <: AnyShape :
   state: AnyShapeState with: (as-method => true)
   vertices: Tuple<V3f>

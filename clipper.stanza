@@ -4,6 +4,8 @@ defpackage clipper :
   import collections
   import geom
 
+val @doc-clipper = "## CLIPPER -- polygon offsetting and solid geometry operations"
+
 lostanza deftype clipper_vec2 :
   x : float
   y : float
