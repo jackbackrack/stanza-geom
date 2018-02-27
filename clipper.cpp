@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include "clipper.hpp"
 using namespace ClipperLib;
 
