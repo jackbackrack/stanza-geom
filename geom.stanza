@@ -1250,7 +1250,7 @@ defmethod clone (p:Assembly, name:False|Symbol, color:V4f, points:Tuple<V3f>, ta
   Assembly(mat(p), name, color, children(p))
 
 public defn ungroup (a:Assembly) -> Seqable<Poseable> :
-  seq(rgb{color, _}, seq(xyz{mat, _}, cat-all $ children(a)))
+  seq(rgb{color(a), _}, seq(xyz{mat(a), _}, children(a)))
 
 public defn Assembly<?T> (mat:Mat44f, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
   Assembly(mat, false, WHITE, poseables)
