@@ -196,9 +196,43 @@ extern "C" void grid_convolve (int dw, int dh, int dd, uint8_t* dst, int sw, int
   // printf("GRID-CONVOLVE [%d %d %d] MASK [%d %d %d]\n", dw, dh, dd, mw, mh, md);
   for (int dk = 0; dk < dd; dk++) {
     int edk = dk;
-    for (int dj = 0; dj < (dh - mh); dj++) { 
+    for (int dj = 0; dj < dh; dj++) { 
+      int edj = dj;
+      for (int di = 0; di < dw; di++) {
+        int edi = di;
+        uint8_t pix = 0;
+        // TODO: FIX THIS FOR 3D
+        for (int mk = 0; mk < md; mk++) {
+          int edmk = edk + mk;
+          if (((mh + edj) > sh) || ((mw + edi) > sw)) {
+            pix = 1; goto done;
+          } else {
+            for (int edmj = max(0, edj); edmj < (mh + edj); edmj++) { 
+              for (int edmi = max(0, edi); edmi < (mw + edi); edmi++) {
+                uint8_t a = get(src, sw, sh, sd, edmi, edmj, edmk); 
+                uint8_t b = get(msk, mw, mh, md, edmi - edi, edmj - edj, mk);
+                // printf("S[%d,%d] A %d M[%d,%d] B %d\n", edmi, edmj, a, edmi - edj, edmj - edj, b);
+                if ((a & b) != 0) { pix = 1; goto done; }
+              }
+            }
+          }
+        }
+      done:
+        // printf(">>> SET [%d,%d] = %d\n", di, dj, pix);
+        set(pix, dst, dw, dh, dd, di, dj, dk);
+      }
+    }
+  }
+}
+
+/*
+extern "C" void grid_convolve (int dw, int dh, int dd, uint8_t* dst, int sw, int sh, int sd, uint8_t* src, int mw, int mh, int md, uint8_t* msk) {
+  printf("GRID-CONVOLVE [%d %d %d] MASK [%d %d %d]\n", dw, dh, dd, mw, mh, md);
+  for (int dk = 0; dk < dd; dk++) {
+    int edk = dk;
+    for (int dj = 0; dj < dh; dj++) { 
       int edj = dj - mh;
-      for (int di = 0; di < (dw - mw); di++) {
+      for (int di = 0; di < dw; di++) {
         int edi = di - mw;
         uint8_t pix = 0;
         // TODO: FIX THIS FOR 3D
@@ -208,16 +242,19 @@ extern "C" void grid_convolve (int dw, int dh, int dd, uint8_t* dst, int sw, int
             for (int edmi = max(0, edi); edmi < min(sw, mw + edi); edmi++) {
               uint8_t a = get(src, sw, sh, sd, edmi, edmj, edmk); 
               uint8_t b = get(msk, mw, mh, md, edmi - edi, edmj - edj, mk);
+              printf("S[%d,%d] A %d M[%d,%d] B %d\n", edmi, edmj, a, edmi - edi, edmj - edj, b);
               if ((a & b) != 0) { pix = 1; goto done; }
             }
           }
         }
       done:
+        printf("SET [%d,%d] = %d\n", di, dj, pix);
         set(pix, dst, dw, dh, dd, di, dj, dk);
       }
     }
   }
 }
+*/
 
 extern "C" std::vector<v3i_t> *todos_fab () {
   std::vector<v3i_t> *res = new std::vector<v3i_t>();
