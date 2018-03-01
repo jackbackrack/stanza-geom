@@ -1243,6 +1243,9 @@ public defn Assembly<?T> (mat:Mat44f, name:False|Symbol, color:V4f, poseables:Se
     defmethod any-shapes (this) : seq(rgb{color, _}, seq(xyz{mat, _}, cat-all $ seq(any-shapes, children)))
     defmethod points (this) : to-tuple $ cat-all $ seq(points, children)
 
+public defn ungroup (a:Assembly) -> Seqable<Poseable> :
+  seq(rgb{color(a), _}, seq(xyz{mat(a), _}, children(a)))
+
 defmethod clone (p:Assembly, name:False|Symbol, color:V4f, points:Tuple<V3f>, tags:Tuple<Symbol>) -> Assembly :
   Assembly(mat(p), name, color, children(p))
 
@@ -1819,14 +1822,6 @@ public defn ImplicitLine (p:V2f, q:V2f) :
 public defn inside? (l:ImplicitLine, p:V2f) -> True|False :
   (a(l) * x(p) + b(l) * y(p) + c(l)) <= 0.0f
 
-public defstruct Triangle2i :
-  a:V2i
-  b:V2i
-  c:V2i
-
-public defmethod print (o:OutputStream, t:Triangle2i) :
-  print(o, "Triangle2i(%_ %_ %_)" % [a(t) b(t) c(t)])
-
 val @doc-triangle = "TRIANGLE -- using intersecting half spaces"
 
 public defstruct Triangle <: Geom :
@@ -1846,6 +1841,14 @@ public defn inside? (l:Triangle, p:V2f) -> True|False :
   inside?(lines(l)[0], p) and inside?(lines(l)[1], p) and inside?(lines(l)[2], p)
 
 public defn bounds (t:Triangle) : reduce(union, seq(Box2f, vertices(t)))
+
+public defstruct Triangle2i :
+  a:V2i
+  b:V2i
+  c:V2i
+
+public defmethod print (o:OutputStream, t:Triangle2i) :
+  print(o, "Triangle2i(%_ %_ %_)" % [a(t) b(t) c(t)])
 
 ;;; LINESEGMENT
 
@@ -1948,6 +1951,9 @@ defmethod spacer (g:Polygon, gdims:V3f) :
 public defn to-polygon (c:Contour) -> Polygon :
   Polygon([c])
 
+public defn to-polygon (b:Box2f) -> Polygon :
+  to-polygon $ Contour $ corners(b)
+
 public defn to-polyline (p:Polygon) -> PolyLine2f :
   PolyLine2f(to-tuple $ seq(to-stroke, contours(p)))
 
@@ -1975,6 +1981,9 @@ public defn segments (polygon:Polygon) -> Seq<LineSegment2f> :
 
 public defn perimeter (polygon:Polygon) -> Float :
   reduce(f+, 0.0f, seq(magnitude, segments(polygon)))
+
+public defn cat (p1:Polygon, p2:Polygon) -> Polygon :
+  Polygon(cat(contours(p1), contours(p2)))
 
 defmethod print (o:OutputStream, c:Polygon) :
   print("Polygon(%,)" % [contours(c)])
@@ -2026,6 +2035,9 @@ val @doc-polyline = "POLYLINE -- lists of open paths called strokes"
   public defmethod bit-or (a:PolyLine, b:PolyLine) -> PolyLine :
     PolyLine(state(a) | state(b), to-tuple $ cat(strokes(a), strokes(b)))
     
+  public defn cat (p1:PolyLine, p2:PolyLine) -> PolyLine :
+    PolyLine(cat(strokes(p1), strokes(p2)))
+
   public defn segments (polyline:PolyLine) -> Seq<LineSegment> :
     generate<LineSegment> :
       for s in strokes(polyline) do :

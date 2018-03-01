@@ -196,10 +196,10 @@ defn index (g:Grid, i:Int, j:Int, k:Int) -> Int :
 ;; defn get-pt (g:Grid, pos:V3i) -> V3f :
 ;;   get-pt(g, x(pos), y(pos), z(pos))
 
-defn get-value (g:Grid, i:Int, j:Int, k:Int) -> Byte :
+public defn get-value (g:Grid, i:Int, j:Int, k:Int) -> Byte :
   data(g)[index(g, i, j, k)]
 
-defn get-value (g:Grid, pos:V3i) -> Byte :
+public defn get-value (g:Grid, pos:V3i) -> Byte :
   get-value(g, x(pos), y(pos), z(pos))
 
 public defn legal? (g:Grid, pos:V3i) -> True|False :
@@ -210,7 +210,7 @@ public defn legal? (g:Grid, pos:V3i) -> True|False :
 public defn legal? (g:Grid, new-bbox:Box3i) -> True|False :
   legal?(g, lo(new-bbox)) and legal?(g, hi(new-bbox))
 
-defn get-value (g:Grid, pos:V3i, default:Byte) -> Byte :
+public defn get-value (g:Grid, pos:V3i, default:Byte) -> Byte :
   get-value(g, x(pos), y(pos), z(pos)) when legal?(g, pos) else default
     
 public defn set-value (g:Grid, i:Int, j:Int, k:Int, v:Byte) :
@@ -282,26 +282,26 @@ val all-deltas = to-tuple $ cat(straight-deltas, diagonal-deltas)
 
 val all-deltas2 = to-tuple $ cat(straight-deltas2, diagonal-deltas)
 
-public defn render-values (cells:Grid) :
+public defn do-render-values (cells:Grid, c:V3f) :
   gl-push-attrib(GL-LINE-BIT | GL-CURRENT-BIT)
-  val dim = 1.0f
   gl-push-matrix()
+  val dim = dim(cells)
   val dims = idims(cells)
   val ext = 0.5f * dim * to-v3f(dims)
-  val fac = max(x(ext), y(ext))
-  gl-scalef(0.9f / fac, 0.9f / fac, 1.0f)
   gl-push-matrix()
   val off = -1.0f * ext + xyz(xy(V3f-fill(0.5f * dim)))
   gl-translatef(x(off), y(off), 0.0f)
   for pos in indices(dims) do :
-    gl-push-matrix()
-    val p = to-v3f(pos)
-    val c = get-value(cells, pos)
-    gl-translatef(x(p), y(p), 0.0f)
-    gl-scalef(0.95f, 0.95f, 0.95f)
-    gl-color4f(to-float $ c, 0.0f, 0.0f, 0.8f)
-    draw-quad(dim, dim)
-    gl-pop-matrix()
+    val v = get-value(cells, pos)
+    if v == to-byte(1) :
+      gl-push-matrix()
+      val p = dim * to-v3f(pos)
+      gl-translatef(x(p), y(p), 0.0f)
+      gl-scalef(0.95f, 0.95f, 0.95f)
+      val cv = c ;; (to-float $ v) * c
+      gl-color4f(x(cv), y(cv), z(cv), (to-float $ v))
+      draw-quad(dim, dim)
+      gl-pop-matrix()
   gl-pop-matrix()
   gl-color4f(1.0f, 1.0f, 1.0f, 1.0f)
   draw-rect(to-float(x(dims)) * dim, to-float(y(dims)) * dim)
@@ -314,16 +314,27 @@ public defn render-values (cells:Grid) :
   gl-pop-matrix()
   gl-pop-attrib()
 
+public defn render-values (cells:Grid, c:V3f) :
+  gl-push-matrix()
+  val dims = idims(cells)
+  val ext = 0.5f * to-v3f(dims)
+  val fac = max(x(ext), y(ext))
+  gl-scalef(0.9f / fac, 0.9f / fac, 1.0f)
+  do-render-values(cells, c)
+  gl-pop-matrix()
+
+public defn render-values (cells:Grid) : render-values(cells, V3f(1.0f, 0.0f, 0.0f))
+
 public defn find-limits (dst:Grid) -> Box3i :
-  var lo = lo(ibbox(dst))
-  var hi = hi(ibbox(dst))
+  var l = hi(ibbox(dst))
+  var h = lo(ibbox(dst))
   for pos in indices(dst) do :
     val v = get-value(dst, pos)
     if v > to-byte(0) :
-      lo = min(pos, lo)
-      hi = max(pos, hi)
-      set-value(dst, pos, to-byte $ 0)
-  Box3i(lo, hi)
+      l = min(pos, l)
+      h = max(pos, h)
+      ;; set-value(dst, pos, to-byte $ 0)
+  Box3i(l, h)
 
 ;; defn fill (dst:Grid, x:Byte) :
 ;;   for pos in indices(dst) do :
@@ -425,21 +436,29 @@ public defn bounds (g:Grid) :
   Box2f(pt-of(g, V3i(0, 0, 0)), pt-of(g, idims(g) - V3i(1, 1, 0)))
 
 public defn idx-of (g:Grid, p:V3f) :
-  val ext = -0.5f * dim(g) * to-v3f(idims(g))
-  to-v3i(round((p - ext) / dim(g)))
+  ;; FIX FOR 3D
+  val ext = xy(-0.5f * dim(g) * to-v3f(idims(g)))
+  to-v3i(xyz(round((xy(p) - ext) / dim(g))))
 
 public defn scan (g:Grid, t:Triangle) :
   val box = bounds(t)
   val boxi = Box3i(idx-of(g, xyz(lo(box))), idx-of(g, xyz(hi(box))))
   ;; println("TRIANGLE %_ BOX %_ BOXI %_ STOCK-BOX %_" % [ t box boxi bounds(g) ])
-  for j in y(lo(boxi)) through y(hi(boxi)) do :
-    for i in x(lo(boxi)) through x(hi(boxi)) do :
+  val fac = 0.5f * dim(g)
+  for j in y(lo(boxi)) to y(hi(boxi)) do :
+    for i in x(lo(boxi)) to x(hi(boxi)) do :
       val pi = V2i(i, j)
       val p  = pt-of(g, xyz(pi))
       if inside?(t, p) :
         set-value(g, i, j, 0, to-byte(1))
+;;      for dx in -1 through 1 by 2 do :
+;;        for dy in -1 through 1 by 2 do :
+;;          val ip = p + fac * V2f(to-float(dx), to-float(dy))
+;;          if inside?(t, ip) :
+;;            set-value(g, i, j, 0, to-byte(1))
 
 public defn scan (g:Grid, p:Polygon) :
+  ;; println("SCAN %_ grid bounds %_ polygon bounds %_" % [p bounds(g) bounds(p)])
   val mesh = triangulate(p)
   for face in faces(mesh) do :
     scan(g, Triangle([xy(vertices(mesh)[x(face)]), xy(vertices(mesh)[y(face)]), xy(vertices(mesh)[z(face)])]))
