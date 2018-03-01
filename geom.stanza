@@ -1247,7 +1247,7 @@ defmethod clone (p:Assembly, name:False|Symbol, color:V4f, points:Tuple<V3f>, ta
   Assembly(mat(p), name, color, children(p))
 
 public defn ungroup (a:Assembly) -> Seqable<Poseable> :
-  seq(rgb{color, _}, seq(xyz{mat, _}, cat-all $ children(a)))
+  seq(rgb{color(a), _}, seq(xyz{mat(a), _}, children(a)))
 
 public defn Assembly<?T> (mat:Mat44f, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
   Assembly(mat, false, WHITE, poseables)
@@ -1727,8 +1727,62 @@ public defstruct Pose :
   mov: V3f
   rot: V3f
 
+public defn Pose (mov:V3f) : Pose(mov, V3f(0.0f, 0.0f))
+public defn Pose () : Pose(V3f(0.0f, 0.0f))
+
 public defn to-mat44f (p:Pose) -> Mat44f :
   (quat-to-mat44f $ quat-from-euler $ degrees-to-radians $ rot(p)) * mov-mat44f(mov(p))
+
+public defstruct Mechanism :
+  links:Tuple<Link>
+  joints:Tuple<Joint>
+  children:Tuple<Mechanism>
+
+public defn assign-poses (m:Mechanism) :
+  defn elaborate (j:Joint) :
+    val c0 = connection(j)[0]
+    val c1 = connection(j)[1]
+    val np = inverse(to-mat44f(pose(nodes(link(c1))[node(c1)]))) *
+             rot-mat44f(V3f(0.0f, 0.0f, 1.0f), degrees-to-radians(state(j))) *
+             to-mat44f(pose(nodes(link(c0))[node(c0)])) *             
+             pose(link(c0))
+    set-pose(link(c1), np)
+  for joint in joints(m) do :
+    elaborate(joint)
+  for child in children(m) do :
+    assign-poses(child)
+
+public defn all-links (m:Mechanism) :
+  cat(links(m), cat-all(seq(all-links, children(m))))
+
+public defn elaborate (m:Mechanism) :
+  set-pose(links(m)[0], id-mat44f())
+  assign-poses(m)
+  group $ seq(fn (l) : xyz(pose(l), geom(l)), all-links(m))  
+
+public defstruct Link :
+  geom:Poseable
+  nodes:Tuple<Node>
+  pose:Mat44f with: (setter => set-pose)
+  limits:False|Box3f
+
+public defn Link (geom:Poseable, nodes:Tuple<Node>) :
+  Link(geom, nodes, id-mat44f(), false)
+
+public defstruct Node :
+  pose:Pose
+
+public defstruct Joint :
+  connection:[NodeRef, NodeRef]
+  state:Float with: (setter => set-state)
+  limits:False|Box1f
+
+public defn Joint (connection:[NodeRef, NodeRef], state:Float) :
+  Joint(connection, state, false)
+
+public defstruct NodeRef :
+  link:Link
+  node:Int
 
 ;;; LINE
 
@@ -1763,7 +1817,15 @@ public defn ImplicitLine (p:V2f, q:V2f) :
   ImplicitLine(y(q) - y(p), x(p) - x(q), x(q) * y(p) - y(q) * x(p))
 
 public defn inside? (l:ImplicitLine, p:V2f) -> True|False :
-  (a(l) * x(p) + b(l) * y(p) + c(l)) < 0.0f
+  (a(l) * x(p) + b(l) * y(p) + c(l)) <= 0.0f
+
+public defstruct Triangle2i :
+  a:V2i
+  b:V2i
+  c:V2i
+
+public defmethod print (o:OutputStream, t:Triangle2i) :
+  print(o, "Triangle2i(%_ %_ %_)" % [a(t) b(t) c(t)])
 
 val @doc-triangle = "TRIANGLE -- using intersecting half spaces"
 

@@ -38,6 +38,11 @@ defmethod render (p:V3f) -> False :
   gl-vertex3(p)
   gl-end()
 
+defmethod render (p:V2f) -> False :
+  gl-begin(GL-POINTS)
+  gl-vertex2(p)
+  gl-end()
+
 defmethod render (box:Box3f) -> False :
   gl-begin(GL-LINE-LOOP)
   gl-vertex3(lo(box))
