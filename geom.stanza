@@ -1733,7 +1733,11 @@ public defn Pose () : Pose(V3f(0.0f, 0.0f))
 public defn to-mat44f (p:Pose) -> Mat44f :
   (quat-to-mat44f $ quat-from-euler $ degrees-to-radians $ rot(p)) * mov-mat44f(mov(p))
 
+val @doc-mechanism = "MECHANISM -- representing linkage consisting of links, nodes, and joints including top level nodes and root link for modular construction"
+
 public defstruct Mechanism :
+  root:Link
+  nodes:Tuple<NodeRef>
   links:Tuple<Link>
   joints:Tuple<Joint>
   children:Tuple<Mechanism>
@@ -1756,9 +1760,11 @@ public defn all-links (m:Mechanism) :
   cat(links(m), cat-all(seq(all-links, children(m))))
 
 public defn elaborate (m:Mechanism) :
-  set-pose(links(m)[0], id-mat44f())
+  set-pose(root(m), id-mat44f())
   assign-poses(m)
   group $ seq(fn (l) : xyz(pose(l), geom(l)), all-links(m))  
+
+val @doc-link = "LINK -- single mechanism block with geometry, nodes, and settable pose"
 
 public defstruct Link :
   geom:Poseable
@@ -1769,8 +1775,12 @@ public defstruct Link :
 public defn Link (geom:Poseable, nodes:Tuple<Node>) :
   Link(geom, nodes, id-mat44f(), false)
 
+val @doc-node = "NODE -- link relative pose for placing a joint connecting two links"
+
 public defstruct Node :
   pose:Pose
+
+val @doc-joint = "JOINT -- z axis revolute constraint between two links at respective nodes with settable angular state"
 
 public defstruct Joint :
   connection:[NodeRef, NodeRef]
@@ -1779,6 +1789,8 @@ public defstruct Joint :
 
 public defn Joint (connection:[NodeRef, NodeRef], state:Float) :
   Joint(connection, state, false)
+
+val @doc-noderef = "NODEREF -- link node reference for specifying joint"
 
 public defstruct NodeRef :
   link:Link
