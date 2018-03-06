@@ -2077,6 +2077,10 @@ public defn to-polyline2f (g:PolyLine3f) -> PolyLine2f :
   val stks = for s in strokes(g) seq : to-tuple(seq(xy, s))
   PolyLine2f(to-tuple(stks))
 
+public defn to-polyline2f (g:Polygon) -> PolyLine2f :
+  val stks = for c in contours(g) seq : to-tuple(cat(vertices(c), [vertices(c)[0]]))
+  PolyLine2f(to-tuple(stks))
+
 public defn to-polygon (g:PolyLine2f) -> Polygon :
   val cts = for s in strokes(g) seq : Contour(to-tuple(s[0 to length(s) - 1]))
   Polygon(to-tuple(cts))
