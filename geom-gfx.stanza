@@ -168,11 +168,11 @@ public lostanza defn gl-mult-matrix (m:ref<Mat44f>) -> ref<False> :
 public defn render-begin (t:Transformation) :
   gl-matrix-mode(GL-PROJECTION)
   gl-push-matrix()
+  gl-scalef(mag(t), mag(t), mag(t))
   gl-translate2(mov(t))
   gl-matrix-mode(GL-MODELVIEW)
   gl-push-matrix()
   gl-mult-matrix(rot(ball(t)))
-  gl-scalef(mag(t), mag(t), mag(t))
 
 public defn render-end (t:Transformation) :
   gl-pop-matrix()
