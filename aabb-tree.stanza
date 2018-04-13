@@ -3,7 +3,8 @@ defpackage aabb-tree :
   import math
   import collections
   import utils
-  import geom
+  import geom with :
+    prefix(Node) => geom-
 
 public deftype AABB <: Equalable
 public defmulti box (a:AABB) -> Box2f

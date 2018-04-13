@@ -1890,7 +1890,8 @@ public defn bounds (c:Contour) -> Box3f :
   reduce(union, neg-inf-box3f(), seq(Box3f{xyz(_)}, vertices(c)))
 
 defmethod print (o:OutputStream, c:Contour) :
-  print("Contour(%,)" % [vertices(c)])
+  val pv = to-tuple(vertices(c)[0 to 100]) when length(vertices(c)) > 100 else vertices(c)
+  print("Contour(%,)" % [pv])
 
 public var *line-width* = 0.001
 public defn set-line-width (x:Float) : *line-width* = x
