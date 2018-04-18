@@ -470,6 +470,9 @@ public defn to-v2i (v:V2f) -> V2i :
 public defn to-v2f (v:V2i) -> V2f :
   V2f(to-float(x(v)), to-float(y(v)))
 
+public defn V2f (x:Double, y:Double) -> V2f :
+  V2f(to-float(x), to-float(y))
+
 ;;; V4f
 
 ;; public defstruct V4f <: Array<Float> :
@@ -603,6 +606,12 @@ public defn indices (bounds:Box3i) -> Seq<V3i> :
       for j in y(lo(bounds)) through y(hi(bounds)) do :
         for i in x(lo(bounds)) through x(hi(bounds)) do :
           yield(V3i(i, j, k))
+
+public defn indices (bounds:Box2i) -> Seq<V2i> :
+  generate<V2i> :
+    for j in y(lo(bounds)) through y(hi(bounds)) do :
+      for i in x(lo(bounds)) through x(hi(bounds)) do :
+        yield(V2i(i, j))
 
 #for (BoxElt in [Int Float Double]
       Box in [Box1i Box1f Box1d]
@@ -1890,7 +1899,7 @@ public defn bounds (c:Contour) -> Box3f :
   reduce(union, neg-inf-box3f(), seq(Box3f{xyz(_)}, vertices(c)))
 
 defmethod print (o:OutputStream, c:Contour) :
-  print("Contour(%,)" % [vertices(c)])
+  print("Contour([%,])" % [vertices(c)])
 
 public var *line-width* = 0.001
 public defn set-line-width (x:Float) : *line-width* = x
@@ -1995,7 +2004,7 @@ public defn cat (p1:Polygon, p2:Polygon) -> Polygon :
   Polygon(cat(contours(p1), contours(p2)))
 
 defmethod print (o:OutputStream, c:Polygon) :
-  print("Polygon(%,)" % [contours(c)])
+  print("Polygon([%,])" % [contours(c)])
 
 defn do-print-svg-header (s:OutputStream, bounds:Box2f, f:OutputStream -> False) :
   println-all(s, ["<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"])
@@ -2138,4 +2147,30 @@ defmethod print (o:OutputStream, m:Mesh) :
 ;; ;;   call-c(triangulator_end_polygon, tess-ptr)
 ;; ;; 
 ;; ;;   Mesh(vertices, faces)
+
+val @doc-shape = "SHAPE -- a solid object"
+
+public deftype Shape <: AnyShape
+
+public defn shapes (any-shapes:Seqable<AnyShape>) -> Seqable<Shape> :
+  generate<Shape> : for e in any-shapes do : yield(e as Shape) when e is Shape
+
+public defn shapes (p:Poseable) : shapes(any-shapes(p))
+
+public var *resolution* = 8.0f
+public defn set-resolution (r:Float) : *resolution* = r
+
+;; public defmulti slice (z:Float, s:Shape3) -> Shape2
+;; public defmulti pixels (z:Float, s:Shape3) -> Pixels
+;; public defmulti box (b:Box3f) -> Shape3
+;; public defmulti cube (v:V3f) -> Shape3
+;; 
+;; public defmulti rect (b:Box2f) -> Shape2
+;; public defmulti circle (d:Float) -> Shape2
+;; public defmulti triangle (a:V2f, b:V2f, c:V2f) -> Shape2
+;; public defmulti extrude (h:Float, shape:Shape2) -> Shape3
+;; 
+;; public defmulti bit-and (a:Shape3, b:Shape3) -> Shape3
+;; public defmulti rem (a:Shape3, b:Shape3) -> Shape3
+;; public defmulti offset (s:Shape3, o:Float) -> Shape3
 
