@@ -225,6 +225,32 @@ extern "C" void grid_convolve (int dw, int dh, int dd, uint8_t* dst, int sw, int
   }
 }
 
+extern "C" void grid_dilate (int dw, int dh, int dd, uint8_t* dst, uint8_t* src) {
+  // printf("GRID-DILATE [%d %d %d]\n", dw, dh, dd);
+  for (int dk = 0; dk < dd; dk++) {
+    for (int dj = 0; dj < dh; dj++) { 
+      for (int di = 0; di < dw; di++) {
+        uint8_t pix = 0;
+        for (int mk = -1; mk <= 1; mk++) {
+          int edk = dk + mk;
+          for (int mj = -1; mj <= 1; mj++) {
+            int edj = dj + mj;
+            for (int mi = -1; mi <= 1; mi++) {
+              int edi = di + mi;
+              if (edk >= 0 && edk < dd && edj >= 0 && edj < dh && edi >= 0 && edi < dw) {
+                if (get(src, dw, dh, dd, edi, edj, edk)) { pix = 1; goto done; }
+              }
+            }
+          }
+        }
+      done:
+        // printf(">>> SET [%d,%d] = %d\n", di, dj, pix);
+        set(pix, dst, dw, dh, dd, di, dj, dk);
+      }
+    }
+  }
+}
+
 /*
 extern "C" void grid_convolve (int dw, int dh, int dd, uint8_t* dst, int sw, int sh, int sd, uint8_t* src, int mw, int mh, int md, uint8_t* msk) {
   printf("GRID-CONVOLVE [%d %d %d] MASK [%d %d %d]\n", dw, dh, dd, mw, mh, md);
