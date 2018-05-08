@@ -2179,3 +2179,4 @@ public defn set-resolution (r:Float) : *resolution* = r
 ;; public defmulti rem (a:Shape3, b:Shape3) -> Shape3
 ;; public defmulti offset (s:Shape3, o:Float) -> Shape3
 
+public defmulti shape-eval (e) -> Geom
