@@ -53,6 +53,7 @@ extern grid_union: (int, int, int, ptr<byte>, ptr<byte>, ptr<byte>) -> int
 ;; extern grid_intersect_off: (int, int, int, int, int, int, ptr<byte>, ptr<byte>, int, int, int, ptr<byte>) -> int
 extern grid_intersect: (int, int, int, ptr<byte>, ptr<byte>, ptr<byte>) -> int
 extern grid_convolve: (int, int, int, ptr<byte>, int, int, int, ptr<byte>, int, int, int, ptr<byte>) -> int
+extern grid_dilate: (int, int, int, ptr<byte>, ptr<byte>) -> int
 extern grid_find_ones: (int, int, int, ptr<byte>, ptr<?>) -> int
 extern grid_hash: (int, int, int, ptr<byte>) -> int
 
@@ -125,6 +126,12 @@ lostanza defn do-convolve (dst:ref<Grid>, src:ref<Grid>, a-default:ref<Byte>, ma
                        addr!(data(src).data),
                        n-cols(mask).value, n-rows(mask).value, n-lays(mask).value,
                        addr!(data(mask).data))
+  return false
+
+public lostanza defn dilate (dst:ref<Grid>, src:ref<Grid>) -> ref<False> :
+  call-c grid_dilate(n-cols(dst).value, n-rows(dst).value, n-lays(dst).value,
+                     addr!(data(dst).data),
+                     addr!(data(src).data))
   return false
 
 public lostanza defn find-ones (g:ref<Grid>, todos:ref<Todos>) -> ref<False> :
@@ -444,7 +451,7 @@ public defn scan (g:Grid, t:Triangle) :
   val box = bounds(t)
   val boxi = Box3i(idx-of(g, xyz(lo(box))), idx-of(g, xyz(hi(box))))
   ;; println("TRIANGLE %_ BOX %_ BOXI %_ STOCK-BOX %_" % [ t box boxi bounds(g) ])
-  val fac = 0.5f * dim(g)
+  ;; val fac = 0.5f * dim(g)
   for j in y(lo(boxi)) to y(hi(boxi)) do :
     for i in x(lo(boxi)) to x(hi(boxi)) do :
       val pi = V2i(i, j)
