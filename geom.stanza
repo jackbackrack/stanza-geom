@@ -1151,7 +1151,10 @@ public defn drag (a:ArcBall, new-pt:V2f) :
 public defn complete-drag (a:ArcBall) :
  set-base-quat(a, quat(a))
 
-public val MOV-AMOUNT = 2000.0f
+var MOV-AMOUNT:Float = 2000.0f
+public defn mov-amount () : MOV-AMOUNT
+public defn set-mov-amount (a:Float) : MOV-AMOUNT = a
+
 public val MAG-SCALE  = 0.008f
 public val MOV-SCALE  = 0.0001f
 
