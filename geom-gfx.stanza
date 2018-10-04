@@ -115,7 +115,7 @@ defmethod render (a:Assembly) -> False :
 
 defmethod render (mesh:Mesh) -> False :
   val verts = vertices(mesh)
-  gl-push-attrib(GL-CURRENT-BIT)
+  gl-push-attrib(GL-LINE-BIT | GL-CURRENT-BIT)
   gl-color(color(mesh))
   for t in faces(mesh) do :
     gl-begin(GL-TRIANGLES)
@@ -123,7 +123,7 @@ defmethod render (mesh:Mesh) -> False :
     gl-vertex3(verts[y(t)])
     gl-vertex3(verts[z(t)])
     gl-end()
-  gl-line-width(0.5f)
+  gl-line-width(1.0f)
   gl-color4f(0.5f, 0.2f, 0.2f, 0.4f)
   for t in faces(mesh) do :
     gl-begin(GL-LINE-LOOP)
