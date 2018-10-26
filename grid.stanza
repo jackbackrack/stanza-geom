@@ -209,10 +209,13 @@ public defn get-value (g:Grid, i:Int, j:Int, k:Int) -> Byte :
 public defn get-value (g:Grid, pos:V3i) -> Byte :
   get-value(g, x(pos), y(pos), z(pos))
 
+public defn legal? (g:Grid, i:Int, j:Int, k:Int) -> True|False :
+  i >= 0 and i < x(idims(g)) and
+  j >= 0 and j < y(idims(g)) and
+  k >= 0 and k < z(idims(g))
+
 public defn legal? (g:Grid, pos:V3i) -> True|False :
-  x(pos) >= 0 and x(pos) < x(idims(g)) and
-  y(pos) >= 0 and y(pos) < y(idims(g)) and
-  z(pos) >= 0 and z(pos) < z(idims(g))
+  legal?(g, x(pos), y(pos), z(pos))
 
 public defn legal? (g:Grid, new-bbox:Box3i) -> True|False :
   legal?(g, lo(new-bbox)) and legal?(g, hi(new-bbox))
@@ -221,7 +224,8 @@ public defn get-value (g:Grid, pos:V3i, default:Byte) -> Byte :
   get-value(g, x(pos), y(pos), z(pos)) when legal?(g, pos) else default
     
 public defn set-value (g:Grid, i:Int, j:Int, k:Int, v:Byte) :
-  data(g)[index(g, i, j, k)] = v
+  if legal?(g, i, j, k) :
+    data(g)[index(g, i, j, k)] = v
 
 public defn set-value (g:Grid, pos:V3i, v:Byte) :
   if legal?(g, pos) :
