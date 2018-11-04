@@ -53,6 +53,7 @@ extern grid_union: (int, int, int, ptr<byte>, ptr<byte>, ptr<byte>) -> int
 ;; extern grid_intersect_off: (int, int, int, int, int, int, ptr<byte>, ptr<byte>, int, int, int, ptr<byte>) -> int
 extern grid_intersect: (int, int, int, ptr<byte>, ptr<byte>, ptr<byte>) -> int
 extern grid_convolve: (int, int, int, ptr<byte>, int, int, int, ptr<byte>, int, int, int, ptr<byte>) -> int
+extern grid_convolve_around: (int, int, int, ptr<byte>, int, int, int, ptr<byte>, int, int, int, ptr<byte>) -> int
 extern grid_dilate: (int, int, int, ptr<byte>, ptr<byte>) -> int
 extern grid_find_ones: (int, int, int, ptr<byte>, ptr<?>) -> int
 extern grid_hash: (int, int, int, ptr<byte>) -> int
@@ -118,6 +119,16 @@ public lostanza defn intersect (dst:ref<Grid>, s0:ref<Grid>, s1:ref<Grid>) -> re
 ;;                             addr!(data(dst).data), addr!(data(s0).data),
 ;;                             n-cols(s1).value, n-rows(s1).value, n-lays(s1).value, addr!(data(s1).data))
 ;;   return false
+
+lostanza defn do-convolve-around (dst:ref<Grid>, src:ref<Grid>, a-default:ref<Byte>, mask:ref<Grid>) -> ref<False> :
+  call-c grid_convolve_around(
+     n-cols(dst).value, n-rows(dst).value, n-lays(dst).value,
+     addr!(data(dst).data),
+     n-cols(src).value, n-rows(src).value, n-lays(src).value,
+     addr!(data(src).data),
+     n-cols(mask).value, n-rows(mask).value, n-lays(mask).value,
+     addr!(data(mask).data))
+  return false
 
 lostanza defn do-convolve (dst:ref<Grid>, src:ref<Grid>, a-default:ref<Byte>, mask:ref<Grid>) -> ref<False> :
   call-c grid_convolve(n-cols(dst).value, n-rows(dst).value, n-lays(dst).value,
@@ -396,6 +407,18 @@ public defn convolve (d:Grid, a:Grid, a-default:Byte, b:Grid) :
   if trace?: println-all(["B"])
   if trace?: dump(b)
   do-convolve(d, a, a-default, b)
+  ;; for pos in indices(xy(idims(d) - idims(b)) + V3i(0, 0, 1)) do :
+  ;;   set-value(d, pos, to-byte(1 when any-intersection?(a, a-default, b, pos - xy(idims(b))) else 0))
+  if trace?: println-all(["D"])
+  if trace?: dump(d)
+
+public defn convolve-around (d:Grid, a:Grid, a-default:Byte, b:Grid) :
+  if trace?: println-all(["CONVOLVE DIMS-D " idims(d) " DIMS-B " idims(b) " DIMS " idims(d) - idims(b)])
+  if trace?: println-all(["A"])
+  if trace?: dump(a)
+  if trace?: println-all(["B"])
+  if trace?: dump(b)
+  do-convolve-around(d, a, a-default, b)
   ;; for pos in indices(xy(idims(d) - idims(b)) + V3i(0, 0, 1)) do :
   ;;   set-value(d, pos, to-byte(1 when any-intersection?(a, a-default, b, pos - xy(idims(b))) else 0))
   if trace?: println-all(["D"])

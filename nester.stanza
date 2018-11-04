@@ -90,12 +90,12 @@ defn revolve (a:Part, b:Part) -> Part :
     val res = Part(-1, 0, idims(a) + V3i(2 * x(idims(b)), 2 * y(idims(b)), 0) - V3i(2, 2, 0), dim(a))
     if trace?: println-all(["REVOLVE " idims(res)])
     if trace?: println-all(["INSIDE"])
-    convolve(inside+1(res), inside+1(a), to-byte $ 0, inside(b))
+    convolve-around(inside+1(res), inside+1(a), to-byte $ 0, inside(b))
     if trace?: println-all(["OUTSIDE"])
     invert(outside(res), inside+1(res))
     if trace?: dump(outside(res))
     if trace?: println-all(["BOUNDARY"])
-    convolve(boundary(res), boundary(a), to-byte $ 0, boundary(b))
+    convolve-around(boundary(res), boundary(a), to-byte $ 0, boundary(b))
     if trace?: dump(boundary(res))
     revolves(b)[id(a)] = res
     res
