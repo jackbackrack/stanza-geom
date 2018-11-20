@@ -52,6 +52,7 @@ public defstruct Page :
   parts : Vector<KeyValue<Pose3i, Part>>
 
 public defn Page (sdims:V3i, sdim:Float) :
+  ;; println("CREATING PAGE SDIMS %_ SDIM %_" % [sdims sdim])
   Page(Part(-2, 0, sdims, sdim), Grid(sdims + V3i(2, 2, 0), sdim), Vector<KeyValue<Pose3i, Part>>())
 
 public defstruct PagePose3i :
@@ -68,6 +69,7 @@ public defstruct Arrangement :
 public defn Arrangement (sdims:V3i, sdim:Float) :
   val pages = Vector<Page>()
   add(pages, Page(sdims, sdim))
+  if trace?: println("ARRANGEMENT SDIMS %_ SDIM %_" % [sdims sdim])
   Arrangement(sdims, sdim, HashTable<Grid, Part>(), Vector<PagePose3i>(), pages)
 
 public defn uniquify (part:Part, assembly:Arrangement) :
@@ -106,11 +108,11 @@ defn find-best (legal:Grid, bbox:Box3i, b:Part) -> [Int, V3i] :
   var best-area = infi
   var best-pos = V3i(-1, -1, -1)
   val trues = Todos()
-  ;; println-all(["BBOX " bbox])
+  if trace?: println-all(["FIND-BEST BBOX " bbox " LEGAL IDIMS " idims(legal)])
   for pos in true-indices(legal, trues) do :
     val new-bbox = union(bbox, ibbox(b) + pos)
     val area = area(dims(new-bbox))
-    ;; println-all(["POS " pos " NEW-BBOX " new-bbox " AREA " area " LEGAL? " legal?(legal, xy(new-bbox))])
+    if trace?: println-all(["POS " pos " NEW-BBOX " new-bbox " AREA " area " LEGAL? " legal?(legal, xyz(xy(new-bbox)))])
     if legal?(legal, xyz(xy(new-bbox))) and area < best-area :
       best-area = area
       best-pos = pos
@@ -161,13 +163,20 @@ defn clear (part:Part) :
 
 public defn add (assembly:Arrangement, new-super-part:SuperPart) -> True|False :
   label<True|False> return :
+    defn add-last-pose (n:Int, page:Page) :
+      val parts = parts(page)
+      add(poses(assembly), PagePose3i(n, key(parts[length(parts) - 1])))
     for (page in pages(assembly), n in 0 to false) do :
       if add(assembly, page, new-super-part) :
-        val parts = parts(page)
-        add(poses(assembly), PagePose3i(n, key(parts[length(parts) - 1])))
+        add-last-pose(n, page)
         return(true)
-    add(pages(assembly), Page(stock-dims(assembly), stock-dim(assembly)))
-    add(assembly, pages(assembly)[length(pages(assembly)) - 1], new-super-part)
+    val new-page = Page(stock-dims(assembly), stock-dim(assembly))
+    add(pages(assembly), new-page)
+    add(assembly, new-page, new-super-part)
+    add-last-pose(length(pages(assembly)) - 1, new-page)
+    false
+    ;; val parts = parts(new-page)
+    ;; add(poses(assembly), PagePose3i(length(pages(assembly)) - 1, key(parts[length(parts) - 1])))
 
 public defn add (assembly:Arrangement, page:Page, new-super-part:SuperPart) -> True|False :
   clear(stock(page))
@@ -182,7 +191,10 @@ public defn add (assembly:Arrangement, page:Page, new-super-part:SuperPart) -> T
   for new-part in rots(new-super-part) do :
     fill(legal, to-byte $ 0)
     if length(parts(page)) == 0 :
+      if trace?: println-all(["ADDING BECAUSE ZERO"])
       set-value(legal, V3i(0, 0), to-byte $ 1)
+      if trace?: println-all(["LEGAL"])
+      if trace?: dump(legal)
     else :
       for pose-part in parts(page) do :
         val part = value(pose-part)
