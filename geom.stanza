@@ -1885,8 +1885,14 @@ val @doc-linesegment = "LINESEGMENT -- line between two points"
     start: Vec
     end:   Vec
 
+  public defn center (l:LineSegment) -> Vec :
+    0.5f * (start(l) + end(l))
+
+  public defn vector (l:LineSegment) -> Vec :
+    end(l) - start(l)
+
   public defn magnitude (l:LineSegment) -> Prim :
-    magnitude(start(l) - end(l))
+    magnitude(vector(l))
 
   defmethod print (o:OutputStream, l:LineSegment) :
     print("%_(%_ %_)" % [LineSegmentName start(l) end(l)])
