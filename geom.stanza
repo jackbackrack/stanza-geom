@@ -1474,6 +1474,7 @@ public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<B
   defn area* (dims:V3f) -> Float : dims[max-idx(dims)] * dims[mid-idx(dims)]
   val [shapes, boundz] = [to-tuple(ishapes), to-tuple(iboundz)]
   val tot = reduce(f+, for bounds in boundz seq : dims(bounds)[idx])
+  ;; println("TOT %_" % [tot])
   var tot-fac:Float = 0.0f
   val res =
     to-tuple $ generate<T&Poseable> :
@@ -1505,6 +1506,28 @@ public defn stack-y<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
 public defn stack-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   stack-idx(shapes, 2,  -1.0f)
 
+public defn stack-meld-idx<?T> (t:Float, ishapes:Seqable<?T&Poseable>, idx:Int, dir:Float) -> Seq<T> :
+  val shapes = to-tuple $ ishapes
+  defn offset (b:Box3f) :
+    val a = -0.5f * t * V3f-unit(idx)
+    val res = fatten(b, a)
+    ;; println("B %_ T %_ A %_ -> %_" % [b, t, a, res])
+    res 
+  stack-idx-using(shapes, seq({ offset(bounds(_)) }, shapes), idx, dir)
+
+public defn stack-meld-x<?T> (t:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-meld-idx(t, shapes, 0,  -1.0f)
+
+public defn stack-meld-y<?T> (t:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-meld-idx(t, shapes, 1,  -1.0f)
+
+public defn stack-meld-z<?T> (t:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-meld-idx(t, shapes, 2,  -1.0f)
+
+public defn stack-meld-x (t:Float) : stack-meld-x{t, _}
+public defn stack-meld-y (t:Float) : stack-meld-y{t, _}
+public defn stack-meld-z (t:Float) : stack-meld-z{t, _}
+
 public deftype AnyGlue <: Poseable
 public defmulti amount (g:AnyGlue) -> Float
 
@@ -1526,18 +1549,24 @@ public defn AssemblyGlue (glue:ShapeGlue) :
 
 public defmulti glue-of<?T> (s:?T&Poseable, a:Float) -> T
 
-public defn glue-when<?T> (first?:True|False, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+public defn glue-when<?T> (first?:True|False, last?:True|False, shapes:Seqable<?T&Poseable>) -> Seq<T> :
   generate<T> :
+    var last-shape:T&Poseable
     for (shape in shapes, i in 0 to false) do :
       if first? or i > 0:
         yield(glue-of(shape, 1.0f))
       yield(shape)
+      last-shape = shape
+    yield(glue-of(last-shape, 1.0f)) when last? 
 
 public defn glue-even<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  glue-when(true, shapes)
+  glue-when(true, false, shapes)
 
 public defn glue-odd<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  glue-when(false, shapes)
+  glue-when(false, false, shapes)
+
+public defn glue-all<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  glue-when(true, true, shapes)
 
 public defn glue<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   glue-odd(shapes)
@@ -1584,7 +1613,8 @@ public defn space-idx<?T> (iseps:Seqable<Float>, idx:Int, ishapes:Seqable<?T&Pos
     let loop (off = start, i = 0) :
       yield(off)
       if i < length(seps) : loop(off + seps[i], i + 1)
-  ;; println("SHAPES %_ SEPS %_ TOT %_ START %_ OFFS %_" % [shapes, seps, tot, start, offs])
+  ;; println("SHAPES %_ SEPS %_ TOT %_ START %_ OFFS %_ DIMZ %_" %
+  ;;         [shapes, seps, tot, start, offs, to-tuple $ seq({ dims(bounds(_)) }, shapes)])
   for (shape in shapes, off in offs) seq :
     mov(off * V3f-unit(idx), shape)
 

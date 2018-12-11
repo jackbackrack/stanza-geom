@@ -77,7 +77,8 @@ public defn uniquify (part:Part, assembly:Arrangement) :
   set?(unique-parts(assembly), image(part), { part })
 
 public defn uniquify (part:SuperPart, assembly:Arrangement) :
-  SuperPart(id(part), to-tuple $ seq(uniquify{_, assembly}, rots(part)))
+  ;; SuperPart(id(part), to-tuple $ seq(uniquify{_, assembly}, rots(part)))
+  SuperPart(id(part), rots(part))
 
 defn bbox (page:Page) -> Box3i :
   var res = neg-inf-box3i()
