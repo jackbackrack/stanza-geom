@@ -1549,24 +1549,29 @@ public defn AssemblyGlue (glue:ShapeGlue) :
 
 public defmulti glue-of<?T> (s:?T&Poseable, a:Float) -> T
 
-public defn glue-when<?T> (first?:True|False, last?:True|False, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+public defn glue-when<?T> (first?:True|False, last?:True|False, ends:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
   generate<T> :
     var last-shape:T&Poseable
     for (shape in shapes, i in 0 to false) do :
-      if first? or i > 0:
+      if i > 0 :
         yield(glue-of(shape, 1.0f))
+      else if first? :
+        yield(glue-of(shape, ends))
       yield(shape)
       last-shape = shape
-    yield(glue-of(last-shape, 1.0f)) when last? 
+    yield(glue-of(last-shape, ends)) when last? 
 
 public defn glue-even<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  glue-when(true, false, shapes)
+  glue-when(true, false, 1.0f, shapes)
 
 public defn glue-odd<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  glue-when(false, false, shapes)
+  glue-when(false, false, 1.0f, shapes)
 
 public defn glue-all<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
-  glue-when(true, true, shapes)
+  glue-when(true, true, 1.0f, shapes)
+
+public defn glue-evenly<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  glue-when(true, true, 0.5f, shapes)
 
 public defn glue<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   glue-odd(shapes)
