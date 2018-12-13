@@ -240,7 +240,7 @@ extern "C" void grid_convolve (int dw, int dh, int dd, uint8_t* dst, int sw, int
               for (int edmi = max(0, edi); edmi < (mw + edi); edmi++) {
                 uint8_t a = get(src, sw, sh, sd, edmi, edmj, edmk); 
                 uint8_t b = get(msk, mw, mh, md, edmi - edi, edmj - edj, mk);
-                printf("S[%d,%d] A %d M[%d,%d] B %d\n", edmi, edmj, a, edmi - edj, edmj - edj, b);
+                // printf("S[%d,%d] A %d M[%d,%d] B %d\n", edmi, edmj, a, edmi - edj, edmj - edj, b);
                 if ((a & b) != 0) { pix = 1; goto done; }
               }
             }
