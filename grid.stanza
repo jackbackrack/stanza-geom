@@ -469,10 +469,11 @@ public defn to-pixels (grid:Grid) -> Pixels :
 public defn bounds (g:Grid) :
   Box2f(pt-of(g, V3i(0, 0, 0)), pt-of(g, idims(g) - V3i(1, 1, 0)))
 
-public defn idx-of (g:Grid, p:V3f) :
-  ;; FIX FOR 3D
-  val ext = xy(-0.5f * dim(g) * to-v3f(idims(g)))
-  to-v3i(xyz(round((xy(p) - ext) / dim(g))))
+public defn idx-of (dim:Float, idims:V3i, p:V3f) :
+  val ext = xy(-0.5f * dim * to-v3f(idims))
+  to-v3i(xyz(round((xy(p) - ext) / dim)))
+
+public defn idx-of (g:Grid, p:V3f) : idx-of(dim(g), idims(g), p)
 
 public defn scan (g:Grid, t:Triangle) :
   val box = bounds(t)

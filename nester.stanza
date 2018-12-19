@@ -17,13 +17,14 @@ public defstruct Part <: Equalable :
   rot : Int
   image : Grid
   inside : Grid
+  inside+0 : Grid
   inside+1 : Grid
   outside : Grid
   boundary : Grid
   revolves : HashTable<Int, Part>
 
-public defn Part (image:Grid, inside:Grid, inside+1:Grid, outside:Grid, boundary:Grid) :
-  Part(next(gensyms), 0, image, inside, inside+1, outside, boundary, HashTable<Int, Part>())
+public defn Part (image:Grid, inside:Grid, inside+0:Grid, inside+1:Grid, outside:Grid, boundary:Grid) :
+  Part(next(gensyms), 0, image, inside, inside+0, inside+1, outside, boundary, HashTable<Int, Part>())
 
 defmethod equal? (a:Part, b:Part) -> True|False :
   image(a) == image(b)
@@ -121,20 +122,32 @@ defn find-best (legal:Grid, bbox:Box3i, b:Part) -> [Int, V3i] :
   [best-area, best-pos]
 
 defn Part (id:Int, rot:Int, idims:V3i, dim:Float) :
-  val bdims = idims + V3i(2, 2, 0)
+  ;; val bdims = idims + V3i(2, 2, 0)
+  val bdims = idims + V3i(4, 4, 0)
   val image = Grid(idims, dim)
   val inside = Grid(bdims, dim)
   val outside = Grid(bdims, dim)
   val boundary = Grid(bdims, dim)
+  val inside+0 = Grid(bdims, dim)
   val inside+1 = Grid(bdims, dim)
-  Part(id, rot, image, inside, inside+1, outside, boundary, HashTable<Int, Part>())
+  Part(id, rot, image, inside, inside+0, inside+1, outside, boundary, HashTable<Int, Part>())
+
+var dilate?:True|False = false
 
 defn Part (id:Int, rot:Int, img:Grid) :
   val res = Part(id, rot, idims(img), dim(img))
   fill(boundary(res), to-byte $ 0)
   if trace?: println-all(["PART " id "/" rot])
   copy(image(res), img)
-  copy(inside(res), img, V3i(1, 1, 0))
+
+  if dilate? :
+    copy(inside+0(res), image(res), V3i(2, 2, 0))
+    if trace?: println-all(["INSIDE+0"])
+    if trace?: dump(inside+0(res))
+    dilate(inside(res), inside+0(res), V3i(0, 0, 0))
+  else :
+    copy(inside(res), img, V3i(1, 1, 0))
+
   if trace?: println-all(["INSIDE"])
   if trace?: dump(inside(res))
   ;; println-all(["COPY"])
@@ -162,24 +175,26 @@ defn clear (part:Part) :
   fill(outside(part), to-byte $ 0)
   fill(boundary(part), to-byte $ 0)
 
-public defn add (assembly:Arrangement, new-super-part:SuperPart) -> True|False :
+public defn add (assembly:Arrangement, new-super-part:SuperPart) : add(assembly, new-super-part, V3i(0, 0))
+
+public defn add (assembly:Arrangement, new-super-part:SuperPart, init-pos:V3i) -> True|False :
   label<True|False> return :
     defn add-last-pose (n:Int, page:Page) :
       val parts = parts(page)
       add(poses(assembly), PagePose3i(n, key(parts[length(parts) - 1])))
     for (page in pages(assembly), n in 0 to false) do :
-      if add(assembly, page, new-super-part) :
+      if add(assembly, page, new-super-part, init-pos) :
         add-last-pose(n, page)
         return(true)
     val new-page = Page(stock-dims(assembly), stock-dim(assembly))
     add(pages(assembly), new-page)
-    add(assembly, new-page, new-super-part)
+    add(assembly, new-page, new-super-part, init-pos)
     add-last-pose(length(pages(assembly)) - 1, new-page)
     false
     ;; val parts = parts(new-page)
     ;; add(poses(assembly), PagePose3i(length(pages(assembly)) - 1, key(parts[length(parts) - 1])))
 
-public defn add (assembly:Arrangement, page:Page, new-super-part:SuperPart) -> True|False :
+public defn add (assembly:Arrangement, page:Page, new-super-part:SuperPart, init-pos:V3i) -> True|False :
   clear(stock(page))
   ;; val [best-pos, best-part] = 
   ;; if length(parts(assembly)) == 0 :
@@ -192,8 +207,9 @@ public defn add (assembly:Arrangement, page:Page, new-super-part:SuperPart) -> T
   for new-part in rots(new-super-part) do :
     fill(legal, to-byte $ 0)
     if length(parts(page)) == 0 :
+      ;; println("ZERO %_" % [init-pos])
       if trace?: println-all(["ADDING BECAUSE ZERO"])
-      set-value(legal, V3i(0, 0), to-byte $ 1)
+      set-value(legal, init-pos, to-byte $ 1)
       if trace?: println-all(["LEGAL"])
       if trace?: dump(legal)
     else :
@@ -238,7 +254,8 @@ public defn add (assembly:Arrangement, page:Page, new-super-part:SuperPart) -> T
       add(parts(page), Pose3i(best-pos, rot(best-part)) => best-part)
       true
     else :
-      if trace?: println-all(["FAILED TO ADD " id(new-super-part)])
+      ;; if trace?:
+      println-all(["FAILED TO ADD " id(new-super-part)])
       false
   fill(result(page), to-byte $ 0)
   for pose-part in parts(page) do :
