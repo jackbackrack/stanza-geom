@@ -123,7 +123,7 @@ defmethod render (mesh:Mesh) -> False :
     gl-vertex3(verts[y(t)])
     gl-vertex3(verts[z(t)])
     gl-end()
-  gl-line-width(1.0f)
+  gl-line-width(2.0f)
   gl-color4f(0.5f, 0.2f, 0.2f, 0.4f)
   for t in faces(mesh) do :
     gl-begin(GL-LINE-LOOP)
