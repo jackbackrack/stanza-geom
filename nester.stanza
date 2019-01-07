@@ -43,7 +43,7 @@ defmethod equal? (a:SuperPart, b:SuperPart) -> True|False :
 public defn SuperPart (id:Int, img:Grid) :
   val rots = seq(fn (rot) : Part(next(gensyms), rot, rotate(rot, img)), [0, 90, 180, 270])
   val urots = to-tuple $ unique $ rots
-  println("SUPER-PART %_" % [idims(img)])
+  ;; println("SUPER-PART %_" % [idims(img)])
   ;; println-all(["UNIQUE ROTS " length(urots)])
   SuperPart(id, urots)
 
@@ -78,8 +78,8 @@ public defn uniquify (part:Part, assembly:Arrangement) :
   set?(unique-parts(assembly), image(part), { part })
 
 public defn uniquify (part:SuperPart, assembly:Arrangement) :
-  ;; SuperPart(id(part), to-tuple $ seq(uniquify{_, assembly}, rots(part)))
-  SuperPart(id(part), rots(part))
+  SuperPart(id(part), to-tuple $ seq(uniquify{_, assembly}, rots(part)))
+  ;; SuperPart(id(part), rots(part))
 
 defn bbox (page:Page) -> Box3i :
   var res = neg-inf-box3i()
@@ -132,7 +132,7 @@ defn Part (id:Int, rot:Int, idims:V3i, dim:Float) :
   val inside+1 = Grid(bdims, dim)
   Part(id, rot, image, inside, inside+0, inside+1, outside, boundary, HashTable<Int, Part>())
 
-var dilate?:True|False = false
+var dilate?:True|False = true
 
 defn Part (id:Int, rot:Int, img:Grid) :
   val res = Part(id, rot, idims(img), dim(img))
@@ -250,12 +250,12 @@ public defn add (assembly:Arrangement, page:Page, new-super-part:SuperPart, init
   ;; [best-pos, best-part]
   val res = 
     if best-area < infi :
-      println-all(["ADD " id(best-part) "/" rot(best-part) " AT " best-pos])
+      ;; println-all(["ADD " id(best-part) "/" rot(best-part) " AT " best-pos])
       add(parts(page), Pose3i(best-pos, rot(best-part)) => best-part)
       true
     else :
       ;; if trace?:
-      println-all(["FAILED TO ADD " id(new-super-part)])
+      ;; println-all(["FAILED TO ADD " id(new-super-part)])
       false
   fill(result(page), to-byte $ 0)
   for pose-part in parts(page) do :
