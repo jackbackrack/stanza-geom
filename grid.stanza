@@ -292,7 +292,8 @@ defmethod equal? (a:Grid, b:Grid) -> True|False :
 ;;   pt-of(pt, idims(cells), bbox(cells))  
 
 public defn pt-of (g:Grid, idx:V3i) -> V2f :
-  xy(dim(g) * (to-v3f(idx) + V3f(0.5f, 0.5f, 0.0f) - (0.5f * to-v3f(idims(g)))))
+  ;; xy(dim(g) * (to-v3f(idx) + V3f(0.5f, 0.5f, 0.0f) - (0.5f * to-v3f(idims(g)))))
+  xy(dim(g) * (to-v3f(idx) + 0.5f * to-v3f(xyz(1) - idims(g))))
 
 public defn ctr-pt (g:Grid) -> V2f :
   xy(dim(g) * 0.5f * to-v3f(idims(g)))
