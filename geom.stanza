@@ -1470,14 +1470,21 @@ public defn resize-x (gdim:Float) : resize-x{gdim, _}
 public defn resize-y (gdim:Float) : resize-y{gdim, _}
 public defn resize-z (gdim:Float) : resize-z{gdim, _}
 
+defn area* (dims:V3f) -> Float : dims[max-idx(dims)] * dims[mid-idx(dims)]
+
+public defn remove-spacers (p:Poseable) -> Poseable :
+  match(p) :
+    (a:Assembly) : Assembly(mat(a), name(a), color(a),
+                            seq(remove-spacers, filter({ area*(dims(bounds(_))) > 0.0f }, children(a))))
+    (s) : s
+
 public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<Box3f>, idx:Int, dir:Float) -> Seq<T> :
-  defn area* (dims:V3f) -> Float : dims[max-idx(dims)] * dims[mid-idx(dims)]
   val [shapes, boundz] = [to-tuple(ishapes), to-tuple(iboundz)]
   val tot = reduce(f+, for bounds in boundz seq : dims(bounds)[idx])
   ;; println("TOT %_" % [tot])
   var tot-fac:Float = 0.0f
   val res =
-    to-tuple $ generate<T&Poseable> :
+    generate<T&Poseable> :
       for (child in shapes, bounds in boundz) do :
         val now-fac = dims(bounds)[idx] / tot
         val ctr     = center(bounds)[idx]
@@ -1489,9 +1496,10 @@ public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<B
   ;; for r in res do :
   ;;   println("STACKED %_ BOUNDS %_ DIMS %_ VOLUME %_" % [r bounds(r) dims(bounds(r)) volume(dims(bounds(r)))])
   ;; val bdz = to-tuple $ seq({ volume(dims(bounds(_))) }, res)
-  val rres = to-tuple $ filter({ volume(dims(bounds(_))) > 0.0f }, res)
+  ;; val rres = to-tuple $ filter({ volume(dims(bounds(_))) > 0.0f }, res)
   ;; println("STACKING RRES %_" % [rres])
-  filter({ area*(dims(bounds(_))) > 0.0f }, res)
+  ;; filter({ area*(dims(bounds(_))) > 0.0f }, res)
+  res
 
 public defn stack-idx<?T> (ishapes:Seqable<?T&Poseable>, idx:Int, dir:Float) -> Seq<T> :
   val shapes = to-tuple $ ishapes
@@ -2202,7 +2210,7 @@ val @doc-shape = "SHAPE -- a solid object"
 public deftype Shape <: AnyShape
 
 public defn shapes (any-shapes:Seqable<AnyShape>) -> Seqable<Shape> :
-  generate<Shape> : for e in any-shapes do : yield(e as Shape) when e is Shape
+  generate<Shape> : for e in any-shapes do : yield(e as Shape) when e is Shape and area*(dims(bounds(e))) > 0.0f
 
 public defn shapes (p:Poseable) : shapes(any-shapes(p))
 
