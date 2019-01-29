@@ -14,5 +14,4 @@ defregistry stanza-geom :
       dependency "${GEN}/clipper.o"
       link Darwin ["${GEN}/clipper.o" "-lpolyclipping" "-lc++"]
       link GNU/Linux ["${GEN}/clipper.o" "-lpolyclipping" "-lstdc++"]
-  file "nester.stanza"
   file "aabb-tree.stanza"
