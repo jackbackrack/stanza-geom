@@ -1,3 +1,5 @@
+// See license.txt for details about licensing.
+
 #include <stdint.h>
 #include "clipper.hpp"
 using namespace ClipperLib;

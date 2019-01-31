@@ -1,4 +1,4 @@
-Copyright (c) 2014, Jonathan Bachrach, The Regents of the University
+Copyright (c) 2014-2019, Jonathan Bachrach, The Regents of the University
 of California. All Rights Reserved.
 
 Redistribution and use in source and binary forms, with or without
