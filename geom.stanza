@@ -950,6 +950,13 @@ public defn rot-mat44f (b:V3f, a:V3f) -> Mat44f :
       a % b
   rot-mat44f(vec, ang)
 
+public defn rot-mat44f (start:Tuple<V3f>, end:Tuple<V3f>) -> Mat44f :
+  ;; val world = [x3f(1.0f), y3f(1.0f), z3f(1.0f)]
+  Mat44f(  dot(end[0], start[0]), dot(end[0], start[1]), dot(end[0], start[2]), 0.0f, 
+           dot(end[1], start[0]), dot(end[1], start[1]), dot(end[1], start[2]), 0.0f, 
+           dot(end[2], start[0]), dot(end[2], start[1]), dot(end[2], start[2]), 0.0f, 
+                            0.0f,                  0.0f,                  0.0f, 1.0f)
+
 public defn rot-mat44f (src:V2f, dst:V2f) -> Mat44f :
   val a = atan2(y(dst), x(dst)) - atan2(y(src), x(src))
   val [c, s] = [cos(a), sin(a)]
@@ -958,6 +965,12 @@ public defn rot-mat44f (src:V2f, dst:V2f) -> Mat44f :
           0.0f 0.0f 1.0f 0.0f
           0.0f 0.0f 0.0f 1.0f)
 
+public defn rot-mat44f (m:Mat44f) -> Mat44f :
+  Mat44f(m[ 0], m[ 1], m[ 2], 0.0f,
+         m[ 4], m[ 5], m[ 6], 0.0f,
+         m[ 8], m[ 9], m[10], 0.0f,
+          0.0f,  0.0f,  0.0f, 1.0f)
+          
 public defn times (m:Mat44f, v:V3f) -> V3f :
   val px = x(v) * m[0,0] + y(v) * m[1,0] + z(v) * m[2,0] + m[3,0]
   val py = x(v) * m[0,1] + y(v) * m[1,1] + z(v) * m[2,1] + m[3,1]
@@ -1679,8 +1692,7 @@ public defn align-min-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
 public defn align-max-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   align-it(shapes, { z(hi(_)) }, mov-z)
 
-;; TODO: LIMITED TO AXIS ALIGNED SHAPES
-public defn smash<?T> (s:?T&Poseable) -> T :
+public defn axis-aligned-smash<?T> (s:?T&Poseable) -> T :
   val bb    = bounds(s)
   val dims  = dims(bb)
   val idx   = min-idx(dims)
