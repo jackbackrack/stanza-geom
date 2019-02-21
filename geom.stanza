@@ -49,7 +49,7 @@ public lostanza deftype Vf <: Array<Float> & Geom :
   elts:   float ...
 
 public lostanza defn Vf (n:ref<Int>, x:ref<Float>) -> ref<Vf> :
-  ensure-non-negative-length(n)
+  core/ensure-non-negative-length(n)
   val l = n.value
   val a = new Vf{l}
   val c = x.value
@@ -86,7 +86,7 @@ public lostanza deftype Vi <: Array<Int> & Geom :
   elts:   int ...
 
 public lostanza defn Vi (n:ref<Int>, x:ref<Int>) -> ref<Vi> :
-  ensure-non-negative-length(n)
+  core/ensure-non-negative-length(n)
   val l = n.value
   val a = new Vi{l}
   val c = x.value
@@ -123,7 +123,7 @@ public lostanza deftype Vb <: Array<Byte> & Geom :
   elts:   byte ...
 
 public lostanza defn Vb (n:ref<Int>, x:ref<Byte>) -> ref<Vb> :
-  ensure-non-negative-length(n)
+  core/ensure-non-negative-length(n)
   val l = n.value
   val a = new Vb{l}
   val c = x.value
