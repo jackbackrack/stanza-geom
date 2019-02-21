@@ -1194,19 +1194,19 @@ public defn reset! (t:Transformation) :
 val @doc-poseable = "POSEABLES -- geom with attributes and bounds and moveable"
 
 public deftype Poseable <: Geom
-public defmulti clone<?T> (s:?T&Poseable, name:False|Symbol, color:V4f, points:Tuple<V3f>, tags:Tuple<Symbol>) -> T
+public defmulti clone<?T> (s:?T&Poseable, name:False|Symbol, color:V4f, poses:Tuple<KeyValue<Symbol,Mat44f>>, tags:Tuple<Symbol>) -> T
 public defmulti name (p:Poseable) -> False|Symbol
 public defmulti color (p:Poseable) -> V4f
 public defmulti tags (p:Poseable) -> Tuple<Symbol>
-public defmulti points (p:Poseable) -> Tuple<V3f>
+public defmulti poses (p:Poseable) -> Tuple<KeyValue<Symbol,Mat44f>>
 public defmulti bounds (p:Poseable) -> Box3f
 public defmulti xyz<?T> (mat:Mat44f, p:?T&Poseable) -> T
 public defmulti any-shapes (p:Poseable) -> Seqable<AnyShape>
 public defmulti get (s:Poseable, iname:Symbol) -> False|Poseable
 public defmulti update (s:Poseable, iname:Symbol, value:Poseable) -> Poseable
 
-public defn rgb<?T> (c:V4f, p:?T&Poseable) -> T : clone(p, name(p), c, points(p), tags(p))
-public defn set-name<?T> (name:Symbol, p:?T&Poseable) -> T : clone(p, name, color(p), points(p), tags(p))
+public defn rgb<?T> (c:V4f, p:?T&Poseable) -> T : clone(p, name(p), c, poses(p), tags(p))
+public defn set-name<?T> (name:Symbol, p:?T&Poseable) -> T : clone(p, name, color(p), poses(p), tags(p))
 
 public defn mov<?T> (dp:V3f, s:?T&Poseable) -> T : xyz(mov-mat44f(dp), s)
 
@@ -1266,12 +1266,12 @@ public defn Assembly<?T> (mat:Mat44f, name:False|Symbol, color:V4f, poseables:Se
     defmethod mat (this) : mat
     defmethod color (this) : color
     defmethod any-shapes (this) : seq(rgb{color, _}, seq(xyz{mat, _}, cat-all $ seq(any-shapes, children)))
-    defmethod points (this) : to-tuple $ cat-all $ seq(points, children)
+    defmethod poses (this) : to-tuple $ cat-all $ seq(poses, children)
 
 public defn ungroup (a:Assembly) -> Seqable<Poseable> :
   seq(rgb{color(a), _}, seq(xyz{mat(a), _}, children(a)))
 
-defmethod clone (p:Assembly, name:False|Symbol, color:V4f, points:Tuple<V3f>, tags:Tuple<Symbol>) -> Assembly :
+defmethod clone (p:Assembly, name:False|Symbol, color:V4f, poses:Tuple<KeyValue<Symbol,Mat44f>>, tags:Tuple<Symbol>) -> Assembly :
   Assembly(mat(p), name, color, children(p))
 
 public defn Assembly<?T> (mat:Mat44f, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
@@ -1324,7 +1324,7 @@ public defstruct AnyShapeState :
   name : False|Symbol
   color : V4f
   tags : Tuple<Symbol>
-  points : Tuple<V3f>
+  poses : Tuple<KeyValue<Symbol,Mat44f>>
 
 val @doc-anyshape = "ANYSHAPE -- leaf poseables allowing more transformations"
 
@@ -1334,32 +1334,32 @@ public defmulti clone<?T> (shape:?T&AnyShape, state:AnyShapeState) -> T
 public defmethod name (p:AnyShape) : name(state(p))
 public defmethod color (p:AnyShape) : color(state(p))
 public defmethod tags (p:AnyShape) : tags(state(p))
-public defmethod points (p:AnyShape) : points(state(p))
+public defmethod poses (p:AnyShape) : poses(state(p))
 
 public defn bit-or (a:AnyShapeState, b:AnyShapeState) -> AnyShapeState :
   AnyShapeState(name(a) when name(a) is Symbol else name(b), color(a),
-                to-tuple $ cat(tags(a), tags(b)), to-tuple $ cat(points(a), points(b)))
+                to-tuple $ cat(tags(a), tags(b)), to-tuple $ cat(poses(a), poses(b)))
 
-defmethod clone (s:AnyShape, name:False|Symbol, color:V4f, points:Tuple<V3f>, tags:Tuple<Symbol>) :
-  clone(s, AnyShapeState(name, color, tags, points))
+defmethod clone (s:AnyShape, name:False|Symbol, color:V4f, poses:Tuple<KeyValue<Symbol,Mat44f>>, tags:Tuple<Symbol>) :
+  clone(s, AnyShapeState(name, color, tags, poses))
 
-public defn add-points<?T> (s:?T&AnyShape, points:Tuple<V3f>) -> T :
-  clone(s, AnyShapeState(name(s), color(s), tags(s), points))
+public defn add-poses<?T> (s:?T&AnyShape, poses:Tuple<KeyValue<Symbol,Mat44f>>) -> T :
+  clone(s, AnyShapeState(name(s), color(s), tags(s), poses))
 public defn add-tags<?T> (s:?T&AnyShape, tags:Tuple<Symbol>) -> T :
-  clone(s, AnyShapeState(name(s), color(s), tags, points(s)))
+  clone(s, AnyShapeState(name(s), color(s), tags, poses(s)))
 
-public defn add-min-x-point<?T> (s:?T&AnyShape) -> T :
-  add-points(s, [V3f(x(lo(bounds(s))), 0.0f, 0.0f)])
-public defn add-max-x-point<?T> (s:?T&AnyShape) -> T :
-  add-points(s, [V3f(x(hi(bounds(s))), 0.0f, 0.0f)])
-public defn add-min-y-point<?T> (s:?T&AnyShape) -> T :
-  add-points(s, [V3f(0.0f, y(lo(bounds(s))), 0.0f)])
-public defn add-max-y-point<?T> (s:?T&AnyShape) -> T :
-  add-points(s, [V3f(0.0f, y(hi(bounds(s))), 0.0f)])
-public defn add-min-z-point<?T> (s:?T&AnyShape) -> T :
-  add-points(s, [V3f(0.0f, 0.0f, z(lo(bounds(s))))])
-public defn add-max-z-point<?T> (s:?T&AnyShape) -> T :
-  add-points(s, [V3f(0.0f, 0.0f, z(hi(bounds(s))))])
+public defn add-min-x-pose<?T> (s:?T&AnyShape, dir:Float) -> T :
+  add-poses(s, [`min-x => pose-mat44f(x3f(x(lo(bounds(s)))), y3f(dir *  90.0f))])
+public defn add-max-x-pose<?T> (s:?T&AnyShape, dir:Float) -> T :
+  add-poses(s, [`max-x => pose-mat44f(x3f(x(hi(bounds(s)))), y3f(dir * -90.0f))])
+public defn add-min-y-pose<?T> (s:?T&AnyShape, dir:Float) -> T :
+  add-poses(s, [`min-y => pose-mat44f(y3f(y(lo(bounds(s)))), x3f(dir * -90.0f))])
+public defn add-max-y-pose<?T> (s:?T&AnyShape, dir:Float) -> T :
+  add-poses(s, [`max-y => pose-mat44f(y3f(y(hi(bounds(s)))), x3f(dir *  90.0f))])
+public defn add-min-z-pose<?T> (s:?T&AnyShape, dir:Float) -> T :
+  add-poses(s, [`min-z => pose-mat44f(z3f(z(lo(bounds(s)))), y3f(180.0f when dir == 1.0f else 0.0f ))])
+public defn add-max-z-pose<?T> (s:?T&AnyShape, dir:Float) -> T :
+  add-poses(s, [`max-z => pose-mat44f(z3f(z(hi(bounds(s)))), y3f(  0.0f when dir == 1.0f else 180.0f))])
 
 public defn degrees-to-radians (d:Float) -> Float :
   d * to-float(PI-F) / 180.0f
@@ -1440,8 +1440,8 @@ public defn name (a:AnyShape, b:AnyShape) :
 public defn tags (a:AnyShape, b:AnyShape) :
   to-tuple $ unique $ cat(tags(a), tags(b))
 
-public defn points (a:AnyShape, b:AnyShape) :
-  to-tuple $ unique $ cat(points(a), points(b))
+public defn poses (a:AnyShape, b:AnyShape) :
+  to-tuple $ unique $ cat(poses(a), poses(b))
 
 public defn color (a:AnyShape, b:AnyShape) :
   color(a)
@@ -1668,11 +1668,13 @@ defn align-it<?T> (ishapes:Seqable<?T&Poseable>, value:(Box3f) -> Float, mov:(Fl
   for (child in shapes) seq :
     mov(value(target) - value(bounds(child)), child)
 
-public defn attach<?T> (src:?T&Poseable, spos:V3f, dst:?T&Poseable, dpos:V3f) -> Seqable<T> :
-  [mov(dpos - spos, src), dst]
+val id-pose = id-mat44f()
 
-public defn attach<?T> (src:?T&Poseable, si:Int, dst:?T&Poseable, di:Int) -> Seqable<T> :
-  attach(src, points(src)[si], dst, points(dst)[di])
+public defn attach<?T> (src:?T&Poseable, spos:Mat44f, dst:?T&Poseable, dpos:Mat44f) -> Seqable<T> :
+  [xyz(inverse(spos) * dpos, src), dst]
+
+public defn attach<?T> (src:?T&Poseable, si:Symbol, dst:?T&Poseable, di:Symbol) -> Seqable<T> :
+  attach(src, lookup?(poses(src),si,id-pose), dst, lookup?(poses(dst),di, id-pose))
 
 public defn align-min-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
   align-it(shapes, { x(lo(_)) }, mov-x)
@@ -1797,8 +1799,16 @@ public defstruct Pose :
 public defn Pose (mov:V3f) : Pose(mov, V3f(0.0f, 0.0f))
 public defn Pose () : Pose(V3f(0.0f, 0.0f))
 
+val id-Pose = Pose()
+
 public defn to-mat44f (p:Pose) -> Mat44f :
   (quat-to-mat44f $ quat-from-euler $ degrees-to-radians $ rot(p)) * mov-mat44f(mov(p))
+
+public defn pose-mat44f (mov:V3f, rot:V3f) -> Mat44f :
+  to-mat44f $ Pose(mov, rot) 
+
+public defn pose-mat44f (mov:V3f) : pose-mat44f(mov, V3f(0.0f, 0.0f, 0.0f))
+
 
 val @doc-mechanism = "MECHANISM -- representing linkage consisting of links, nodes, and joints including top level nodes and root link for modular construction"
 
@@ -1813,9 +1823,9 @@ public defn assign-poses (m:Mechanism) :
   defn elaborate (j:Joint) :
     val c0 = connection(j)[0]
     val c1 = connection(j)[1]
-    val np = inverse(to-mat44f(pose(nodes(link(c1))[node(c1)]))) *
+    val np = inverse(pose(nodes(link(c1))[node(c1)])) *
              rot-mat44f(V3f(0.0f, 0.0f, 1.0f), degrees-to-radians(state(j))) *
-             to-mat44f(pose(nodes(link(c0))[node(c0)])) *             
+             pose(nodes(link(c0))[node(c0)]) *             
              pose(link(c0))
     set-pose(link(c1), np)
   for joint in joints(m) do :
@@ -1845,7 +1855,7 @@ public defn Link (geom:Poseable, nodes:Tuple<Node>) :
 val @doc-node = "NODE -- link relative pose for placing a joint connecting two links"
 
 public defstruct Node :
-  pose:Pose
+  pose:Mat44f
 
 val @doc-joint = "JOINT -- z axis revolute constraint between two links at respective nodes with settable angular state"
 
