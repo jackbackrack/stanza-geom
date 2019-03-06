@@ -289,6 +289,9 @@ val @doc-vx = "2/3 DIM VECTORS -- ponts and dimensions"
   public defn negate (a:PrimVec) -> PrimVec :
     PrimVec((- x(a)), (- y(a)), (- z(a)))
 
+  public defn abs (a:PrimVec) -> PrimVec :
+    PrimVec(abs(x(a)), abs(y(a)), abs(z(a)))
+
   public defn round (p:PrimVec) -> PrimVec :
     PrimVec(round(x(p)), round(y(p)), round(z(p)))
 
@@ -437,6 +440,9 @@ public defn indices (dims:V3i) -> Seq<V3i> :
 
   public defn negate (a:PrimVec) -> PrimVec :
     PrimVec((- x(a)), (- y(a)))
+
+  public defn abs (a:PrimVec) -> PrimVec :
+    PrimVec(abs(x(a)), abs(y(a)))
 
   public defn round (p:PrimVec) -> PrimVec :
     PrimVec(round(x(p)), round(y(p)))
@@ -942,13 +948,13 @@ public defn rot-mat44f (axis:V3f, angle:Float) -> Mat44f :
 
 public defn rot-mat44f (b:V3f, a:V3f) -> Mat44f :
   val ang = angle(a, b)
-  val vec =
-    if abs(ang - PI-F) < 1.0e-06f :
-      val e = V3f-unit(min-idx(a))
-      e - dot(e, a) * a
-    else :
-      a % b
-  rot-mat44f(vec, ang)
+  val cross = a % b
+  if magnitude(cross) <= 1.0e-06f :
+    mag-mat44f(1.0f when abs(ang) <= 1.0e-06f else -1.0f)
+    ;; val e = V3f-unit(min-idx(abs(a)))
+    ;; e - dot(e, a) * a
+  else :
+    rot-mat44f(cross, ang)
 
 public defn rot-mat44f (start:Tuple<V3f>, end:Tuple<V3f>) -> Mat44f :
   ;; val world = [x3f(1.0f), y3f(1.0f), z3f(1.0f)]
@@ -1335,6 +1341,8 @@ public defmethod name (p:AnyShape) : name(state(p))
 public defmethod color (p:AnyShape) : color(state(p))
 public defmethod tags (p:AnyShape) : tags(state(p))
 public defmethod poses (p:AnyShape) : poses(state(p))
+
+defmethod any-shapes (p:AnyShape) : [p] ;; DEFAULT
 
 public defn bit-or (a:AnyShapeState, b:AnyShapeState) -> AnyShapeState :
   AnyShapeState(name(a) when name(a) is Symbol else name(b), color(a),
