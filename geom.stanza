@@ -1865,6 +1865,8 @@ val @doc-node = "NODE -- link relative pose for placing a joint connecting two l
 public defstruct Node :
   pose:Mat44f
 
+public defn Node (pose:Pose) : Node(to-mat44f $ pose)
+
 val @doc-joint = "JOINT -- z axis revolute constraint between two links at respective nodes with settable angular state"
 
 public defstruct Joint :
