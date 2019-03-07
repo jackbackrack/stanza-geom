@@ -2060,6 +2060,9 @@ public defn area (verts:Tuple<V2f>) -> Float :
 public defn area (contour:Contour) -> Float :
   area(vertices(contour))
 
+public defn area (polygon:Polygon) -> Float :
+  sum $ seq(area, contours(polygon))
+
 ;; ;;; STROKE
 ;; 
 ;; public defstruct Stroke <: Geom :
