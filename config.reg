@@ -15,3 +15,7 @@ defregistry stanza-geom :
       link Darwin ["${GEN}/clipper.o" "-lpolyclipping" "-lc++"]
       link GNU/Linux ["${GEN}/clipper.o" "-lpolyclipping" "-lstdc++"]
   file "aabb-tree.stanza"
+  file "grid-junior.stanza"
+  file "spanning-tree.stanza"
+  file "delaunay.stanza"
+  file "intersections.stanza"

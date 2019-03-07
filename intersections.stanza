@@ -1,0 +1,65 @@
+defpackage intersections :
+  import core
+  import collections
+  import math
+  import geom with :
+    prefix(Pose, Node) => geom-
+  import aabb-tree
+
+defstruct SegmentBox<T> <: AABB :
+  segment : LineSegment2f
+  geom : T&Geom
+  box  : Box2f with: ( as-method => true )
+  node : False|Node with: ( setter => set-node, as-method => true )
+
+defn Box2f (s:LineSegment2f) -> Box2f :
+  Box2f(start(s)) | Box2f(end(s))
+
+defn num-intersections (all-segs:Seqable<SegmentBox>) -> Int :
+  val tree = AABBTree(0.0f)
+  for seg in all-segs do : add(tree, seg)
+  var num:Int = 0
+  for [aabb1, aabb2] in compute-pairs(tree) do :
+    val [a-seg, b-seg] = [aabb1 as SegmentBox, aabb2 as SegmentBox]
+    if geom(a-seg) != geom(b-seg) :
+      if intersects?(segment(a-seg), segment(b-seg)) :
+        num = num + 1
+  num
+  
+defn intersects? (all-segs:Seqable<SegmentBox>) -> True|False :
+  val tree = AABBTree(0.0f)
+  for seg in all-segs do : add(tree, seg)
+  label<True|False> return :
+    for [aabb1, aabb2] in compute-pairs(tree) do :
+      val [a-seg, b-seg] = [aabb1 as SegmentBox, aabb2 as SegmentBox]
+      if geom(a-seg) != geom(b-seg) :
+        if intersects?(segment(a-seg), segment(b-seg)) :
+          return(true)
+    false
+
+defn polygon-segment-boxes (p:Polygon) : seq(fn (s) : SegmentBox<Polygon>(s, p, Box2f(s), false), segments(p))
+
+defn polyline2f-segment-boxes (p:PolyLine2f) : seq(fn (s) : SegmentBox<PolyLine2f>(s, p, Box2f(s), false), segments(p))
+
+public defn intersects? (a:Polygon, b:Polygon) -> True|False :
+  a == b or intersects?(cat(polygon-segment-boxes(a), polygon-segment-boxes(b)))
+
+public defn intersects? (a:PolyLine2f, b:PolyLine2f) -> True|False :
+  a == b or intersects?(cat(polyline2f-segment-boxes(a), polyline2f-segment-boxes(b)))
+        
+public defn num-intersections (pls:Seqable<PolyLine2f>) -> Int :
+  num-intersections $ cat-all $ seq(polyline2f-segment-boxes, pls)
+        
+defn main () :
+  val sq = polygon-n(2.0f, 4)
+  val tr = polygon-n(2.0f, 3)
+  val t0 = intersects?(sq, mov-x(1.0f, sq))
+  println("T0 %_" % [t0])
+  val t1 = intersects?(sq, sq)
+  println("T1 %_" % [t1])
+  val t2 = intersects?(sq, tr)
+  println("T2 %_" % [t2])
+  val t3 = intersects?(sq, mov-x(1.0f, tr))
+  println("T3 %_" % [t3])
+  val t4 = intersects?(sq, mov-x(2.0f, tr))
+  println("T4 %_" % [t4])

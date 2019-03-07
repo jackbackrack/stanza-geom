@@ -67,6 +67,7 @@ lostanza defn to-paths (cs:ref<Polygon>) -> ref<ClipperPaths> :
       call-c clipper_paths_set_point(paths, j, i, x(pt).value, y(pt).value)
   return new ClipperPaths{paths}
 
+;; TODO: REVERSE ORDER OF ARGS
 public lostanza defn offset (p:ref<Polygon>, amount:ref<Float>) -> ref<Polygon> :
   val in = to-paths(p)
   val out = call-c clipper_offset(in.value, amount.value, 1024.0 as float)

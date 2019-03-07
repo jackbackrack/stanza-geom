@@ -1,0 +1,293 @@
+defpackage delaunay :
+  import core
+  import collections
+  import geom
+
+val edge-ids = to-seq(0 to false)
+
+public defstruct Edge <: Equalable&Hashable :
+  id : Int
+  num : Int
+  #next : False|Edge with: ( setter => set-next )
+  #data : False|V2f  with: ( setter => set-data )
+  quad : QuadEdge    with: ( setter => set-quad )
+
+defmethod print (o:OutputStream, e:Edge) :
+  print(o, "EDGE(ID %_, NUM %_, NEXT %_, DATA %_)" % [id(e), num(e), id(next(e)), #data(e)])
+
+public defn next (e:Edge) : #next(e) as Edge
+public defn data (e:Edge) : #data(e) as V2f
+
+defn Edge () :
+  edges(QuadEdge())[0]
+
+defmethod equal? (a:Edge, b:Edge) : id(a) == id(b)
+defmethod hash (a:Edge) : hash(id(a))
+
+public defn length (e:Edge) -> Float : magnitude(org(e) - dest(e))
+
+val quad-edge-ids = to-seq(0 to false)
+
+public defstruct QuadEdge <: Equalable&Hashable :
+  id : Int
+  edges : Tuple<Edge> with: ( setter => set-edges )
+
+defmethod equal? (a:QuadEdge, b:QuadEdge) : id(a) == id(b)
+defmethod hash (a:QuadEdge) : hash(id(a))
+
+defmethod print (o:OutputStream, q:QuadEdge) :
+  print(o, "QUADeDGE(ID %_, EDGES %,_)" % [id(q), edges(q)])
+
+defn QuadEdge () :
+  val q = QuadEdge(next(quad-edge-ids), [])
+  val es = to-tuple $ for i in 0 to 4 seq :
+    Edge(next(edge-ids), i, false, false, q)
+  set-edges(q, es)
+  set-next(es[0], es[0])
+  set-next(es[1], es[3])
+  set-next(es[2], es[2])
+  set-next(es[3], es[1])
+  q
+
+public defn edges (s:Subdivision) -> Seqable<Edge> :
+  edges(starting-edge(s))
+
+defn set-not-exists?<?T> (h:HashSet<?T>, e:?T) -> True|False :
+  if h[e] :
+    false
+  else :
+    add(h, e)
+    true
+
+public defn edges (i:Edge) -> Seqable<Edge> :
+  generate<Edge> :
+    val visited? = HashSet<QuadEdge>()
+    let loop (e:Edge = i) :
+      if set-not-exists?(visited?, quad(e)) :
+        yield(e)
+        loop(onext(e))
+        loop(oprev(e))
+        loop(dnext(e))
+        loop(dprev(e))
+
+public defn dump (s:Subdivision) :
+  println("DUMP")
+  for e in edges(s) do :
+    println("  %_" % [e])
+
+defn rot (e:Edge) :
+  edges(quad(e))[num(e) + 1] when num(e) < 3 else edges(quad(e))[num(e) - 3]
+
+defn inv-rot (e:Edge) : 
+  edges(quad(e))[num(e) - 1] when num(e) > 0 else edges(quad(e))[num(e) + 3]
+  
+defn sym (e:Edge) : 
+  edges(quad(e))[num(e) + 2] when num(e) < 2 else edges(quad(e))[num(e) - 2]
+
+defn onext (e:Edge) :
+  next $ e
+
+defn oprev (e:Edge) :
+  rot $ onext $ rot $ e
+
+defn dnext (e:Edge) :
+  sym $ onext $ sym $ e
+
+defn dprev (e:Edge) :
+  inv-rot $ onext $ inv-rot $ e
+
+defn lnext (e:Edge) :
+  rot $ onext $ inv-rot $ e
+
+defn lprev (e:Edge) :
+  sym $ onext $ e
+
+defn rnext (e:Edge) :
+  inv-rot $ onext $ rot $ e
+
+defn rprev (e:Edge) :
+  onext $ sym $ e
+
+public defn org (e:Edge) :
+  data $ e
+
+public defn dest (e:Edge) :
+  data $ sym $ e
+
+defn set-org (e:Edge, p:V2f) :
+  set-data(e, p)
+
+defn set-dest (e:Edge, p:V2f) :
+  set-data(sym(e), p)
+
+defn set-end-points (e:Edge, org:V2f, dst:V2f) :
+  set-data(e,      org)
+  set-data(sym(e), dst)
+
+defn end-points (e:Edge) -> [V2f, V2f]:
+  [data(e), data(sym(e))]
+
+defn splice (a:Edge, b:Edge) :
+  val alpha = rot $ onext $ a
+  val beta  = rot $ onext $ b
+  val t1 = onext $ b
+  val t2 = onext $ a
+  val t3 = onext $ beta
+  val t4 = onext $ alpha
+  set-next(a, t1)
+  set-next(b, t2)
+  set-next(alpha, t3)
+  set-next(beta, t4)
+
+defn delete-edge (e:Edge) :
+  splice(e,      oprev(e))
+  splice(sym(e), oprev(sym(e)))
+  
+public defstruct Subdivision :
+  starting-edge : Edge with: ( setter => set-starting-edge )
+
+defmethod print (o:OutputStream, s:Subdivision) :
+  print(o, "SUBDIVISION(%_)" % [starting-edge(s)])
+
+public defn Subdivision (a:V2f, b:V2f, c:V2f) :
+  val ea = Edge()
+  set-end-points(ea, a, b)
+  val eb = Edge()
+  splice(sym(ea), eb)
+  set-end-points(eb, b, c)
+  val ec = Edge()
+  splice(sym(eb), ec)
+  set-end-points(ec, c, a)
+  splice(sym(ec), ea)
+  Subdivision(ea)
+
+public defn Subdivision (ipoints:Seqable<V2f>) :
+  val points = to-tuple $ ipoints
+  val bounds = reduce(bit-or, seq(Box2f, points))
+  val dims = dims(bounds)
+  val ctr = center(bounds)
+  val radius = magnitude(dims)
+  val poly = mov(xyz $ ctr, polygon-n(2.0f * radius, 3))
+  val pts = vertices $ contours(poly)[0]
+  val sub = Subdivision(pts[0], pts[1], pts[2])
+  for pt in points do :
+    insert-site(sub, pt)
+  sub
+
+defn connect (a:Edge, b:Edge) :
+  val e = Edge()
+  splice(e, lnext(a))
+  splice(sym(e), b)
+  set-end-points(e, dest(a), org(b))
+  e
+
+defn swap (e:Edge) :
+  val a = oprev(e)
+  val b = oprev(sym(e))
+  splice(e,      a)
+  splice(sym(e), b)
+  splice(e,      lnext(a))
+  splice(sym(e), lnext(b))
+  set-end-points(e, dest(a), dest(b))
+
+defn tri-area (a:V2f, b:V2f, c:V2f) -> Float :
+  (x(b) - x(a)) * (y(c) - y(a)) - (y(b) - y(a)) * (x(c) - x(a))
+
+defn in-circle (a:V2f, b:V2f, c:V2f, d:V2f) :
+  (dot(a, a) * tri-area(b, c, d) -
+   dot(b, b) * tri-area(a, c, d) +
+   dot(c, c) * tri-area(a, b, d) -
+   dot(d, d) * tri-area(a, b, c)) > 0.0f
+
+defn ccw (a:V2f, b:V2f, c:V2f) -> True|False :
+  tri-area(a, b, c) > 0.0f
+
+defn right-of (x:V2f, e:Edge) -> True|False :
+  ccw(x, dest(e), org(e))
+
+defn left-of (x:V2f, e:Edge) -> True|False :
+  ccw(x, org(e), dest(e))
+
+;; defn on-edge (x:V2f, e:Edge) -> True|False :
+;;   val t1 = normalize(x - org(e)
+;;   val t2 = normalize(x - dest(e))
+;;   if t1 < EPS or t2 < EPS :
+;;     true
+;;   else :
+;;     val t3 = normalize(org(e) - dest(e))
+;;     if t1 > t3 or t2 > t3 :
+;;       false
+;;     else :
+;;       val line = Line(org(e), dest(e))
+;;       abs(eval(line, x)) < EPS
+
+val EPS = 1.0e-6f
+
+defn on-edge (p:V2f, e:Edge) -> True|False :
+  val op = magnitude(p - org(e))
+  if op < EPS :
+    true
+  else :
+    val pd = magnitude(p - dest(e))
+    if pd < EPS :
+      true
+    else :
+      val od = magnitude(org(e) - dest(e))
+      abs(od - (op + pd)) < EPS
+
+defn locate (s:Subdivision, x:V2f) -> Edge :
+  ;; println("LOCATE %_" % [x])
+  let loop (e:Edge = starting-edge(s)) :
+    ;; println("LOOP %_" % [e])
+    if x == org(e) or x == dest(e) :
+      e
+    else if right-of(x, e) :
+      ;; println("RIGHT OF")
+      loop(sym(e))
+    else if not right-of(x, onext(e)) :
+      ;; println("NOT RIGHT OF ONEXT")
+      loop(onext(e))
+    else if not right-of(x, dprev(e)) :
+      ;; println("NOT RIGHT OF DPREV")
+      loop(dprev(e))
+    else :
+      e
+
+public defn insert-site (s:Subdivision, x:V2f) :
+  ;; println("INSERT-SITE %_" % [x])
+  var e:Edge = locate(s, x)
+  ;; println("FOUND %_" % [e])
+  label<False> return:
+    if x == org(e) or x == dest(e) :
+      ;; println("POINT ALREADY IN")
+      return(false)
+    else if on-edge(x, e) :
+      ;; println("ON EDGE")
+      e = oprev(e)
+      delete-edge(onext(e))
+    ;; println("CONNECT")
+    var base:Edge = Edge()
+    set-end-points(base, org(e), x)
+    splice(base, e)
+    set-starting-edge(s, base)
+    ;; dump(s)
+    let loop () :
+      ;; println("BASE LOOP")
+      base = connect(e, sym(base))
+      ;; dump(s)
+      e = oprev(base)
+      loop() when lnext(e) != starting-edge(s)
+    while true :
+      ;; println("EXAMINE DELAUNAY CONDITION")
+      val t = oprev(e)
+      if right-of(dest(t), e) and in-circle(org(e), dest(t), dest(e), x) :
+        ;; println("SWAP")
+        swap(e)
+        e = oprev(e)
+      else if onext(e) == starting-edge(s) :
+        ;; println("DONE")
+        return(false)
+      else :
+        ;; println("POP")
+        e = lprev(onext(e))
+    

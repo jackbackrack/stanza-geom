@@ -1,0 +1,125 @@
+defpackage spanning-tree :
+  import core
+  import collections
+  import math
+  import union-find
+  import geom
+  import delaunay with :
+    prefix( Edge ) => del-
+
+defn abs (v:V2f) : V2f(abs(x(v)), abs(y(v)))
+defn map (f:Float -> Float, v:V2f) : V2f(f(x(v)), f(y(v)))
+
+defstruct Edge <: Hashable & Equalable :
+  a : Int
+  b : Int
+
+defmethod equal? (e0:Edge, e1:Edge) :
+  a(e0) == a(e1) and b(e0) == b(e1) 
+
+defmethod hash (e:Edge) :
+  hash(a(e)) + 7 * hash(b(e))
+
+defmethod print (o:OutputStream, e:Edge) :
+  print(o, "EDGE(%_, %_)" % [a(e), b(e)])
+
+defn length (points:Tuple<V2f>, e:Edge) -> Float :
+  magnitude(points[a(e)] - points[b(e)])
+
+defstruct Graph :
+  id : Int
+  nbrs : Vector<Int>
+
+defmethod print (o:OutputStream, e:Graph) :
+  print(o, "Graph(%_, %__)" % [id(e), nbrs(e)])
+
+defn Graph (point:Int) : Graph(point, Vector<Int>())
+
+public defstruct SpanningGraph :
+  points : Tuple<V2f>
+  graphs : Tuple<Graph>
+
+defn edges (tree:SpanningGraph) -> Seqable<Edge> :
+  val visited? = HashSet<Int>()
+  generate<Edge> :
+    let loop (g:Int = 0) :
+      add(visited?, g)
+      for nbr in nbrs(graphs(tree)[g]) do :
+        if not visited?[nbr] :
+          yield(Edge(g, nbr))
+          loop(nbr)
+
+defmethod print (o:OutputStream, e:SpanningGraph) :
+  print(o, "SpanningGraph(%_, %_, %_)" % [points(e), graphs(e)])
+
+defn length (tree:SpanningGraph) -> Float :
+  sum(seq(length{points(tree), _}, edges(tree)))
+
+public defn SpanningGraph (ipoints:Seqable<V2f>) -> SpanningGraph :
+  val points = to-tuple $ ipoints
+  ;; println("SPANNING-TREE %_" % [length(points)])
+  ;; val edges = to-tuple $ lazy-qsort(length{points, _}, all-edges(points))
+  ;; val log2n = max(4, ceil-log2(length(points)) - 2)
+  ;; println("LOG2N %_" % [log2n])
+  val v2f-edges = edges(Subdivision(points))
+  ;; println("DELAUNAY")
+  val edge-mapper = HashTable<V2f, Int>()
+  for (pt in points, i in 0 to false) do : edge-mapper[pt] = i
+  val unsorted-edges = generate<Edge> :
+    for e in v2f-edges do :
+      ;; println("e %_ ORG %_ DEST %_" % [e, key?(edge-mapper, org(e)), key?(edge-mapper, dest(e))])
+      yield(Edge(edge-mapper[org(e)], edge-mapper[dest(e)])) when key?(edge-mapper, org(e)) and key?(edge-mapper, dest(e))
+  val edges = to-tuple $ lazy-qsort(length{points, _}, unsorted-edges)
+  ;; println("SORTED EDGES")
+  val graphs = to-tuple $ for i in 0 to length(points) seq : Graph(i)
+  val sets = to-tuple $ for i in 0 to length(points) seq : #UFSet<Int>(i, i, 1)
+  ;; for edge in edges do :
+  ;;   println("EDGE %_ LENGTH %_" % [edge, length(points, edge)])
+  ;; for (point in points, i in 0 to false) do :
+  ;;   println("%_: %_" % [i, point])
+  label<False> return :
+    for edge in edges do :
+      ;; println("CONSIDERING EDGE %_ SETS %_ , %_" % [edge, id(root(sets[a(edge)])), id(root(sets[b(edge)]))])
+      if root(sets[a(edge)]) != root(sets[b(edge)]) :
+        add(nbrs(graphs[a(edge)]), b(edge))
+        add(nbrs(graphs[b(edge)]), a(edge))
+        merge!(sets[a(edge)], sets[b(edge)])
+        return(false) when one-set?(sets)
+  ;; println("DONE")
+  SpanningGraph(points, graphs)
+
+public defstruct IntTree :
+  idx      : Int
+  children : Tuple<IntTree>
+
+public defstruct SpanningTree :
+  points : Tuple<V2f>
+  tree   : IntTree
+
+defn SpanningTree (graph:SpanningGraph) -> SpanningTree :
+  val visited? = HashSet<Int>()
+  val tree = let loop (g:Int = 0) :
+    add(visited?, g)
+    val elts = generate<IntTree> :
+      for nbr in nbrs(graphs(graph)[g]) do :
+        yield(loop(nbr)) when not visited?[nbr]
+    IntTree(g, to-tuple $ elts)
+  SpanningTree(points(graph), tree)
+
+public defn SpanningTree (points:Seqable<V2f>) -> SpanningTree :
+  SpanningTree(SpanningGraph(points))
+
+public defn dump (st:SpanningTree) :
+  let loop (t:IntTree = tree(st), depth:Int = 0) :
+    for i in 0 to depth do : print("  ")
+    println("%_: %_" % [idx(t), points(st)[idx(t)]])
+    for child in children(t) do :
+      loop(child, depth + 1)
+
+public defn segments (st:SpanningTree) -> Seqable<LineSegment2f> :
+  generate<LineSegment2f> :
+    let loop (t:IntTree = tree(st)) :
+      for child in children(t) do :
+        yield(LineSegment2f(points(st)[idx(t)], points(st)[idx(child)]))
+        loop(child)
+;; 
