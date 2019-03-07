@@ -292,6 +292,9 @@ val @doc-vx = "2/3 DIM VECTORS -- ponts and dimensions"
   public defn abs (a:PrimVec) -> PrimVec :
     PrimVec(abs(x(a)), abs(y(a)), abs(z(a)))
 
+  public defn map (f:Prim -> Prim, v:PrimVec) -> PrimVec :
+    PrimVec(f(x(v)), f(y(v)), f(z(v)))
+
   public defn round (p:PrimVec) -> PrimVec :
     PrimVec(round(x(p)), round(y(p)), round(z(p)))
 
@@ -450,6 +453,9 @@ public defn indices (dims:V3i) -> Seq<V3i> :
 
   public defn abs (a:PrimVec) -> PrimVec :
     PrimVec(abs(x(a)), abs(y(a)))
+
+  public defn map (f:Prim -> Prim, v:PrimVec) -> PrimVec :
+    PrimVec(f(x(v)), f(y(v)))
 
   public defn round (p:PrimVec) -> PrimVec :
     PrimVec(round(x(p)), round(y(p)))
