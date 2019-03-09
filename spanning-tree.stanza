@@ -55,7 +55,7 @@ defmethod print (o:OutputStream, e:SpanningGraph) :
 defn length (tree:SpanningGraph) -> Float :
   sum(seq(length{points(tree), _}, edges(tree)))
 
-public defn SpanningGraph (ipoints:Seqable<V2f>) -> SpanningGraph :
+public defn SpanningGraph (ipoints:Seqable<V2f>, seed-segments:Seqable<LineSegment2f>) -> SpanningGraph :
   val points = to-tuple $ ipoints
   ;; println("SPANNING-TREE %_" % [length(points)])
   ;; val edges = to-tuple $ lazy-qsort(length{points, _}, all-edges(points))
@@ -65,11 +65,13 @@ public defn SpanningGraph (ipoints:Seqable<V2f>) -> SpanningGraph :
   ;; println("DELAUNAY")
   val edge-mapper = HashTable<V2f, Int>()
   for (pt in points, i in 0 to false) do : edge-mapper[pt] = i
+  val seed-edges = to-tuple $ for seg in seed-segments seq :
+    Edge(edge-mapper[start(seg)], edge-mapper[end(seg)])
   val unsorted-edges = generate<Edge> :
     for e in v2f-edges do :
       ;; println("e %_ ORG %_ DEST %_" % [e, key?(edge-mapper, org(e)), key?(edge-mapper, dest(e))])
       yield(Edge(edge-mapper[org(e)], edge-mapper[dest(e)])) when key?(edge-mapper, org(e)) and key?(edge-mapper, dest(e))
-  val edges = to-tuple $ lazy-qsort(length{points, _}, unsorted-edges)
+  val edges = to-tuple $ cat(seed-edges, lazy-qsort(length{points, _}, unsorted-edges))
   ;; println("SORTED EDGES")
   val graphs = to-tuple $ for i in 0 to length(points) seq : Graph(i)
   val sets = to-tuple $ for i in 0 to length(points) seq : #UFSet<Int>(i, i, 1)
@@ -106,8 +108,11 @@ defn SpanningTree (graph:SpanningGraph) -> SpanningTree :
     IntTree(g, to-tuple $ elts)
   SpanningTree(points(graph), tree)
 
+public defn SpanningTree (points:Seqable<V2f>, seed-segments:Seqable<LineSegment2f>) -> SpanningTree :
+  SpanningTree(SpanningGraph(points, seed-segments))
+
 public defn SpanningTree (points:Seqable<V2f>) -> SpanningTree :
-  SpanningTree(SpanningGraph(points))
+  SpanningTree(SpanningGraph(points, []))
 
 public defn dump (st:SpanningTree) :
   let loop (t:IntTree = tree(st), depth:Int = 0) :
