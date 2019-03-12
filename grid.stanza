@@ -244,7 +244,11 @@ public defn set-value (g:Grid, pos:V3i, v:Byte) :
   if legal?(g, pos) :
     set-value(g, x(pos), y(pos), z(pos), v)
 
+public var grid-allocated:Int = 0
+
 public defn Grid (idims:V3i, dim:Float) -> Grid :
+  grid-allocated = grid-allocated + x(idims) * y(idims) * z(idims)
+  ;; println("  SIZE %_ = %_ ALLOC %_" % [idims, x(idims) * y(idims) * z(idims), allocated])
   val cells = ByteArray(x(idims) * y(idims) * z(idims), to-byte(0))
   Grid(idims, dim, cells)
 

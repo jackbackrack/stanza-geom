@@ -1518,7 +1518,7 @@ public defn remove-spacers (p:Poseable) -> Poseable :
 
 public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<Box3f>, idx:Int, dir:Float) -> Seq<T> :
   val [shapes, boundz] = [to-tuple(ishapes), to-tuple(iboundz)]
-  val tot = reduce(f+, for bounds in boundz seq : dims(bounds)[idx])
+  val tot = sum $ for bounds in boundz seq : dims(bounds)[idx]
   ;; println("TOT %_" % [tot])
   var tot-fac:Float = 0.0f
   val res =
@@ -1624,8 +1624,8 @@ public defn glue<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
 
 public defn assign-glue-idx<?T> (ishapes:Seqable<?T&Poseable>, target:Float, idx:Int) -> Seq<T> :
   val shapes = to-tuple(ishapes)
-  val tot = reduce(f+, for shape in shapes seq : dims(bounds(shape))[idx])
-  val glue-tot = reduce(f+, for shape in shapes seq : glue-amount(shape))
+  val tot = sum $ for shape in shapes seq : dims(bounds(shape))[idx]
+  val glue-tot = sum $ for shape in shapes seq : glue-amount(shape)
   val gap-tot = (target - tot)
   for shape in shapes seq :
     match(shape) :
@@ -1658,7 +1658,7 @@ public defn stack-z (d:Float) : stack-z{d, _}
 public defn space-idx<?T> (iseps:Seqable<Float>, idx:Int, ishapes:Seqable<?T&Poseable>) -> Seq<T> :
   val shapes = to-tuple $ ishapes
   val seps = to-tuple $ for (sep in iseps, i in 0 to (length(shapes) - 1)) seq : sep
-  val tot = reduce(f+, 0.0f, seps)
+  val tot = sum $ seps
   val start = -0.5f * tot
   val offs = to-tuple $ generate<Float> :
     let loop (off = start, i = 0) :
@@ -1733,7 +1733,7 @@ defn segment<?T> (shapes:Seqable<?T>, width:T -> Float, max-width:Float, space:F
   val row = Vector<T>()
   generate<Tuple<T>> :
     for pc in shapes do :
-      val off = reduce(f+, join(seq(width, cat(row, [pc])), space))
+      val off = sum $ join(seq(width, cat(row, [pc])), space)
       if off > max-width :
         yield(to-tuple $ row)
         ;; println("OFF %_ > %_" % [off max-width])
@@ -2139,7 +2139,7 @@ public defn segments (polygon:Polygon) -> Seq<LineSegment2f> :
   cat-all(seq(segments, contours(polygon)))
 
 public defn perimeter (polygon:Polygon) -> Float :
-  reduce(f+, 0.0f, seq(magnitude, segments(polygon)))
+  sum $ seq(magnitude, segments(polygon))
 
 public defn cat (p1:Polygon, p2:Polygon) -> Polygon :
   Polygon(cat(contours(p1), contours(p2)))
@@ -2207,7 +2207,7 @@ val @doc-polyline = "POLYLINE -- lists of open paths called strokes"
           yield(LineSegment(s[i], s[i + 1]))
 
   public defn perimeter (polyline:PolyLine) -> Float :
-    reduce(f+, 0.0f, seq(magnitude, segments(polyline)))
+    sum $ seq(magnitude, segments(polyline))
 
 defn do-print-svg (s:OutputStream, polyline:PolyLine2f) :
   for line in strokes(polyline) do :

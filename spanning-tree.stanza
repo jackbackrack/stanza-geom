@@ -26,18 +26,18 @@ defmethod print (o:OutputStream, e:Edge) :
 defn length (points:Tuple<V2f>, e:Edge) -> Float :
   magnitude(points[a(e)] - points[b(e)])
 
-defstruct Graph :
+public defstruct IntGraph :
   id : Int
   nbrs : Vector<Int>
 
-defmethod print (o:OutputStream, e:Graph) :
-  print(o, "Graph(%_, %__)" % [id(e), nbrs(e)])
+defmethod print (o:OutputStream, e:IntGraph) :
+  print(o, "IntGraph(%_, %__)" % [id(e), nbrs(e)])
 
-defn Graph (point:Int) : Graph(point, Vector<Int>())
+defn IntGraph (point:Int) : IntGraph(point, Vector<Int>())
 
 public defstruct SpanningGraph :
   points : Tuple<V2f>
-  graphs : Tuple<Graph>
+  graphs : Tuple<IntGraph>
 
 defn edges (tree:SpanningGraph) -> Seqable<Edge> :
   val visited? = HashSet<Int>()
@@ -73,7 +73,7 @@ public defn SpanningGraph (ipoints:Seqable<V2f>, seed-segments:Seqable<LineSegme
       yield(Edge(edge-mapper[org(e)], edge-mapper[dest(e)])) when key?(edge-mapper, org(e)) and key?(edge-mapper, dest(e))
   val edges = to-tuple $ cat(seed-edges, lazy-qsort(length{points, _}, unsorted-edges))
   ;; println("SORTED EDGES")
-  val graphs = to-tuple $ for i in 0 to length(points) seq : Graph(i)
+  val graphs = to-tuple $ for i in 0 to length(points) seq : IntGraph(i)
   val sets = to-tuple $ for i in 0 to length(points) seq : #UFSet<Int>(i, i, 1)
   ;; for edge in edges do :
   ;;   println("EDGE %_ LENGTH %_" % [edge, length(points, edge)])
