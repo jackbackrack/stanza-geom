@@ -61,9 +61,9 @@ defn set-not-exists?<?T> (h:HashSet<?T>, e:?T) -> True|False :
 
 public defn edges (i:Edge) -> Seqable<Edge> :
   generate<Edge> :
-    val visited? = HashSet<QuadEdge>()
+    val visited? = HashSet<Edge>()
     let loop (e:Edge = i) :
-      if set-not-exists?(visited?, quad(e)) :
+      if set-not-exists?(visited?, e) :
         yield(e)
         loop(onext(e))
         loop(oprev(e))
@@ -163,14 +163,18 @@ public defn Subdivision (a:V2f, b:V2f, c:V2f) :
 
 public defn Subdivision (ipoints:Seqable<V2f>) :
   val points = to-tuple $ ipoints
+  ;; println("POINTS %_" % [points])
   val bounds = reduce(bit-or, seq(Box2f, points))
   val dims = dims(bounds)
   val ctr = center(bounds)
-  val radius = magnitude(dims)
+  val radius = max(5.0f, magnitude(dims)) ;; NUMERIC STABILITY
   val poly = mov(xyz $ ctr, polygon-n(2.0f * radius, 3))
   val pts = vertices $ contours(poly)[0]
+  ;; println("RADIUS %_ POLY %_" % [radius, poly])
   val sub = Subdivision(pts[0], pts[1], pts[2])
+  dump(sub)
   for pt in points do :
+    ;; println("INSERTING %_" % [pt])
     insert-site(sub, pt)
   sub
 
@@ -270,11 +274,11 @@ public defn insert-site (s:Subdivision, x:V2f) :
     set-end-points(base, org(e), x)
     splice(base, e)
     set-starting-edge(s, base)
-    ;; dump(s)
+    dump(s)
     let loop () :
       ;; println("BASE LOOP")
       base = connect(e, sym(base))
-      ;; dump(s)
+      dump(s)
       e = oprev(base)
       loop() when lnext(e) != starting-edge(s)
     while true :
