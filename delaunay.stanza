@@ -2,6 +2,7 @@ defpackage delaunay :
   import core
   import collections
   import geom
+  import utils
 
 val edge-ids = to-seq(0 to false)
 
@@ -9,7 +10,7 @@ public defstruct Edge <: Equalable&Hashable :
   id : Int
   num : Int
   #next : False|Edge with: ( setter => set-next )
-  #data : False|V2f  with: ( setter => set-data )
+  #data : False|V2f with: ( setter => set-data )
   quad : QuadEdge    with: ( setter => set-quad )
 
 defmethod print (o:OutputStream, e:Edge) :
@@ -70,42 +71,57 @@ public defn edges (i:Edge) -> Seqable<Edge> :
         loop(dnext(e))
         loop(dprev(e))
 
+public defn quad-edges (i:Edge) -> Seqable<QuadEdge> :
+  seq(quad, unique(quad, edges(i)))
+
 public defn dump (s:Subdivision) :
   println("DUMP")
   for e in edges(s) do :
     println("  %_" % [e])
 
-defn rot (e:Edge) :
+public defn rot (e:Edge) :
   edges(quad(e))[num(e) + 1] when num(e) < 3 else edges(quad(e))[num(e) - 3]
 
-defn inv-rot (e:Edge) : 
+public defn inv-rot (e:Edge) : 
   edges(quad(e))[num(e) - 1] when num(e) > 0 else edges(quad(e))[num(e) + 3]
   
-defn sym (e:Edge) : 
+public defn sym (e:Edge) : 
   edges(quad(e))[num(e) + 2] when num(e) < 2 else edges(quad(e))[num(e) - 2]
 
-defn onext (e:Edge) :
+public defn onext (e:Edge) :
   next $ e
 
-defn oprev (e:Edge) :
+public defn oprev (e:Edge) :
   rot $ onext $ rot $ e
 
-defn dnext (e:Edge) :
+public defn dnext (e:Edge) :
   sym $ onext $ sym $ e
 
-defn dprev (e:Edge) :
+public defn dprev (e:Edge) :
   inv-rot $ onext $ inv-rot $ e
 
-defn lnext (e:Edge) :
+public defn lnext (e:Edge) :
   rot $ onext $ inv-rot $ e
 
-defn lprev (e:Edge) :
+public defn edges-of (ie:Edge, next:Edge -> Edge) -> Seq<Edge> :
+  generate<Edge> :
+    let loop (e:Edge = ie) :
+      yield(e)
+      val ne = next(e)
+      if ne != ie : loop(ne)
+
+public defn face-edges (ie:Edge) : edges-of(ie, lnext)
+public defn face-neighbors (ie:Edge) -> Seq<Edge> :
+  for e in seq(sym, edges-of(ie, lnext)) filter : e != false 
+public defn origin-edges (ie:Edge) : edges-of(ie, onext)
+
+public defn lprev (e:Edge) :
   sym $ onext $ e
 
-defn rnext (e:Edge) :
+public defn rnext (e:Edge) :
   inv-rot $ onext $ rot $ e
 
-defn rprev (e:Edge) :
+public defn rprev (e:Edge) :
   onext $ sym $ e
 
 public defn org (e:Edge) :
