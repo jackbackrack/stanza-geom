@@ -4,20 +4,41 @@ defpackage delaunay :
   import geom
   import utils
 
+val vertex-ids = to-seq(0 to false)
+
+public defstruct Vertex <: Equalable&Hashable :
+  id : Int
+  value : V2f
+  #edge : False|Edge with: ( setter => set-edge )
+
+public defn edge (v:Vertex) : #edge(v) as Edge
+
+public defn Vertex (v:V2f) : Vertex(next(vertex-ids), v, false)
+
+defmethod print (o:OutputStream, v:Vertex) :
+  print(o, "VERTEX(ID %_, VALUE %_)" % [id(v), value(v)])
+
+defmethod equal? (a:Vertex, b:Vertex) : id(a) == id(b)
+defmethod hash (a:Vertex) : hash(id(a))
+
 val edge-ids = to-seq(0 to false)
 
 public defstruct Edge <: Equalable&Hashable :
   id : Int
   num : Int
   #next : False|Edge with: ( setter => set-next )
-  #data : False|V2f with: ( setter => set-data )
+  #data : False|Vertex with: ( setter => #set-data )
   quad : QuadEdge    with: ( setter => set-quad )
+
+defn set-data (e:Edge, v:Vertex) :
+  #set-data(e, v)
+  set-edge(v, e)
 
 defmethod print (o:OutputStream, e:Edge) :
   print(o, "EDGE(ID %_, NUM %_, NEXT %_, DATA %_)" % [id(e), num(e), id(next(e)), #data(e)])
 
 public defn next (e:Edge) : #next(e) as Edge
-public defn data (e:Edge) : #data(e) as V2f
+public defn data (e:Edge) : #data(e) as Vertex
 
 defn Edge () :
   edges(QuadEdge())[0]
@@ -25,7 +46,7 @@ defn Edge () :
 defmethod equal? (a:Edge, b:Edge) : id(a) == id(b)
 defmethod hash (a:Edge) : hash(id(a))
 
-public defn length (e:Edge) -> Float : magnitude(org(e) - dest(e))
+public defn length (e:Edge) -> Float : magnitude(value(org(e)) - value(dest(e)))
 
 val quad-edge-ids = to-seq(0 to false)
 
@@ -130,17 +151,17 @@ public defn org (e:Edge) :
 public defn dest (e:Edge) :
   data $ sym $ e
 
-defn set-org (e:Edge, p:V2f) :
+defn set-org (e:Edge, p:Vertex) :
   set-data(e, p)
 
-defn set-dest (e:Edge, p:V2f) :
+defn set-dest (e:Edge, p:Vertex) :
   set-data(sym(e), p)
 
-defn set-end-points (e:Edge, org:V2f, dst:V2f) :
+defn set-end-points (e:Edge, org:Vertex, dst:Vertex) :
   set-data(e,      org)
   set-data(sym(e), dst)
 
-defn end-points (e:Edge) -> [V2f, V2f]:
+defn end-points (e:Edge) -> [Vertex, Vertex]:
   [data(e), data(sym(e))]
 
 defn splice (a:Edge, b:Edge) :
@@ -166,19 +187,21 @@ defmethod print (o:OutputStream, s:Subdivision) :
   print(o, "SUBDIVISION(%_)" % [starting-edge(s)])
 
 public defn Subdivision (a:V2f, b:V2f, c:V2f) :
+  val [va, vb, vc] = [Vertex(a), Vertex(b), Vertex(c)]
   val ea = Edge()
-  set-end-points(ea, a, b)
+  set-end-points(ea, va, vb)
   val eb = Edge()
   splice(sym(ea), eb)
-  set-end-points(eb, b, c)
+  set-end-points(eb, vb, vc)
   val ec = Edge()
   splice(sym(eb), ec)
-  set-end-points(ec, c, a)
+  set-end-points(ec, vc, va)
   splice(sym(ec), ea)
   Subdivision(ea)
 
-public defn Subdivision (ipoints:Seqable<V2f>) :
-  val points = to-tuple $ ipoints
+public defn Subdivision (ivertices:Seqable<Vertex>) :
+  val verts = to-tuple $ ivertices
+  val points = to-tuple $ seq(value, verts)
   ;; println("POINTS %_" % [points])
   val bounds = reduce(bit-or, seq(Box2f, points))
   val dims = dims(bounds)
@@ -189,10 +212,13 @@ public defn Subdivision (ipoints:Seqable<V2f>) :
   ;; println("RADIUS %_ POLY %_" % [radius, poly])
   val sub = Subdivision(pts[0], pts[1], pts[2])
   ;; dump(sub)
-  for pt in points do :
+  for vertex in verts do :
     ;; println("INSERTING %_" % [pt])
-    insert-site(sub, pt)
+    insert-site(sub, vertex)
   sub
+
+public defn Subdivision (ipoints:Seqable<V2f>) :
+  Subdivision(seq(Vertex, ipoints))
 
 defn connect (a:Edge, b:Edge) :
   val e = Edge()
@@ -223,10 +249,10 @@ defn ccw (a:V2f, b:V2f, c:V2f) -> True|False :
   tri-area(a, b, c) > 0.0f
 
 defn right-of (x:V2f, e:Edge) -> True|False :
-  ccw(x, dest(e), org(e))
+  ccw(x, value(dest(e)), value(org(e)))
 
 defn left-of (x:V2f, e:Edge) -> True|False :
-  ccw(x, org(e), dest(e))
+  ccw(x, value(org(e)), value(dest(e)))
 
 ;; defn on-edge (x:V2f, e:Edge) -> True|False :
 ;;   val t1 = normalize(x - org(e)
@@ -244,22 +270,22 @@ defn left-of (x:V2f, e:Edge) -> True|False :
 val EPS = 1.0e-6f
 
 defn on-edge (p:V2f, e:Edge) -> True|False :
-  val op = magnitude(p - org(e))
+  val op = magnitude(p - value(org(e)))
   if op < EPS :
     true
   else :
-    val pd = magnitude(p - dest(e))
+    val pd = magnitude(p - value(dest(e)))
     if pd < EPS :
       true
     else :
-      val od = magnitude(org(e) - dest(e))
+      val od = magnitude(value(org(e)) - value(dest(e)))
       abs(od - (op + pd)) < EPS
 
 defn locate (s:Subdivision, x:V2f) -> Edge :
   ;; println("LOCATE %_" % [x])
   let loop (e:Edge = starting-edge(s)) :
     ;; println("LOOP %_" % [e])
-    if x == org(e) or x == dest(e) :
+    if x == value(org(e)) or x == value(dest(e)) :
       e
     else if right-of(x, e) :
       ;; println("RIGHT OF")
@@ -273,12 +299,13 @@ defn locate (s:Subdivision, x:V2f) -> Edge :
     else :
       e
 
-public defn insert-site (s:Subdivision, x:V2f) :
+public defn insert-site (s:Subdivision, vx:Vertex) :
   ;; println("INSERT-SITE %_" % [x])
+  val x = value(vx)
   var e:Edge = locate(s, x)
   ;; println("FOUND %_" % [e])
   label<False> return:
-    if x == org(e) or x == dest(e) :
+    if x == value(org(e)) or x == value(dest(e)) :
       ;; println("POINT ALREADY IN")
       return(false)
     else if on-edge(x, e) :
@@ -287,7 +314,7 @@ public defn insert-site (s:Subdivision, x:V2f) :
       delete-edge(onext(e))
     ;; println("CONNECT")
     var base:Edge = Edge()
-    set-end-points(base, org(e), x)
+    set-end-points(base, org(e), vx)
     splice(base, e)
     set-starting-edge(s, base)
     ;; dump(s)
@@ -300,7 +327,7 @@ public defn insert-site (s:Subdivision, x:V2f) :
     while true :
       ;; println("EXAMINE DELAUNAY CONDITION")
       val t = oprev(e)
-      if right-of(dest(t), e) and in-circle(org(e), dest(t), dest(e), x) :
+      if right-of(value(dest(t)), e) and in-circle(value(org(e)), value(dest(t)), value(dest(e)), x) :
         ;; println("SWAP")
         swap(e)
         e = oprev(e)

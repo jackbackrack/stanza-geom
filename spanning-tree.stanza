@@ -64,13 +64,14 @@ public defn SpanningGraph (ipoints:Seqable<V2f>, seed-segments:Seqable<LineSegme
   val v2f-edges = edges(Subdivision(points))
   ;; println("DELAUNAY")
   val edge-mapper = HashTable<V2f, Int>()
-  for (pt in points, i in 0 to false) do : edge-mapper[pt] = i
+  for (point in points, i in 0 to false) do : edge-mapper[point] = i
   val seed-edges = to-tuple $ for seg in seed-segments seq :
     Edge(edge-mapper[start(seg)], edge-mapper[end(seg)])
   val unsorted-edges = generate<Edge> :
     for e in v2f-edges do :
       ;; println("e %_ ORG %_ DEST %_" % [e, key?(edge-mapper, org(e)), key?(edge-mapper, dest(e))])
-      yield(Edge(edge-mapper[org(e)], edge-mapper[dest(e)])) when key?(edge-mapper, org(e)) and key?(edge-mapper, dest(e))
+      if key?(edge-mapper, value(org(e))) and key?(edge-mapper, value(dest(e))) :
+        yield(Edge(edge-mapper[value(org(e))], edge-mapper[value(dest(e))]))
   val edges = to-tuple $ cat(seed-edges, lazy-qsort(length{points, _}, unsorted-edges))
   ;; println("SORTED EDGES")
   val graphs = to-tuple $ for i in 0 to length(points) seq : IntGraph(i)
