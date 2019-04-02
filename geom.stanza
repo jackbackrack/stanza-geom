@@ -623,6 +623,9 @@ val @doc-box = "BOXES -- tracking bounds"
   defmethod equal? (b1:Box, b2:Box) :
     lo(b1) == lo(b2) and hi(b1) == hi(b2)
 
+  public defn contains? (b0:Box, b1:Box) -> True|False :
+    contains?(b0, lo(b1)) and contains?(b0, hi(b1))
+
 public defn indices (bounds:Box3i) -> Seq<V3i> :
   generate<V3i> :
     for k in z(lo(bounds)) through z(hi(bounds)) do :
