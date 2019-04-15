@@ -13,7 +13,8 @@ public defstruct Vertex <: Equalable&Hashable :
 
 public defn edge (v:Vertex) : #edge(v) as Edge
 
-public defn Vertex (v:V2f) : Vertex(next(vertex-ids), v, false)
+public defn Vertex (id:Int, v:V2f) : Vertex(id, v, false)
+public defn Vertex (v:V2f) : Vertex(next(vertex-ids), v)
 
 defmethod print (o:OutputStream, v:Vertex) :
   print(o, "VERTEX(ID %_, VALUE %_)" % [id(v), value(v)])
