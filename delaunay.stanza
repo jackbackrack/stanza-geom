@@ -6,12 +6,17 @@ defpackage delaunay :
 
 val vertex-ids = to-seq(0 to false)
 
+public defn skip-vertex-ids (id:Int) :
+  let loop () : loop() when next(vertex-ids) < id
+
 public defstruct Vertex <: Equalable&Hashable :
   id : Int
   value : V2f
   #edge : False|Edge with: ( setter => set-edge )
 
-public defn edge (v:Vertex) : #edge(v) as Edge
+public defn edge (v:Vertex) :
+  println("BAD VERTEX %_" % [v]) when #edge(v) is False
+  #edge(v) as Edge
 
 public defn Vertex (id:Int, v:V2f) : Vertex(id, v, false)
 public defn Vertex (v:V2f) : Vertex(next(vertex-ids), v)
@@ -31,12 +36,12 @@ public defstruct Edge <: Equalable&Hashable :
   #data : False|Vertex with: ( setter => #set-data )
   quad : QuadEdge    with: ( setter => set-quad )
 
-defn set-data (e:Edge, v:Vertex) :
+public defn set-data (e:Edge, v:Vertex) :
   #set-data(e, v)
   set-edge(v, e)
 
 defmethod print (o:OutputStream, e:Edge) :
-  print(o, "EDGE(ID %_, NUM %_, NEXT %_, DATA %_, DEST %_)" % [id(e), num(e), id(next(e)), #data(e), dest(e)])
+  print(o, "EDGE(ID %_, NUM %_, NEXT %_, DATA %_)" % [id(e), num(e), id(next(e)), #data(e)])
 
 public defn next (e:Edge) : #next(e) as Edge
 public defn data (e:Edge) : #data(e) as Vertex
@@ -188,7 +193,7 @@ defn delete-edge (e:Edge) :
   splice(sym(e), oprev(sym(e)))
   
 defn delete-edge (s:Subdivision, e:Edge) :
-  if starting-edge(s) == e :
+  if quad(starting-edge(s)) == quad(e) :
     warning("Subdivision: attempting to delete starting edge")
     set-starting-edge(s, onext(e) when e != onext(e) else dnext(e))
   delete-edge(e)
@@ -260,12 +265,13 @@ defn snap (x:V2f, a:V2f, b:V2f) -> V2f :
     val t = max(t1, t2) / (t1 + t2)
     ((1.0f - t) * a + t * b) when (t1 > t2) else ((1.0f - t) * b + t * a)
 
-defn split-edge (e:Edge, x:V2f) -> Vertex :
+defn split-edge (e:Edge, vx:Vertex) -> Vertex :
+  val x = value(vx)
   val dt =
     if constrained?(quad(e)) :
       Vertex(snap(x, value(org(e)), value(dest(e))))
     else :
-      Vertex(x)
+      vx
   val t = lnext(e)
   splice(sym(e), t)
   set-end-points(e, org(e), dt)
@@ -274,6 +280,9 @@ defn split-edge (e:Edge, x:V2f) -> Vertex :
     set-constrained?(quad(e), true)
   dt
     
+defn split-edge (e:Edge, x:V2f) -> Vertex :
+  split-edge(e, Vertex(x))
+
 defn warning (m:String) :
   println(m)
   false      
@@ -342,7 +351,7 @@ defn on-edge (p:V2f, e:Edge) -> True|False :
       val od = magnitude(value(org(e)) - value(dest(e)))
       abs(od - (op + pd)) < EPS
 
-defn locate (s:Subdivision, x:V2f) -> Edge :
+public defn locate (s:Subdivision, x:V2f) -> Edge :
   ;; println("LOCATE %_" % [x])
   let loop (e:Edge = starting-edge(s)) :
     ;; println("LOOP %_" % [e])
@@ -361,23 +370,35 @@ defn locate (s:Subdivision, x:V2f) -> Edge :
       e
 
 defn fix-edge (e:Edge) :
-  println("FIXING %_" % [e]) 
+  ;; println("FIXING %_" % [e]) 
   if not constrained?(quad(e)) :
     val [f, g] = [oprev(e), dnext(e)]
     if in-circle(value(dest(e)), value(dest(onext(e))), value(org(e)), value(dest(f))) :
-      println("SWAPPING %_" % [e])
+      ;; println("SWAPPING %_" % [e])
       swap(e)
-      println("SWAPPED  %_" % [e])
+      ;; println("SWAPPED  %_" % [e])
       fix-edge(f)
       fix-edge(g)
 
+;; Triangulates the left face of first, which is assumed to be closed.
+;; It is also assumed that all the vertices of that face lie to the
+;; left of last (the edge preceeding first).	
+;; This is NOT intended as a general simple polygon triangulation
+;; routine. It is called by InsertEdge in order to restore a
+;; triangulation after an edge has been inserted.
+;; The routine consists of two loops: the outer loop continues as
+;; long as the left face is not a triangle. The inner loop examines 
+;; successive triplets of vertices, creating a triangle whenever the
+;; triplet is counterclockwise.
 defn triangulate (init-first:Edge) :
   var first:Edge = init-first
   val last = lprev(first)
   
   while lnext(lnext(first)) != last : 
+    ;; println("WHILE TRIANGULATE")
+    var t1:Edge = first
     let loop (e:Edge = lnext(first)) :
-      var t1:Edge = first
+      ;; println("  LOOP %_" % [e])
       if e != last :
         val t2 = lnext(e)
         if not (t2 == last and t1 == first) :
@@ -387,7 +408,7 @@ defn triangulate (init-first:Edge) :
               first = t1
             else :
               t1 = sym(connect(e, t1))
-            println("TRIANGULATE CONNECTING %_" % [t1])
+            ;; println("TRIANGULATE CONNECTING %_" % [t1])
             val [a, b] = [oprev(t1), dnext(t1)]
             fix-edge(a)
             fix-edge(b)
@@ -395,6 +416,7 @@ defn triangulate (init-first:Edge) :
             t1 = e
           loop(t2)
 
+  ;; println("TRIANGULATE FIXING")
   val [a, b] = [lnext(last), lprev(last)]
   fix-edge(a)
   fix-edge(b)
@@ -485,6 +507,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
     ;; is not one of e's endpoints.
 
     if is-on-edge :
+      ;; println("IS-ON-EDGE %_" % [e])
       val xx = snap(x, value(org(e)), value(dest(e)))
       if coincide(xx, value(org(e)), dist) :
         return(e)
@@ -496,7 +519,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
         val b = dnext(e)
         val c = lnext(e)
         val d = lprev(e)
-        split-edge(e, x)
+        split-edge(e, vx)
         connect(e, lprev(e))
         connect(oprev(e), sym(e))
         fix-edge(a)
@@ -508,7 +531,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
           e = sym(e)
         val c = lnext(e)
         val d = lprev(e)
-        split-edge(e, x)
+        split-edge(e, vx)
         connect(e, lprev(e))
         fix-edge(c)
         fix-edge(d)
@@ -528,7 +551,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
     ;; so everything should proceed smoothly from this point on.
 
     val first = org(e)
-    var base:Edge = Edge(org(e), Vertex(x))
+    var base:Edge = Edge(org(e), vx)
     splice(base, e)
     ;; use this edge as the starting point next time:
     set-starting-edge(s, sym(base))
@@ -587,7 +610,7 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) :
 
           ;; check to see if an edge is already there
           if on?(ab, value(dest(ea))) :
-            println("EDGE %_ ALREADY THERE" % [ea])
+            ;; println("EDGE %_ ALREADY THERE" % [ea])
             set-constrained?(quad(ea), true)
             aa = value(dest(ea))
             if aa == bb : return(false)
@@ -599,22 +622,23 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) :
               if on?(ab, value(dest(lnext(t)))) :
                 if lnext(lnext(lnext(t))) == ea :
                   ;; edge is already there
-                  println("EDGE %_ ALREADY THERE" % [lnext(lnext(t))])
+                  ;; println("EDGE %_ ALREADY THERE" % [lnext(lnext(t))])
                   set-constrained?(quad(lnext(lnext(t))), true)
                   ea = sym(lnext(t))
                 else :
                   ;; need a new edge
                   val ne = connect(lnext(t), ea)
-                  println("NEED NEW EDGE -- CONSTRAINING -- CONNECTING %_" % [ne])
+                  ;; println("NEED NEW EDGE -- CONSTRAINING -- CONNECTING %_" % [ne])
                   set-constrained?(quad(ne), true)
                   ea = sym(lnext(t))
                   triangulate(lnext(ne))
                   triangulate(oprev(ne))
+                  ;; println("DONE TRIANGULATING")
               else if left?(ab, value(dest(lnext(t)))) :
                 ;; edges cross
-                println("EDGES CROSS")
+                ;; println("EDGES CROSS")
                 if not constrained?(quad(lnext(t))) :
-                  println("NOT CONSTRAINED -- DELETING EDGE -- %_" % [lnext(t)])
+                  ;; println("NOT CONSTRAINED -- DELETING EDGE -- %_" % [lnext(t)])
                   delete-edge(s, lnext(t))
                   loop(t)
                 else :
@@ -623,7 +647,7 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) :
                   val x = intersect(lnext(t), ab)
                   ;; split lnext(t) into two at x
                   split-edge(lnext(t), x)
-                  println("CROSSING EDGE ALSO CONSTRAINED -- SPLITTING AT %_" % [x])
+                  ;; println("CROSSING EDGE ALSO CONSTRAINED -- SPLITTING AT %_" % [x])
                   ;; connect to eh new vertex:
                   val ne = connect(lnext(t), ea)
                   set-constrained?(quad(ne), true)
