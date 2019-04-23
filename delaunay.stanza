@@ -46,6 +46,9 @@ defmethod print (o:OutputStream, e:Edge) :
 public defn next (e:Edge) : #next(e) as Edge
 public defn data (e:Edge) : #data(e) as Vertex
 
+public defn center (e:Edge) -> V2f :
+  0.5f * (value(org(e)) + value(dest(e)))
+
 defn Edge () :
   edges(QuadEdge())[0]
 
@@ -107,6 +110,8 @@ public defn edges (i:Edge) -> Seqable<Edge> :
 public defn quad-edges (i:Edge) -> Seqable<QuadEdge> :
   seq(quad, unique(quad, edges(i)))
 
+public defn quad-edges (s:Subdivision) : quad-edges(starting-edge(s))
+
 public defn dump (s:Subdivision) :
   println("DUMP")
   for e in edges(s) do :
@@ -136,13 +141,20 @@ public defn dprev (e:Edge) :
 public defn lnext (e:Edge) :
   rot $ onext $ inv-rot $ e
 
-public defn edges-of (ie:Edge, next:Edge -> Edge) -> Seq<Edge> :
-  generate<Edge> :
-    let loop (e:Edge = ie) :
-      yield(e)
-      val ne = next(e)
-      if ne != ie : loop(ne)
+public defn edges-of (ie:Edge, nxt:Edge -> Edge) -> Seq<Edge> :
+  var e:Edge = ie
+  var start?:True|False = true
+  new Seq<Edge> :
+    defmethod next (this) :
+      val e0 = e
+      start? = false
+      e = nxt(e)
+      e0
+    defmethod empty? (this) : not start? and e == ie
+    defmethod peek (this) : e
 
+public defn left-face-edges (ie:Edge) : edges-of(ie, lnext)
+public defn right-face-edges (ie:Edge) : edges-of(ie, rnext)
 public defn face-edges (ie:Edge) : edges-of(ie, lnext)
 public defn face-neighbors (ie:Edge) -> Seq<Edge> :
   for e in seq(sym, edges-of(ie, lnext)) filter : e != false 
@@ -204,8 +216,7 @@ public defstruct Subdivision :
 defmethod print (o:OutputStream, s:Subdivision) :
   print(o, "SUBDIVISION(%_)" % [starting-edge(s)])
 
-public defn Subdivision (a:V2f, b:V2f, c:V2f) :
-  val [va, vb, vc] = [Vertex(a), Vertex(b), Vertex(c)]
+public defn Subdivision (va:Vertex, vb:Vertex, vc:Vertex) :
   val ea = Edge()
   set-end-points(ea, va, vb)
   val eb = Edge()
@@ -217,8 +228,7 @@ public defn Subdivision (a:V2f, b:V2f, c:V2f) :
   splice(sym(ec), ea)
   Subdivision(ea)
 
-public defn Subdivision (ivertices:Seqable<Vertex>) :
-  val verts = to-tuple $ ivertices
+public defn boundary-points (verts:Tuple<Vertex>) -> Seqable<V2f> :
   val points = to-tuple $ seq(value, verts)
   ;; println("POINTS %_" % [points])
   val bounds = reduce(bit-or, seq(Box2f, points))
@@ -226,14 +236,21 @@ public defn Subdivision (ivertices:Seqable<Vertex>) :
   val ctr = center(bounds)
   val radius = magnitude(dims)
   val poly = mov(xyz $ ctr, polygon-n(2.1f * radius, 3))
-  val pts = vertices $ contours(poly)[0]
+  vertices $ contours(poly)[0]
+
+public defn Subdivision (ivertices:Seqable<Vertex>, boundary-verts:Tuple<Vertex>) :
+  val verts = to-tuple $ ivertices
   ;; println("RADIUS %_ POLY %_" % [radius, poly])
-  val sub = Subdivision(pts[0], pts[1], pts[2])
+  val sub = Subdivision(boundary-verts[0], boundary-verts[1], boundary-verts[2])
   ;; dump(sub)
   for vertex in verts do :
     ;; println("INSERTING %_" % [pt])
     constrained-insert-site(sub, vertex, 0.0f)
   sub
+
+public defn Subdivision (ivertices:Seqable<Vertex>) :
+  val verts = to-tuple $ ivertices
+  Subdivision(verts, to-tuple $ seq(Vertex, boundary-points(verts)))
 
 public defn Subdivision (ipoints:Seqable<V2f>) :
   Subdivision(seq(Vertex, ipoints))
@@ -339,7 +356,7 @@ defn left-of (x:V2f, e:Edge) -> True|False :
 ;;       val line = Line(org(e), dest(e))
 ;;       abs(eval(line, x)) < EPS
 
-defn on-edge (p:V2f, e:Edge) -> True|False :
+public defn on-edge (p:V2f, e:Edge) -> True|False :
   val op = magnitude(p - value(org(e)))
   if op < EPS :
     true

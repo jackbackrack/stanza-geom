@@ -608,8 +608,8 @@ val @doc-box = "BOXES -- tracking bounds"
   public defn neg-inf-box () -> Box:
     Box(BoxElt-fill(pos-inf), BoxElt-fill(neg-inf))
 
-  public defn fatten (b:Box, dims:BoxElt) -> Box :
-    Box(lo(b) - dims, hi(b) + dims)
+  public defn fatten (b:Box, amount:BoxElt) -> Box :
+    Box(lo(b) - amount, hi(b) + amount)
 
   ;; public defn fatten (b:Box, dims:Prim) -> Box :
   ;;   fatten(b, BoxElt-fill(dims))
