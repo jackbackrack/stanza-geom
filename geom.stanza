@@ -626,6 +626,9 @@ val @doc-box = "BOXES -- tracking bounds"
   public defn contains? (b0:Box, b1:Box) -> True|False :
     contains?(b0, lo(b1)) and contains?(b0, hi(b1))
 
+  public defn clamp (b:Box, v:BoxElt) -> BoxElt :
+    max(lo(b), min(hi(b), v))
+
 public defn indices (bounds:Box3i) -> Seq<V3i> :
   generate<V3i> :
     for k in z(lo(bounds)) through z(hi(bounds)) do :
@@ -1907,15 +1910,43 @@ public defstruct NodeRef :
 
 val @doc-line = "LINE -- infinite line"
 
-public defstruct Line <: Geom :
-  pos: V3f
-  dir: V3f
+#for (Line in [Line2f Line2d Line3f Line3d]
+      Prim in [Float Double Float Double]
+      PrimVec in [V2f V2d V3f V3d]
+      One in [1.0f 1.0 1.0f 1.0]
+      Zero in [0.0f 0.0 0.0f 0.0]
+      Max in [FLOAT-MAX DOUBLE-MAX FLOAT-MAX DOUBLE-MAX]) :
 
-public defn closest-point-to (l:Line, point:V3f) -> V3f :
-  dot((point - pos(l)), dir(l)) * dir(l) + pos(l)
+  public defstruct Line <: Geom :
+    pos: PrimVec
+    dir: PrimVec
 
-public defn line-of (p0:V3f, p1:V3f) -> Line :
-  Line(p0, normalize(p1 - p0))
+  public defn closest-point-to (l:Line, point:PrimVec) -> PrimVec :
+    dot((point - pos(l)), dir(l)) * dir(l) + pos(l)
+
+  public defn closest-point-to (l0:Line, l1:Line) -> PrimVec :
+    val posLpos = pos(l0) - pos(l1)
+    val c = dot(dir(l0), posLpos)
+    val a = dot(dir(l1), dir(l0))
+    val f = dot(dir(l1), posLpos)
+    val num = c - a * f
+    val denom = a * a - One
+    if abs(denom) < One and abs(num) >= abs(denom) * Max :
+      pos(l0)
+    else :
+      pos(l0) + (num / denom) * dir(l0)
+
+  public defn eval (l:Line, mag:Prim) -> PrimVec :
+    pos(l) + mag * dir(l)
+
+  public defn place (l:Line, pt:PrimVec) -> Prim :
+    dot(pt - pos(l), dir(l))
+
+  public defn line-of (p0:PrimVec, p1:PrimVec) -> Line :
+    Line(p0, normalize(p1 - p0))
+
+  defmethod print (o:OutputStream, l:Line) :
+    print(o, "Line(%_, %_)" % [pos(l), dir(l)])
 
 ;; public defn extrude (p0:V3f, p1:V3f) -> Half :
 ;;   val line   = line-of(p0, p1)
