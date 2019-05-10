@@ -87,7 +87,7 @@ public defn data (t:AABBTree) -> Seqable<AABB> :
               enum(children(node)[0])
               enum(children(node)[1])
 
-public defn query (t:AABBTree, target:AABB) -> Seqable<AABB> :
+public defn query (t:AABBTree, target:Box2f, same?:AABB -> True|False) -> Seqable<AABB> :
   match(root(t)) :
     (r:False) : []
     (r:Node) :
@@ -95,14 +95,20 @@ public defn query (t:AABBTree, target:AABB) -> Seqable<AABB> :
       generate<AABB> :
         let query (node:Node = r) :
           ;; println("I %_ => %_" % [aabb(node), intersects2?(box(target), aabb(node))])
-          if intersects?(box(target), aabb(node)) :
+          if intersects?(target, aabb(node)) :
             match(node) :
               (node:LeafNode) :
-                if data(node) != target :
+                if not same?(data(node) as AABB) :
                   yield(data(node) as AABB)
               (node:BranchNode) :
                 query(children(node)[0])
                 query(children(node)[1])
+
+public defn query (t:AABBTree, target:Box2f) -> Seqable<AABB> :
+  query(t, target, { false })
+
+public defn query (t:AABBTree, target:AABB) -> Seqable<AABB> :
+  query(t, box(target), { _ == target })
 
 public defn add (t:AABBTree, aabb:AABB) :
   ;; println("ADDING %_" % [aabb])

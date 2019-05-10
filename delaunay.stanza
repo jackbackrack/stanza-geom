@@ -36,12 +36,18 @@ public defstruct Edge <: Equalable&Hashable :
   #data : False|Vertex with: ( setter => #set-data )
   quad : QuadEdge    with: ( setter => set-quad )
 
+public defn Edge (s:Subdivision, id:Int, num:Int, quad:QuadEdge) -> Edge :
+  val e = Edge(id, num, false, false, quad)
+  add-edge-callback(s)(e)
+  e
+
 public defn set-data (e:Edge, v:Vertex) :
   #set-data(e, v)
   set-edge(v, e)
 
 defmethod print (o:OutputStream, e:Edge) :
-  print(o, "EDGE(ID %_, NUM %_, NEXT %_, DATA %_)" % [id(e), num(e), id(next(e)), #data(e)])
+  defn maybe-next-id (e:Edge) : -1 when #next(e) is False else id(next(e))
+  print(o, "EDGE(ID %_, NUM %_, NEXT %_, ORG %_)" % [id(e), num(e), maybe-next-id(e), #data(e)])
 
 public defn next (e:Edge) : #next(e) as Edge
 public defn data (e:Edge) : #data(e) as Vertex
@@ -49,12 +55,12 @@ public defn data (e:Edge) : #data(e) as Vertex
 public defn center (e:Edge) -> V2f :
   0.5f * (value(org(e)) + value(dest(e)))
 
-defn Edge () :
-  edges(QuadEdge())[0]
+defn Edge (s:Subdivision) :
+  edges(QuadEdge(s))[0]
 
-defn Edge (a:Vertex, b:Vertex) :
-  val e = edges(QuadEdge())[0]
-  set-end-points(e, a, b)
+defn Edge (s:Subdivision, a:Vertex, b:Vertex) :
+  val e = edges(QuadEdge(s))[0]
+  set-end-points(s, e, a, b)
   e
 
 defmethod equal? (a:Edge, b:Edge) : id(a) == id(b)
@@ -75,10 +81,10 @@ defmethod hash (a:QuadEdge) : hash(id(a))
 defmethod print (o:OutputStream, q:QuadEdge) :
   print(o, "QUADeDGE(ID %_, EDGES %,_)" % [id(q), edges(q)])
 
-defn QuadEdge () :
+defn QuadEdge (s:Subdivision) :
   val q = QuadEdge(next(quad-edge-ids), false, [])
   val es = to-tuple $ for i in 0 to 4 seq :
-    Edge(next(edge-ids), i, false, false, q)
+    Edge(s, next(edge-ids), i, q)
   set-edges(q, es)
   set-next(es[0], es[0])
   set-next(es[1], es[3])
@@ -106,6 +112,22 @@ public defn edges (i:Edge) -> Seqable<Edge> :
         loop(oprev(e))
         loop(dnext(e))
         loop(dprev(e))
+
+public defn all-edges (i:Edge) -> Seqable<Edge> :
+  generate<Edge> :
+    val visited? = HashSet<Edge>()
+    let loop (e:Edge = i) :
+      if set-not-exists?(visited?, e) :
+        yield(e)
+        loop(next(e))
+        val elts = edges(quad(e))
+        loop(elts[0])
+        loop(elts[1])
+        loop(elts[2])
+        loop(elts[3])
+
+public defn all-edges (s:Subdivision) -> Seqable<Edge> :
+  all-edges(starting-edge(s))
 
 public defn quad-edges (i:Edge) -> Seqable<QuadEdge> :
   seq(quad, unique(quad, edges(i)))
@@ -181,9 +203,13 @@ defn set-org (e:Edge, p:Vertex) :
 defn set-dest (e:Edge, p:Vertex) :
   set-data(sym(e), p)
 
-defn set-end-points (e:Edge, org:Vertex, dst:Vertex) :
+defn #set-end-points (e:Edge, org:Vertex, dst:Vertex) :
   set-data(e,      org)
   set-data(sym(e), dst)
+
+defn set-end-points (s:Subdivision, e:Edge, org:Vertex, dst:Vertex) :
+  #set-end-points(e, org, dst)
+  mov-edge-callback(s)(e)
 
 defn end-points (e:Edge) -> [Vertex, Vertex]:
   [data(e), data(sym(e))]
@@ -206,37 +232,48 @@ defn delete-edge (e:Edge) :
   
 defn delete-edge (s:Subdivision, e:Edge) :
   if quad(starting-edge(s)) == quad(e) :
-    warning("Subdivision: attempting to delete starting edge")
+    ;; warning("Subdivision: attempting to delete starting edge")
     set-starting-edge(s, onext(e) when e != onext(e) else dnext(e))
+  val old-sym = sym(e)
   delete-edge(e)
+  del-edge-callback(s)(e)
+  del-edge-callback(s)(old-sym)
   
 public defstruct Subdivision :
-  starting-edge : Edge with: ( setter => set-starting-edge )
+  #starting-edge : False|Edge with: ( setter => set-starting-edge, init => false )
+  add-edge-callback : ( Edge -> False ) with: ( init => { false }, setter => set-add-edge-callback )
+  del-edge-callback : ( Edge -> False ) with: ( init => { false }, setter => set-del-edge-callback )
+  mov-edge-callback : ( Edge -> False ) with: ( init => { false }, setter => set-mov-edge-callback )
+
+public defn starting-edge (s:Subdivision) : #starting-edge(s) as Edge
 
 defmethod print (o:OutputStream, s:Subdivision) :
   print(o, "SUBDIVISION(%_)" % [starting-edge(s)])
 
 public defn Subdivision (va:Vertex, vb:Vertex, vc:Vertex) :
-  val ea = Edge()
-  set-end-points(ea, va, vb)
-  val eb = Edge()
+  val s = Subdivision()
+  val ea = Edge(s)
+  set-end-points(s, ea, va, vb)
+  val eb = Edge(s)
   splice(sym(ea), eb)
-  set-end-points(eb, vb, vc)
-  val ec = Edge()
+  set-end-points(s, eb, vb, vc)
+  val ec = Edge(s)
   splice(sym(eb), ec)
-  set-end-points(ec, vc, va)
+  set-end-points(s, ec, vc, va)
   splice(sym(ec), ea)
-  Subdivision(ea)
+  set-starting-edge(s, ea)
+  s
 
-public defn boundary-points (verts:Tuple<Vertex>) -> Seqable<V2f> :
-  val points = to-tuple $ seq(value, verts)
-  ;; println("POINTS %_" % [points])
-  val bounds = reduce(bit-or, seq(Box2f, points))
+public defn boundary-points (bounds:Box2f) -> Seqable<V2f> :
   val dims = dims(bounds)
   val ctr = center(bounds)
   val radius = magnitude(dims)
   val poly = mov(xyz $ ctr, polygon-n(2.1f * radius, 3))
   vertices $ contours(poly)[0]
+
+public defn boundary-points (verts:Tuple<Vertex>) -> Seqable<V2f> :
+  val points = to-tuple $ seq(value, verts)
+  boundary-points(reduce(bit-or, seq(Box2f, points)))
 
 public defn Subdivision (ivertices:Seqable<Vertex>, boundary-verts:Tuple<Vertex>) :
   val verts = to-tuple $ ivertices
@@ -244,7 +281,7 @@ public defn Subdivision (ivertices:Seqable<Vertex>, boundary-verts:Tuple<Vertex>
   val sub = Subdivision(boundary-verts[0], boundary-verts[1], boundary-verts[2])
   ;; dump(sub)
   for vertex in verts do :
-    ;; println("INSERTING %_" % [pt])
+    println("INSERTING %_" % [vertex])
     constrained-insert-site(sub, vertex, 0.0f)
   sub
 
@@ -255,21 +292,21 @@ public defn Subdivision (ivertices:Seqable<Vertex>) :
 public defn Subdivision (ipoints:Seqable<V2f>) :
   Subdivision(seq(Vertex, ipoints))
 
-defn connect (a:Edge, b:Edge) :
-  val e = Edge()
+defn connect (s:Subdivision, a:Edge, b:Edge) :
+  val e = Edge(s)
   splice(e, lnext(a))
   splice(sym(e), b)
-  set-end-points(e, dest(a), org(b))
+  set-end-points(s, e, dest(a), org(b))
   e
 
-defn swap (e:Edge) :
+defn swap (s:Subdivision, e:Edge) :
   val a = oprev(e)
   val b = oprev(sym(e))
   splice(e,      a)
   splice(sym(e), b)
   splice(e,      lnext(a))
   splice(sym(e), lnext(b))
-  set-end-points(e, dest(a), dest(b))
+  set-end-points(s, e, dest(a), dest(b))
 
 defn snap (x:V2f, a:V2f, b:V2f) -> V2f :
   if x == a :
@@ -282,7 +319,8 @@ defn snap (x:V2f, a:V2f, b:V2f) -> V2f :
     val t = max(t1, t2) / (t1 + t2)
     ((1.0f - t) * a + t * b) when (t1 > t2) else ((1.0f - t) * b + t * a)
 
-defn split-edge (e:Edge, vx:Vertex) -> Vertex :
+defn split-edge (s:Subdivision, e:Edge, vx:Vertex) -> Vertex :
+  ;; println("SPLIT-EDGE %_ DEST %_ VX %_" % [e, dest(e), vx])
   val x = value(vx)
   val dt =
     if constrained?(quad(e)) :
@@ -291,14 +329,14 @@ defn split-edge (e:Edge, vx:Vertex) -> Vertex :
       vx
   val t = lnext(e)
   splice(sym(e), t)
-  set-end-points(e, org(e), dt)
-  val ne = connect(e, t)
+  set-end-points(s, e, org(e), dt)
+  val ne = connect(s, e, t)
   if constrained?(quad(e)) :
     set-constrained?(quad(e), true)
   dt
     
-defn split-edge (e:Edge, x:V2f) -> Vertex :
-  split-edge(e, Vertex(x))
+defn split-edge (s:Subdivision, e:Edge, x:V2f) -> Vertex :
+  split-edge(s, e, Vertex(x))
 
 defn warning (m:String) :
   println(m)
@@ -386,16 +424,14 @@ public defn locate (s:Subdivision, x:V2f) -> Edge :
     else :
       e
 
-defn fix-edge (e:Edge) :
+defn fix-edge (s:Subdivision, e:Edge) :
   ;; println("FIXING %_" % [e]) 
   if not constrained?(quad(e)) :
     val [f, g] = [oprev(e), dnext(e)]
     if in-circle(value(dest(e)), value(dest(onext(e))), value(org(e)), value(dest(f))) :
-      ;; println("SWAPPING %_" % [e])
-      swap(e)
-      ;; println("SWAPPED  %_" % [e])
-      fix-edge(f)
-      fix-edge(g)
+      swap(s, e)
+      fix-edge(s, f)
+      fix-edge(s, g)
 
 ;; Triangulates the left face of first, which is assumed to be closed.
 ;; It is also assumed that all the vertices of that face lie to the
@@ -407,37 +443,38 @@ defn fix-edge (e:Edge) :
 ;; long as the left face is not a triangle. The inner loop examines 
 ;; successive triplets of vertices, creating a triangle whenever the
 ;; triplet is counterclockwise.
-defn triangulate (init-first:Edge) :
+defn triangulate (s:Subdivision, init-first:Edge) :
   var first:Edge = init-first
   val last = lprev(first)
   
   while lnext(lnext(first)) != last : 
-    ;; println("WHILE TRIANGULATE")
-    var t1:Edge = first
+    ;; println("WHILE TRIANGULATE LAST %_" % [last])
+    ;; println("FIRST %_ FIRST-DEST %_" % [first, dest(first)])
+
+    var prev:Edge = first
     let loop (e:Edge = lnext(first)) :
-      ;; println("  LOOP %_" % [e])
+      ;; println("  LOOP %_ -> %_" % [e, dest(e)])
       if e != last :
-        val t2 = lnext(e)
-        if not (t2 == last and t1 == first) :
-          if left-of(value(dest(e)), t1) :
-            if t1 == first :
-              t1 = sym(connect(e, t1))
-              first = t1
-            else :
-              t1 = sym(connect(e, t1))
-            ;; println("TRIANGULATE CONNECTING %_" % [t1])
-            val [a, b] = [oprev(t1), dnext(t1)]
-            fix-edge(a)
-            fix-edge(b)
+        val next = lnext(e)
+        if not (next == last and prev == first) :
+          if left-of(value(dest(e)), prev) :
+            ;; println("   LEFT-OF %_ %_ -> %_" % [dest(e), prev, dest(prev)])
+            val first? = prev == first
+            prev = sym(connect(s, e, prev))
+            if first? : first = prev
+            ;; println("   CONNECTED %_ -> %_" % [prev, dest(prev)])
+            val [a, b] = [oprev(prev), dnext(prev)]
+            fix-edge(s, a)
+            fix-edge(s, b)
           else :
-            t1 = e
-          loop(t2)
+            prev = e
+          loop(next)
 
   ;; println("TRIANGULATE FIXING")
   val [a, b] = [lnext(last), lprev(last)]
-  fix-edge(a)
-  fix-edge(b)
-  fix-edge(last)
+  fix-edge(s, a)
+  fix-edge(s, b)
+  fix-edge(s, last)
 
 public defn insert-site (s:Subdivision, vx:Vertex) -> False|Edge :
   ;; println("INSERT-SITE %_" % [x])
@@ -451,16 +488,16 @@ public defn insert-site (s:Subdivision, vx:Vertex) -> False|Edge :
     else if on-edge(x, e) :
       ;; println("ON EDGE")
       e = oprev(e)
-      delete-edge(onext(e))
+      delete-edge(s, onext(e))
     ;; println("CONNECT")
-    var base:Edge = Edge()
-    set-end-points(base, org(e), vx)
+    var base:Edge = Edge(s)
+    set-end-points(s, base, org(e), vx)
     splice(base, e)
     set-starting-edge(s, base)
     ;; dump(s)
     let loop () :
       ;; println("BASE LOOP")
-      base = connect(e, sym(base))
+      base = connect(s, e, sym(base))
       ;; dump(s)
       e = oprev(base)
       loop() when lnext(e) != starting-edge(s)
@@ -469,7 +506,7 @@ public defn insert-site (s:Subdivision, vx:Vertex) -> False|Edge :
       val t = oprev(e)
       if right-of(value(dest(t)), e) and in-circle(value(org(e)), value(dest(t)), value(dest(e)), x) :
         ;; println("SWAP")
-        swap(e)
+        swap(s, e)
         e = oprev(e)
       else if onext(e) == starting-edge(s) :
         ;; println("DONE")
@@ -478,12 +515,131 @@ public defn insert-site (s:Subdivision, vx:Vertex) -> False|Edge :
         ;; println("POP")
         e = lprev(onext(e))
 
+;; VERSION OF TRIANGULATION USING EAR CHECKS TO ENSURE ONLY VALID EARS ARE CLIPPED
+defn ear-clipping-triangulate (s:Subdivision, init-first:Edge) :
+  var first:Edge = init-first
+  val last = lprev(first)
+  
+  defn convex? (e:Edge) -> True|False :
+    left-of(value(org(lprev(e))), e)
+
+  defn concave? (e:Edge) -> True|False :
+    right-of(value(org(lprev(e))), e)
+
+  defn sign (p1:V2f, p2:V2f, p3:V2f) -> Float :
+    (x(p1) - x(p3)) * (y(p2) - y(p3)) - (x(p2) - x(p3)) * (y(p1) - y(p3))
+
+  defn inside? (pt:V2f, v1:V2f, v2:V2f, v3:V2f) -> True|False :
+    val d1 = sign(pt, v1, v2)
+    val d2 = sign(pt, v2, v3)
+    val d3 = sign(pt, v3, v1)
+    val has-neg? = (d1 < 0.0f) or (d2 < 0.0f) or (d3 < 0.0f)
+    val has-pos? = (d1 > 0.0f) or (d2 > 0.0f) or (d3 > 0.0f)
+    not (has-neg? and has-pos?)
+
+  defn inside? (p:V2f, e:Edge) -> True|False :
+    inside?(p, value(org(lprev(e))), value(org(e)), value(dest(e)))
+
+  defn ear? (e:Edge) -> True|False :
+    ;; println("  >>> EAR? %_ -> %_" % [e, dest(e)])
+    if convex?(e) :
+      let loop (oe:Edge = lnext(lnext(e))) :
+        ;; println("    LOOP %_ -> %_" % [oe, dest(oe)])
+        if lnext(oe) == e :
+          ;; println("  <<< EAR TRUE")
+          true
+        else if concave?(oe) :
+          if inside?(value(org(oe)), e) :
+            ;; println("    CONCAVE AND INSIDE")
+            false
+          else :
+            ;; println("    CONCAVE NOT INSIDE")
+            loop(lnext(oe))
+        else :
+          loop(lnext(oe))
+    else :
+      ;; println("  <<< NOT CONVEX")
+      false
+    
+  while lnext(lnext(first)) != last : 
+    ;; println("WHILE TRIANGULATE LAST %_" % [last])
+    ;; println("FIRST %_ FIRST-DEST %_" % [first, dest(first)])
+
+    var prev:Edge = first
+    let loop (e:Edge = lnext(first)) :
+      ;; println("  LOOP %_ -> %_" % [e, dest(e)])
+      if e != last :
+        val next = lnext(e)
+        if not (next == last and prev == first) :
+          if ear?(e) :
+            ;; println("   EAR? %_ %_ -> %_" % [dest(e), prev, dest(prev)])
+            val first? = prev == first
+            prev = sym(connect(s, e, prev))
+            if first? : first = prev
+            ;; println("   CONNECTED %_ -> %_" % [prev, dest(prev)])
+            val [a, b] = [oprev(prev), dnext(prev)]
+            fix-edge(s, a)
+            fix-edge(s, b)
+          else :
+            prev = e
+          loop(next)
+
+  ;; println("TRIANGULATE FIXING")
+  val [a, b] = [lnext(last), lprev(last)]
+  fix-edge(s, a)
+  fix-edge(s, b)
+  fix-edge(s, last)
+
 public defn coincide (a:V2f, b:V2f, dist:Float) -> True|False :
   val d = a - b
   if abs(x(d)) > dist or abs(y(d)) > dist :
     false
   else :
     dot(d, d) <= (dist * dist)
+
+public defn delete-site (s:Subdivision, vx:Vertex, dist:Float) : ;; -> [Tuple<Edge>, Tuple<Edge>] :
+  ;; println(">>> DELETE-SITE %_" % [vx])
+  val one-e = locate(s, value(vx))
+  ;; println("LOCATED %_" % [one-e])
+  val e = one-e when org(one-e) == vx else sym(one-e)
+  defn outer-edge (e:Edge) -> Edge :
+    val fedges = face-edges(e)
+    next(fedges)
+    next(fedges)
+  val face-edge = outer-edge(e)
+  val edges = to-tuple $ origin-edges(e)
+  val all-face-edges = to-tuple $ seq(outer-edge, edges)
+  val outer-area = area(to-tuple $ seq({ value(org(_)) }, all-face-edges))
+  ;; println("FACE-EDGES")
+  ;; for e in all-face-edges do :
+  ;;   println("  E %~ DEST %~" % [e, dest(e)])
+  ;; println("OUTER-AREA %_" % [outer-area])
+  ;; val sedges = to-tuple $ seq(onext, seq(sym, origin-edges(e)))
+  for e in edges do :
+    ;; println("DELETING %_" % [e])
+    delete-edge(s, e)
+  val start-edge = face-edge
+  ;; println("AFTER")
+  ;; for e in face-edges(start-edge) do :
+  ;;   println("  E %~ DEST %~" % [e, dest(e)])
+  ;; for e in face-edges(start-edge) do :
+  ;;   print(" %~" % [value(org(e))])
+  ;; println("")
+  ear-clipping-triangulate(s, start-edge)
+  ;; val sfedges0 = all-face-edges(sedges)
+  ;; defn all-face-edges (sedges:Tuple<Edge>) -> HashSet<Edge> :
+  ;;   val oedges = to-tuple $ seq-cat(origin-edges, sedges)
+  ;;   to-hashset<Edge> $ cat(oedges, seq(sym, oedges))
+  ;; defn sub (es0:HashSet<Edge>, es1:HashSet<Edge>) -> Seq<Edge> :
+  ;;   for e0 in es0 filter : not es1[e0]
+  ;; val sfedges1 = all-face-edges(sedges)
+  ;; val dels = to-tuple $ sub(sfedges0, sfedges1)
+  ;; val adds = to-tuple $ sub(sfedges1, sfedges0)
+  ;; println("BEFORE %_" % [to-tuple $ lazy-qsort $ seq(id, sfedges0)])  
+  ;; println("AFTER  %_" % [to-tuple $ lazy-qsort $ seq(id, sfedges1)])  
+  ;; println("DELS   %_" % [to-tuple $ seq(id, dels)])
+  ;; println("ADDS   %_" % [to-tuple $ seq(id, adds)])
+  ;; [dels, adds]
 
 public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> False|Edge :
   ;; println("INSERT-SITE %_" % [x])
@@ -524,7 +680,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
     ;; is not one of e's endpoints.
 
     if is-on-edge :
-      ;; println("IS-ON-EDGE %_" % [e])
+      ;; println("IS-ON-EDGE %_ CONSTRAINED? %_" % [e, constrained?(quad(e))])
       val xx = snap(x, value(org(e)), value(dest(e)))
       if coincide(xx, value(org(e)), dist) :
         return(e)
@@ -536,22 +692,22 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
         val b = dnext(e)
         val c = lnext(e)
         val d = lprev(e)
-        split-edge(e, vx)
-        connect(e, lprev(e))
-        connect(oprev(e), sym(e))
-        fix-edge(a)
-        fix-edge(b)
-        fix-edge(c)
-        fix-edge(d)
+        split-edge(s, e, vx)
+        connect(s, e, lprev(e))
+        connect(s, oprev(e), sym(e))
+        fix-edge(s, a)
+        fix-edge(s, b)
+        fix-edge(s, c)
+        fix-edge(s, d)
       else :
         if has-right :
           e = sym(e)
         val c = lnext(e)
         val d = lprev(e)
-        split-edge(e, vx)
-        connect(e, lprev(e))
-        fix-edge(c)
-        fix-edge(d)
+        split-edge(s, e, vx)
+        connect(s, e, lprev(e))
+        fix-edge(s, c)
+        fix-edge(s, d)
       set-starting-edge(s, sym(e))
       return(starting-edge(s))
     
@@ -568,12 +724,12 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
     ;; so everything should proceed smoothly from this point on.
 
     val first = org(e)
-    var base:Edge = Edge(org(e), vx)
+    var base:Edge = Edge(s, org(e), vx)
     splice(base, e)
     ;; use this edge as the starting point next time:
     set-starting-edge(s, sym(base))
     let loop () :
-      base = connect(e, sym(base))
+      base = connect(s, e, sym(base))
       e = oprev(base)
       loop() when dprev(e) != starting-edge(s)
 
@@ -584,7 +740,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
       if not constrained?(quad(e)) and
           in-circle(value(org(e)), value(dest(t)), value(dest(e)), x) :
         ;; println("SWAP")
-        swap(e)
+        swap(s, e)
         e = oprev(e)
       else if lprev(e) == starting-edge(s) :
         ;; println("DONE")
@@ -594,6 +750,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
         e = lprev(onext(e))
 
 public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) :
+  ;; println("INSERTING-EDGE %_ %_" % [a, b])
   label<False> return:
     match(constrained-insert-site(s, a, 0.0f), constrained-insert-site(s, b, 0.0f)) :
       (start-ea:Edge, eb:Edge) :
@@ -627,7 +784,7 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) :
 
           ;; check to see if an edge is already there
           if on?(ab, value(dest(ea))) :
-            ;; println("EDGE %_ ALREADY THERE" % [ea])
+            ;; println("EDGE %_ -> %_ ALREADY THERE %_" % [ea, dest(ea), abs(eval(ab, value(dest(ea))))])
             set-constrained?(quad(ea), true)
             aa = value(dest(ea))
             if aa == bb : return(false)
@@ -644,12 +801,12 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) :
                   ea = sym(lnext(t))
                 else :
                   ;; need a new edge
-                  val ne = connect(lnext(t), ea)
+                  val ne = connect(s, lnext(t), ea)
                   ;; println("NEED NEW EDGE -- CONSTRAINING -- CONNECTING %_" % [ne])
                   set-constrained?(quad(ne), true)
                   ea = sym(lnext(t))
-                  triangulate(lnext(ne))
-                  triangulate(oprev(ne))
+                  triangulate(s, lnext(ne))
+                  triangulate(s, oprev(ne))
                   ;; println("DONE TRIANGULATING")
               else if left?(ab, value(dest(lnext(t)))) :
                 ;; edges cross
@@ -663,14 +820,17 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) :
                   ;; compute and insert the intersection
                   val x = intersect(lnext(t), ab)
                   ;; split lnext(t) into two at x
-                  split-edge(lnext(t), x)
-                  ;; println("CROSSING EDGE ALSO CONSTRAINED -- SPLITTING AT %_" % [x])
+                  ;; println("CROSSING EDGE ALSO CONSTRAINED %_ SPLITTING AT %_" % [constrained?(quad(lnext(t))), x])
+                  ;; println("AB %_ -> %_" % [a, b])
+                  ;; println("LNEXT %_ -> %_" % [lnext(t), dest(lnext(t))])
+                  split-edge(s, lnext(t), x)
                   ;; connect to eh new vertex:
-                  val ne = connect(lnext(t), ea)
+                  val ne = connect(s, lnext(t), ea)
+                  ;; println("SETTING CONSTRAINED? %_ -> %_" % [ne next(ne)])
                   set-constrained?(quad(ne), true)
                   ea = sym(lnext(t))
-                  triangulate(lnext(ne))
-                  triangulate(oprev(ne))
+                  triangulate(s, lnext(ne))
+                  triangulate(s, oprev(ne))
               else :
                 loop(lnext(t))
 

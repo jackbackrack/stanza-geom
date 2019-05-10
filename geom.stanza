@@ -237,7 +237,7 @@ val @doc-vx = "2/3 DIM VECTORS -- ponts and dimensions"
   public defn xyz (p:Prim) -> PrimVec : PrimVec(p, p, p)
 
   defmethod print (o:OutputStream, v:PrimVec) :
-    print-all(o, [PrimVecName "(", x(v), ",", y(v), ",", z(v), ")"])
+    print(o, "%_(%~, %~, %~)" % [PrimVecName, x(v), y(v), z(v)])
 
   public defn magnitude (a:PrimVec) -> Prim :
     sqrt(dot(a, a))
@@ -401,7 +401,7 @@ public defn indices (dims:V3i) -> Seq<V3i> :
   public defn xy (p:Prim) -> PrimVec : PrimVec(p, p)
 
   defmethod print (o:OutputStream, v:PrimVec) :
-    print-all(o, [PrimVecName "(", x(v), ",", y(v), ")"])
+    print(o, "%_(%~, %~)" % [PrimVecName, x(v), y(v)])
 
   public defn magnitude (a:PrimVec) -> Prim :
     sqrt(dot(a, a))
@@ -543,7 +543,7 @@ defmethod hash (v:V4f) :
   (7 * ((7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v)))) + hash(a(v))
 
 defmethod print (o:OutputStream, v:V4f) :
-  print-all(o, ["V4f(", x(v) "," y(v) "," z(v) "," a(v) ")"])
+  print(o, "V4f(%~, %~, %~, %~)" % [x(v), y(v), z(v), z(v)])
 
 public val RED   = V4f(1.0f, 0.0f, 0.0f, 1.0f)
 public val GREEN = V4f(0.0f, 1.0f, 0.0f, 1.0f)
