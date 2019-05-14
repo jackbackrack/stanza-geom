@@ -74,6 +74,7 @@ public defstruct QuadEdge <: Equalable&Hashable :
   id : Int
   constrained? : True|False with: ( setter => set-constrained? )
   edges : Tuple<Edge> with: ( setter => set-edges )
+  data : ? with: ( init => false, setter => set-data )
 
 defmethod equal? (a:QuadEdge, b:QuadEdge) : id(a) == id(b)
 defmethod hash (a:QuadEdge) : hash(id(a))
@@ -281,7 +282,7 @@ public defn Subdivision (ivertices:Seqable<Vertex>, boundary-verts:Tuple<Vertex>
   val sub = Subdivision(boundary-verts[0], boundary-verts[1], boundary-verts[2])
   ;; dump(sub)
   for vertex in verts do :
-    println("INSERTING %_" % [vertex])
+    ;; println("INSERTING %_" % [vertex])
     constrained-insert-site(sub, vertex, 0.0f)
   sub
 
@@ -375,8 +376,14 @@ defn ccw (a:V2f, b:V2f, c:V2f) -> True|False :
 defn cw (a:V2f, b:V2f, c:V2f) -> True|False :
   tri-area(a, b, c) < 0.0f
 
+defn inline (a:V2f, b:V2f, c:V2f) -> True|False :
+  tri-area(a, b, c) == 0.0f
+
 defn right-of (x:V2f, e:Edge) -> True|False :
   ccw(x, value(dest(e)), value(org(e)))
+
+defn inline-of (x:V2f, e:Edge) -> True|False :
+  inline(x, value(dest(e)), value(org(e)))
 
 defn left-of (x:V2f, e:Edge) -> True|False :
   cw(x, value(dest(e)), value(org(e)))
@@ -524,7 +531,7 @@ defn ear-clipping-triangulate (s:Subdivision, init-first:Edge) :
     left-of(value(org(lprev(e))), e)
 
   defn concave? (e:Edge) -> True|False :
-    right-of(value(org(lprev(e))), e)
+    right-of(value(org(lprev(e))), e) or inline-of(value(org(lprev(e))), e)
 
   defn sign (p1:V2f, p2:V2f, p3:V2f) -> Float :
     (x(p1) - x(p3)) * (y(p2) - y(p3)) - (x(p2) - x(p3)) * (y(p1) - y(p3))
@@ -533,9 +540,16 @@ defn ear-clipping-triangulate (s:Subdivision, init-first:Edge) :
     val d1 = sign(pt, v1, v2)
     val d2 = sign(pt, v2, v3)
     val d3 = sign(pt, v3, v1)
-    val has-neg? = (d1 < 0.0f) or (d2 < 0.0f) or (d3 < 0.0f)
-    val has-pos? = (d1 > 0.0f) or (d2 > 0.0f) or (d3 > 0.0f)
-    not (has-neg? and has-pos?)
+    val sd1 = d1 >= 0.0f
+    val sd2 = d2 >= 0.0f
+    val sd3 = d3 >= 0.0f
+    ;; val res = sd1 == sd2 and sd2 == sd3
+    val res = sd1 and sd2 and sd3
+    ;; val has-neg? = (d1 < 0.0f) or (d2 < 0.0f) or (d3 < 0.0f)
+    ;; val has-pos? = (d1 > 0.0f) or (d2 > 0.0f) or (d3 > 0.0f)
+    ;; not (has-neg? and has-pos?)
+    ;; println("PT %_ TRI %_ %_ %_ -> %_ (%_, %_, %_)" % [pt, v1, v2, v3, res, d1, d2, d3])
+    res
 
   defn inside? (p:V2f, e:Edge) -> True|False :
     inside?(p, value(org(lprev(e))), value(org(e)), value(dest(e)))
@@ -615,6 +629,7 @@ public defn delete-site (s:Subdivision, vx:Vertex, dist:Float) : ;; -> [Tuple<Ed
   ;;   println("  E %~ DEST %~" % [e, dest(e)])
   ;; println("OUTER-AREA %_" % [outer-area])
   ;; val sedges = to-tuple $ seq(onext, seq(sym, origin-edges(e)))
+  ;; println("DELETING EDGES")
   for e in edges do :
     ;; println("DELETING %_" % [e])
     delete-edge(s, e)
@@ -625,7 +640,9 @@ public defn delete-site (s:Subdivision, vx:Vertex, dist:Float) : ;; -> [Tuple<Ed
   ;; for e in face-edges(start-edge) do :
   ;;   print(" %~" % [value(org(e))])
   ;; println("")
+  ;; println(">>> TRIANGULATING")
   ear-clipping-triangulate(s, start-edge)
+  ;; println("<<< TRIANGULATING")
   ;; val sfedges0 = all-face-edges(sedges)
   ;; defn all-face-edges (sedges:Tuple<Edge>) -> HashSet<Edge> :
   ;;   val oedges = to-tuple $ seq-cat(origin-edges, sedges)
