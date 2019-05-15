@@ -130,10 +130,10 @@ public defn all-edges (i:Edge) -> Seqable<Edge> :
 public defn all-edges (s:Subdivision) -> Seqable<Edge> :
   all-edges(starting-edge(s))
 
-public defn quad-edges (i:Edge) -> Seqable<QuadEdge> :
+public defn all-quad-edges (i:Edge) -> Seqable<QuadEdge> :
   seq(quad, unique(quad, edges(i)))
 
-public defn quad-edges (s:Subdivision) : quad-edges(starting-edge(s))
+public defn all-quad-edges (s:Subdivision) : all-quad-edges(starting-edge(s))
 
 public defn dump (s:Subdivision) :
   println("DUMP")
@@ -766,9 +766,9 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
         ;; println("POP")
         e = lprev(onext(e))
 
-public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) :
+public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) -> False|Edge :
   ;; println("INSERTING-EDGE %_ %_" % [a, b])
-  label<False> return:
+  label<False|Edge> return:
     match(constrained-insert-site(s, a, 0.0f), constrained-insert-site(s, b, 0.0f)) :
       (start-ea:Edge, eb:Edge) :
         var aa:V2f = value(org(start-ea))
@@ -780,6 +780,10 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) :
         var ab:ImplicitLine = ImplicitLine2(aa, bb)
         var dd:V2f = bb - aa
         val last = org(eb)
+        var res:False|Edge = false
+        defn set-res (e:Edge) :
+          res = e
+          set-constrained?(quad(e), true)
         while org(ea) != last :
           ;; set ea to first edge to the right of (or aligned with)
           ;; the segment (a, b) by moving ccw around the origin of ea:
@@ -802,9 +806,9 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) :
           ;; check to see if an edge is already there
           if on?(ab, value(dest(ea))) :
             ;; println("EDGE %_ -> %_ ALREADY THERE %_" % [ea, dest(ea), abs(eval(ab, value(dest(ea))))])
-            set-constrained?(quad(ea), true)
+            set-res(ea)
             aa = value(dest(ea))
-            if aa == bb : return(false)
+            if aa == bb : return(ea)
             ab = ImplicitLine(aa, bb)
             dd = bb - aa
             ea = onext(sym(ea))
@@ -814,13 +818,13 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) :
                 if lnext(lnext(lnext(t))) == ea :
                   ;; edge is already there
                   ;; println("EDGE %_ ALREADY THERE" % [lnext(lnext(t))])
-                  set-constrained?(quad(lnext(lnext(t))), true)
+                  set-res(lnext(lnext(t)))
                   ea = sym(lnext(t))
                 else :
                   ;; need a new edge
                   val ne = connect(s, lnext(t), ea)
                   ;; println("NEED NEW EDGE -- CONSTRAINING -- CONNECTING %_" % [ne])
-                  set-constrained?(quad(ne), true)
+                  set-res(ne)
                   ea = sym(lnext(t))
                   triangulate(s, lnext(ne))
                   triangulate(s, oprev(ne))
@@ -844,13 +848,13 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) :
                   ;; connect to eh new vertex:
                   val ne = connect(s, lnext(t), ea)
                   ;; println("SETTING CONSTRAINED? %_ -> %_" % [ne next(ne)])
-                  set-constrained?(quad(ne), true)
+                  set-res(ne)
                   ea = sym(lnext(t))
                   triangulate(s, lnext(ne))
                   triangulate(s, oprev(ne))
               else :
                 loop(lnext(t))
-
+        res
       (fa, fb) :
         println("DIDN'T FIND %_ %_" % [fa, fb])
         false    
