@@ -3,6 +3,7 @@ defpackage delaunay :
   import collections
   import geom
   import utils
+  import edits
 
 val vertex-ids = to-seq(0 to false)
 
@@ -12,13 +13,7 @@ public defn skip-vertex-ids (id:Int) :
 public defstruct Vertex <: Equalable&Hashable :
   id : Int
   value : V2f
-  #edge : False|Edge with: ( setter => set-edge )
 
-public defn edge (v:Vertex) :
-  println("BAD VERTEX %_" % [v]) when #edge(v) is False
-  #edge(v) as Edge
-
-public defn Vertex (id:Int, v:V2f) : Vertex(id, v, false)
 public defn Vertex (v:V2f) : Vertex(next(vertex-ids), v)
 
 defmethod print (o:OutputStream, v:Vertex) :
@@ -32,18 +27,22 @@ val edge-ids = to-seq(0 to false)
 public defstruct Edge <: Equalable&Hashable :
   id : Int
   num : Int
-  #next : False|Edge with: ( setter => set-next )
+  #next : False|Edge with: ( setter => #set-next )
   #data : False|Vertex with: ( setter => #set-data )
-  quad : QuadEdge    with: ( setter => set-quad )
+  quad : QuadEdge
+
+public defn set-next (e:Edge, n:Edge) :
+  add-edit({ SlotEdit("Next", e, #next(e), n, #set-next) })
+  #set-next(e, n)
+
+public defn set-data (e:Edge, v:Vertex) :
+  add-edit({ SlotEdit("Data", e, #data(e), v, #set-data) })
+  #set-data(e, v)
 
 public defn Edge (s:Subdivision, id:Int, num:Int, quad:QuadEdge) -> Edge :
   val e = Edge(id, num, false, false, quad)
   add-edge-callback(s)(e)
   e
-
-public defn set-data (e:Edge, v:Vertex) :
-  #set-data(e, v)
-  set-edge(v, e)
 
 defmethod print (o:OutputStream, e:Edge) :
   defn maybe-next-id (e:Edge) : -1 when #next(e) is False else id(next(e))
@@ -74,7 +73,7 @@ public defstruct QuadEdge <: Equalable&Hashable :
   id : Int
   constrained? : True|False with: ( setter => set-constrained? )
   edges : Tuple<Edge> with: ( setter => set-edges )
-  data : ? with: ( init => false, setter => set-data )
+  data : ? with: ( init => false, setter => #set-data )
 
 defmethod equal? (a:QuadEdge, b:QuadEdge) : id(a) == id(b)
 defmethod hash (a:QuadEdge) : hash(id(a))
@@ -92,6 +91,10 @@ defn QuadEdge (s:Subdivision) :
   set-next(es[2], es[2])
   set-next(es[3], es[1])
   q
+
+public defn set-data (e:QuadEdge, d:?) :
+  add-edit({ SlotEdit("QuadData", e, data(e), d, #set-data) })
+  #set-data(e, d)
 
 public defn edges (s:Subdivision) -> Seqable<Edge> :
   edges(starting-edge(s))
@@ -241,15 +244,19 @@ defn delete-edge (s:Subdivision, e:Edge) :
   del-edge-callback(s)(old-sym)
   
 public defstruct Subdivision :
-  #starting-edge : False|Edge with: ( setter => set-starting-edge, init => false )
+  #starting-edge : False|Edge with: ( setter => #set-starting-edge, init => false )
   add-edge-callback : ( Edge -> False ) with: ( init => { false }, setter => set-add-edge-callback )
   del-edge-callback : ( Edge -> False ) with: ( init => { false }, setter => set-del-edge-callback )
   mov-edge-callback : ( Edge -> False ) with: ( init => { false }, setter => set-mov-edge-callback )
 
+public defn set-starting-edge (sub:Subdivision, e:False|Edge) :
+  add-edit({ SlotEdit("StartingEdge", sub, #starting-edge(sub), e, #set-starting-edge) })
+  #set-starting-edge(sub, e)
+
 public defn starting-edge (s:Subdivision) : #starting-edge(s) as Edge
 
 defmethod print (o:OutputStream, s:Subdivision) :
-  print(o, "SUBDIVISION(%_)" % [starting-edge(s)])
+  print(o, "SUBDIVISION(%_)" % [#starting-edge(s)])
 
 public defn Subdivision (va:Vertex, vb:Vertex, vc:Vertex) :
   val s = Subdivision()
