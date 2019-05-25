@@ -32,12 +32,10 @@ public defstruct Edge <: Equalable&Hashable :
   quad : QuadEdge
 
 public defn set-next (e:Edge, n:Edge) :
-  add-edit({ SlotEdit("Next", e, #next(e), n, #set-next) })
-  #set-next(e, n)
+  add-do-edit(SlotEdit("Next", e, #next(e), n, #set-next))
 
 public defn set-data (e:Edge, v:Vertex) :
-  add-edit({ SlotEdit("Data", e, #data(e), v, #set-data) })
-  #set-data(e, v)
+  add-do-edit(SlotEdit("Data", e, #data(e), v, #set-data))
 
 public defn Edge (s:Subdivision, id:Int, num:Int, quad:QuadEdge) -> Edge :
   val e = Edge(id, num, false, false, quad)
@@ -93,8 +91,7 @@ defn QuadEdge (s:Subdivision) :
   q
 
 public defn set-data (e:QuadEdge, d:?) :
-  add-edit({ SlotEdit("QuadData", e, data(e), d, #set-data) })
-  #set-data(e, d)
+  add-do-edit(SlotEdit("QuadData", e, data(e), d, #set-data))
 
 public defn edges (s:Subdivision) -> Seqable<Edge> :
   edges(starting-edge(s))
@@ -250,8 +247,7 @@ public defstruct Subdivision :
   mov-edge-callback : ( Edge -> False ) with: ( init => { false }, setter => set-mov-edge-callback )
 
 public defn set-starting-edge (sub:Subdivision, e:False|Edge) :
-  add-edit({ SlotEdit("StartingEdge", sub, #starting-edge(sub), e, #set-starting-edge) })
-  #set-starting-edge(sub, e)
+  add-do-edit(SlotEdit("StartingEdge", sub, #starting-edge(sub), e, #set-starting-edge))
 
 public defn starting-edge (s:Subdivision) : #starting-edge(s) as Edge
 
