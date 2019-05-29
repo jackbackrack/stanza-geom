@@ -122,10 +122,14 @@ public defn dump (st:SpanningTree) :
     for child in children(t) do :
       loop(child, depth + 1)
 
-public defn segments (st:SpanningTree) -> Seqable<LineSegment2f> :
-  generate<LineSegment2f> :
+public defn id-segments (st:SpanningTree) -> Seqable<V2i> :
+  generate<V2i> :
     let loop (t:IntTree = tree(st)) :
       for child in children(t) do :
-        yield(LineSegment2f(points(st)[idx(t)], points(st)[idx(child)]))
+        yield(V2i(idx(t), idx(child)))
         loop(child)
+
+public defn segments (st:SpanningTree) -> Seqable<LineSegment2f> :
+  seq(fn (s) : LineSegment2f(points(st)[s[0]], points(st)[s[1]]), id-segments(st))
+
 ;; 
