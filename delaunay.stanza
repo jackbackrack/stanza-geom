@@ -35,6 +35,7 @@ public defn set-next (e:Edge, n:Edge) :
   add-do-edit(SlotEdit("Next", e, #next(e), n, #set-next))
 
 public defn set-data (e:Edge, v:Vertex) :
+  if constrained?(quad(e)) : println("CHANGING CONSTRAINED EDGE %_ ORG" % [e])
   add-do-edit(SlotEdit("Data", e, #data(e), v, #set-data))
 
 public defn Edge (s:Subdivision, id:Int, num:Int, quad:QuadEdge) -> Edge :
@@ -69,9 +70,12 @@ val quad-edge-ids = to-seq(0 to false)
 
 public defstruct QuadEdge <: Equalable&Hashable :
   id : Int
-  constrained? : True|False with: ( setter => set-constrained? )
+  constrained? : True|False with: ( setter => #set-constrained? )
   edges : Tuple<Edge> with: ( setter => set-edges )
   data : ? with: ( init => false, setter => #set-data )
+
+public defn set-constrained? (e:QuadEdge, x:True|False) :
+  add-do-edit(SlotEdit("Constrained?", e, constrained?(e), x, #set-constrained?))
 
 defmethod equal? (a:QuadEdge, b:QuadEdge) : id(a) == id(b)
 defmethod hash (a:QuadEdge) : hash(id(a))
@@ -205,6 +209,7 @@ defn set-dest (e:Edge, p:Vertex) :
   set-data(sym(e), p)
 
 defn #set-end-points (e:Edge, org:Vertex, dst:Vertex) :
+  if constrained?(quad(e)) : println("CHANGING CONSTRAINED EDGE %_ VERTICES" % [e])
   set-data(e,      org)
   set-data(sym(e), dst)
 
@@ -216,6 +221,8 @@ defn end-points (e:Edge) -> [Vertex, Vertex]:
   [data(e), data(sym(e))]
 
 defn splice (a:Edge, b:Edge) :
+  ;; if constrained?(quad(a)) or constrained?(quad(b)) :
+  ;;   println("WARNING TRYING TO SPLICE CONSTRAINED EDGE")
   val alpha = rot $ onext $ a
   val beta  = rot $ onext $ b
   val t1 = onext $ b
@@ -297,6 +304,8 @@ public defn Subdivision (ipoints:Seqable<V2f>) :
   Subdivision(seq(Vertex, ipoints))
 
 defn connect (s:Subdivision, a:Edge, b:Edge) :
+  ;; if constrained?(quad(a)) or constrained?(quad(b)) :
+  ;;   println("WARNING TRYING TO CONNECT CONSTRAINED EDGE")
   val e = Edge(s)
   splice(e, lnext(a))
   splice(sym(e), b)
@@ -306,6 +315,8 @@ defn connect (s:Subdivision, a:Edge, b:Edge) :
 defn swap (s:Subdivision, e:Edge) :
   val a = oprev(e)
   val b = oprev(sym(e))
+  ;; if constrained?(quad(e)) or constrained?(quad(a)) or constrained?(quad(b)) :
+  ;;   println("WARNING TRYING TO SWAP CONSTRAINED EDGE")
   splice(e,      a)
   splice(sym(e), b)
   splice(e,      lnext(a))
@@ -435,7 +446,6 @@ public defn locate (s:Subdivision, x:V2f) -> Edge :
       e
 
 defn fix-edge (s:Subdivision, e:Edge) :
-  ;; println("FIXING %_" % [e]) 
   if not constrained?(quad(e)) :
     val [f, g] = [oprev(e), dnext(e)]
     if in-circle(value(dest(e)), value(dest(onext(e))), value(org(e)), value(dest(f))) :
@@ -487,7 +497,7 @@ defn triangulate (s:Subdivision, init-first:Edge) :
   fix-edge(s, last)
 
 public defn insert-site (s:Subdivision, vx:Vertex) -> False|Edge :
-  ;; println("INSERT-SITE %_" % [x])
+  println("INSERT-SITE %_" % [x])
   val x = value(vx)
   var e:Edge = locate(s, x)
   ;; println("FOUND %_" % [e])
@@ -527,10 +537,12 @@ public defn insert-site (s:Subdivision, vx:Vertex) -> False|Edge :
 
 ;; VERSION OF TRIANGULATION USING EAR CHECKS TO ENSURE ONLY VALID EARS ARE CLIPPED
 defn ear-clipping-triangulate (s:Subdivision, init-first:Edge) :
+  ;; println("EAR-CLIPPING-TRIANGULATE")
   var first:Edge = init-first
   val last = lprev(first)
   
   defn convex? (e:Edge) -> True|False :
+    ;; println("PT %_ ORG %_ DEST %_" % [value(org(lprev(e))), value(org(e)), value(dest(e))])
     left-of(value(org(lprev(e))), e)
 
   defn concave? (e:Edge) -> True|False :
@@ -617,8 +629,11 @@ public defn coincide (a:V2f, b:V2f, dist:Float) -> True|False :
 public defn delete-site (s:Subdivision, vx:Vertex, dist:Float) : ;; -> [Tuple<Edge>, Tuple<Edge>] :
   ;; println(">>> DELETE-SITE %_" % [vx])
   val one-e = locate(s, value(vx))
-  ;; println("LOCATED %_" % [one-e])
   val e = one-e when org(one-e) == vx else sym(one-e)
+  ;; if org(e) == vx :
+  ;;   println("LOCATED %_ -> %_" % [e dest(e)])
+  if org(e) != vx :
+    println("!!! DELETE-SITE LOST VX %_ e %_ -> %_" % [vx e dest(e)])
   defn outer-edge (e:Edge) -> Edge :
     val fedges = face-edges(e)
     next(fedges)
@@ -634,7 +649,7 @@ public defn delete-site (s:Subdivision, vx:Vertex, dist:Float) : ;; -> [Tuple<Ed
   ;; val sedges = to-tuple $ seq(onext, seq(sym, origin-edges(e)))
   ;; println("DELETING EDGES")
   for e in edges do :
-    ;; println("DELETING %_" % [e])
+    ;; println("DELETING %_ -> %_" % [e, dest(e)])
     delete-edge(s, e)
   val start-edge = face-edge
   ;; println("AFTER")
@@ -662,14 +677,16 @@ public defn delete-site (s:Subdivision, vx:Vertex, dist:Float) : ;; -> [Tuple<Ed
   ;; [dels, adds]
 
 public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> False|Edge :
-  ;; println("INSERT-SITE %_" % [x])
+  ;; println(">>> INSERT-SITE %_" % [vx])
   label<False|Edge> return :
     val x = value(vx)
     var e:Edge = locate(s, x)
 
     if coincide(x, value(org(e)), dist) :
+      ;; println("COINCIDE ORG")
       return(e)
     if coincide(x, value(dest(e)), dist) :
+      ;; println("COINCIDE DEST")
       return(sym(e))
 
     val has-left = has-left-face(e)
@@ -708,6 +725,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
         return(sym(e))
 
       if has-right and has-left :
+        ;; println("HAS-RIGHT AND HAS-LEFT")
         val a = oprev(e)
         val b = dnext(e)
         val c = lnext(e)
@@ -720,6 +738,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
         fix-edge(s, c)
         fix-edge(s, d)
       else :
+        ;; println("NOT HAS-RIGHT OR NOT HAS-LEFT")
         if has-right :
           e = sym(e)
         val c = lnext(e)
@@ -745,11 +764,14 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
 
     val first = org(e)
     var base:Edge = Edge(s, org(e), vx)
+    ;; if constrained?(quad(e)) : println("SPLICING INTO CONSTRAINED EDGE")
+    ;; println("SPLICING %_ TO %_" % [base, e])
     splice(base, e)
     ;; use this edge as the starting point next time:
     set-starting-edge(s, sym(base))
     let loop () :
       base = connect(s, e, sym(base))
+      ;; println("CONNECTING %_ TO %_" % [e, sym(base)])
       e = oprev(base)
       loop() when dprev(e) != starting-edge(s)
 
@@ -770,7 +792,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
         e = lprev(onext(e))
 
 public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) -> False|Edge :
-  ;; println("INSERTING-EDGE %_ %_" % [a, b])
+  ;; println(">>> INSERT-EDGE %_ %_" % [a, b])
   label<False|Edge> return:
     match(constrained-insert-site(s, a, 0.0f), constrained-insert-site(s, b, 0.0f)) :
       (start-ea:Edge, eb:Edge) :
@@ -785,8 +807,9 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) -> False|Edge :
         val last = org(eb)
         var res:False|Edge = false
         defn set-res (e:Edge) :
-          res = e
+          ;; println("SETTING RES %_" % [e])
           set-constrained?(quad(e), true)
+          res = e
         while org(ea) != last :
           ;; set ea to first edge to the right of (or aligned with)
           ;; the segment (a, b) by moving ccw around the origin of ea:
@@ -805,7 +828,6 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) -> False|Edge :
                 warning("insert-edge: infinite loop")
                 return(false)
               loop()
-
           ;; check to see if an edge is already there
           if on?(ab, value(dest(ea))) :
             ;; println("EDGE %_ -> %_ ALREADY THERE %_" % [ea, dest(ea), abs(eval(ab, value(dest(ea))))])
@@ -826,8 +848,9 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) -> False|Edge :
                 else :
                   ;; need a new edge
                   val ne = connect(s, lnext(t), ea)
-                  ;; println("NEED NEW EDGE -- CONSTRAINING -- CONNECTING %_" % [ne])
+                  ;; println("NEED NEW EDGE -- CONSTRAINING -- CONNECTING %_ TO %_" % [lnext(t), ne])
                   set-res(ne)
+                  set-constrained?(quad(ne), true)
                   ea = sym(lnext(t))
                   triangulate(s, lnext(ne))
                   triangulate(s, oprev(ne))
