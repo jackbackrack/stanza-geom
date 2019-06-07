@@ -81,7 +81,8 @@ defmethod equal? (a:QuadEdge, b:QuadEdge) : id(a) == id(b)
 defmethod hash (a:QuadEdge) : hash(id(a))
 
 defmethod print (o:OutputStream, q:QuadEdge) :
-  print(o, "QUADeDGE(ID %_, EDGES %,_)" % [id(q), edges(q)])
+  print(o, "QUADeDGE(ID %_)" % [id(q)])
+  ;; print(o, "QUADeDGE(ID %_, EDGES %,_)" % [id(q), edges(q)])
 
 defn QuadEdge (s:Subdivision) :
   val q = QuadEdge(next(quad-edge-ids), false, [])
