@@ -57,37 +57,40 @@ defn length (tree:SpanningGraph) -> Float :
 
 public defn SpanningGraph (ipoints:Seqable<V2f>, seed-edges:Seqable<Edge>) -> SpanningGraph :
   val points = to-tuple $ ipoints
-  ;; println("SPANNING-TREE %_" % [length(points)])
-  ;; val edges = to-tuple $ lazy-qsort(length{points, _}, all-edges(points))
-  ;; val log2n = max(4, ceil-log2(length(points)) - 2)
-  ;; println("LOG2N %_" % [log2n])
-  val verts = to-tuple $ seq(Vertex, ipoints)
-  val vert-mapper = to-inttable<Int> $ for (vert in verts, i in 0 to false) seq : id(vert) => i
-  val v2f-edges = edges(Subdivision(verts))
-  ;; println("DELAUNAY")
-  val unsorted-edges = generate<Edge> :
-    for e in v2f-edges do :
-      ;; println("e %_ ORG %_ DEST %_" % [e, key?(edge-mapper, org(e)), key?(edge-mapper, dest(e))])
-      if key?(vert-mapper, id(org(e))) and key?(vert-mapper, id(dest(e))) :
-        yield(Edge(vert-mapper[id(org(e))], vert-mapper[id(dest(e))]))
-  val edges = to-tuple $ cat(seed-edges, lazy-qsort(length{points, _}, unsorted-edges))
-  ;; println("SORTED EDGES")
-  val graphs = to-tuple $ for i in 0 to length(points) seq : IntGraph(i)
-  val sets = to-tuple $ for i in 0 to length(points) seq : #UFSet<Int>(i, i, 1)
-  ;; for edge in edges do :
-  ;;   println("EDGE %_ LENGTH %_" % [edge, length(points, edge)])
-  ;; for (point in points, i in 0 to false) do :
-  ;;   println("%_: %_" % [i, point])
-  label<False> return :
-    for edge in edges do :
-      ;; println("CONSIDERING EDGE %_ SETS %_ , %_" % [edge, id(root(sets[a(edge)])), id(root(sets[b(edge)]))])
-      if root(sets[a(edge)]) != root(sets[b(edge)]) :
-        add(nbrs(graphs[a(edge)]), b(edge))
-        add(nbrs(graphs[b(edge)]), a(edge))
-        merge!(sets[a(edge)], sets[b(edge)])
-        return(false) when one-set?(sets)
-  ;; println("DONE")
-  SpanningGraph(points, graphs)
+  if length(points) == 0 :
+    SpanningGraph([], [] as Tuple<IntGraph>)
+  else :
+    ;; println("SPANNING-TREE %_" % [length(points)])
+    ;; val edges = to-tuple $ lazy-qsort(length{points, _}, all-edges(points))
+    ;; val log2n = max(4, ceil-log2(length(points)) - 2)
+    ;; println("LOG2N %_" % [log2n])
+    val verts = to-tuple $ seq(Vertex, points)
+    val vert-mapper = to-inttable<Int> $ for (vert in verts, i in 0 to false) seq : id(vert) => i
+    val v2f-edges = edges(Subdivision(verts))
+    ;; println("DELAUNAY")
+    val unsorted-edges = generate<Edge> :
+      for e in v2f-edges do :
+        ;; println("e %_ ORG %_ DEST %_" % [e, key?(edge-mapper, org(e)), key?(edge-mapper, dest(e))])
+        if key?(vert-mapper, id(org(e))) and key?(vert-mapper, id(dest(e))) :
+          yield(Edge(vert-mapper[id(org(e))], vert-mapper[id(dest(e))]))
+    val edges = to-tuple $ cat(seed-edges, lazy-qsort(length{points, _}, unsorted-edges))
+    ;; println("SORTED EDGES")
+    val graphs = to-tuple $ for i in 0 to length(points) seq : IntGraph(i)
+    val sets = to-tuple $ for i in 0 to length(points) seq : #UFSet<Int>(i, i, 1)
+    ;; for edge in edges do :
+    ;;   println("EDGE %_ LENGTH %_" % [edge, length(points, edge)])
+    ;; for (point in points, i in 0 to false) do :
+    ;;   println("%_: %_" % [i, point])
+    label<False> return :
+      for edge in edges do :
+        ;; println("CONSIDERING EDGE %_ SETS %_ , %_" % [edge, id(root(sets[a(edge)])), id(root(sets[b(edge)]))])
+        if root(sets[a(edge)]) != root(sets[b(edge)]) :
+          add(nbrs(graphs[a(edge)]), b(edge))
+          add(nbrs(graphs[b(edge)]), a(edge))
+          merge!(sets[a(edge)], sets[b(edge)])
+          return(false) when one-set?(sets)
+    ;; println("DONE")
+    SpanningGraph(points, graphs)
 
 public defstruct IntTree :
   idx      : Int
