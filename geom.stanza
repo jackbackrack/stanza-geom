@@ -704,12 +704,13 @@ public defn indices (bounds:Box2i) -> Seq<V2i> :
     val [l, h] = [lo(b), hi(b)]
     [BoxElt(x(l), y(l), z(l)),
      BoxElt(x(l), y(l), z(h)), 
-     BoxElt(x(l), y(h), z(l)), 
-     BoxElt(x(l), y(h), z(h)), 
-     BoxElt(x(h), y(l), z(l)), 
+     BoxElt(x(l), y(h), z(h)),
+     BoxElt(x(h), y(h), z(h)),
      BoxElt(x(h), y(l), z(h)),
+     BoxElt(x(h), y(l), z(l)), 
      BoxElt(x(h), y(h), z(l)), 
-     BoxElt(x(h), y(h), z(h))]
+     BoxElt(x(l), y(h), z(l))
+     ]
 
   public defn intersects? (b0:Box, b1:Box) -> True|False :
     not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or

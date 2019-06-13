@@ -757,8 +757,8 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
       return(false)
 
     ;; x should be strictly inside the left face
-    if on-edge(x, onext(e)) or on-edge(x, dprev(e)) :
-      warning("insert-site: point is not strictly inside face")
+    ;; if on-edge(x, onext(e)) or on-edge(x, dprev(e)) :
+    ;;   warning("insert-site: point is not strictly inside face")
 
     ;; Now, hopefully, x is strictly inside the left face of e,
     ;; so everything should proceed smoothly from this point on.
