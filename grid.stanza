@@ -505,3 +505,15 @@ public defn scan (g:Grid, p:Polygon) :
   for face in faces(mesh) do :
     scan(g, Triangle([xy(vertices(mesh)[x(face)]), xy(vertices(mesh)[y(face)]), xy(vertices(mesh)[z(face)])]))
 
+public defn Grid (box:Box3f, dim:Float) -> Grid :
+  val fdims = xy(dims $ box)
+  val rdims = to-v2i $ round $ (fdims / dim + V2f(2.0f, 2.0f)) ; estimate dims
+  val rgrid = Grid(V3i(x(rdims), y(rdims), 1), dim)
+  val pts = corners(box)
+  val idims = dims $ reduce(union, seq({ Box2i(xy(idx-of(rgrid, xyz(_)))) }, pts)) ; calc real dims
+  Grid(V3i(x(idims) + 2, y(idims) + 2, 1), dim)
+
+public defn Grid (poly:Polygon, dim:Float) -> Grid :
+  val res = Grid(bounds(poly), dim)
+  scan(res, poly)
+  res
