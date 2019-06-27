@@ -484,11 +484,11 @@ public defn idx-of (g:Grid, p:V3f) : idx-of(dim(g), idims(g), p)
 
 public defn scan (g:Grid, t:Triangle) :
   val box = bounds(t)
-  val boxi = Box3i(idx-of(g, xyz(lo(box))), idx-of(g, xyz(hi(box))))
+  val boxi = Box3i(idx-of(g, xyz(lo(box))) - xyz(1), idx-of(g, xyz(hi(box))) + xyz(1))
   ;; println("TRIANGLE %_ BOX %_ BOXI %_ STOCK-BOX %_" % [ t box boxi bounds(g) ])
   ;; val fac = 0.5f * dim(g)
-  for j in y(lo(boxi)) to y(hi(boxi)) do :
-    for i in x(lo(boxi)) to x(hi(boxi)) do :
+  for j in y(lo(boxi)) through y(hi(boxi)) do :
+    for i in x(lo(boxi)) through x(hi(boxi)) do :
       val pi = V2i(i, j)
       val p  = pt-of(g, xyz(pi))
       if inside?(t, p) :
