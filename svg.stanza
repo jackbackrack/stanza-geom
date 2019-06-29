@@ -1,0 +1,77 @@
+;; See license.txt for details about licensing.
+
+defpackage svg :
+  import core
+  import math
+  import collections
+  import geom
+
+val @doc-svg = "## SVG -- READING SVG FILES"
+
+lostanza deftype svg_path :
+  pts : ptr<float>
+  npts : int
+  closed : byte
+  bounds : ptr<float>
+
+public lostanza deftype SVGpath :
+  value : ptr<svg_path>
+
+lostanza deftype svg_image :
+  paths : ptr<ptr<svg_path>>
+  npaths : int
+
+extern memcpy: (ptr<byte>, ptr<byte>, int) -> ptr<byte>
+extern malloc: (int) -> ptr<byte>
+
+extern svg_read: (ptr<byte>, ptr<byte>, float) -> ptr<svg_image>
+extern svg_image_delete: (ptr<svg_image>) -> int
+
+public lostanza defn read-svg (filename:ref<String>, format:ref<String>, resolution:ref<Float>) -> ref<Tuple<SVGpath>> :
+  val image = call-c svg_read(addr!(filename.chars), addr!(format.chars), resolution.value)
+  val paths = Vector<SVGpath>()
+  for (var i:int = 0, i < image.npaths, i = i + 1) :
+    val path = new SVGpath{image.paths[i]}
+    add(paths, path)
+  return to-tuple(paths)
+
+public lostanza defn num-points (path:ref<SVGpath>) -> ref<Int> :
+  return new Int{path.value.npts}
+
+public lostanza defn closed? (path:ref<SVGpath>) -> ref<True|False> :
+  if path.value.closed :
+    return true
+  else :
+    return false
+
+public lostanza defn bounds (path:ref<SVGpath>) -> ref<Box2f> :
+  return Box2f(V2f(new Float{path.value.bounds[0]}, new Float{path.value.bounds[1]}),
+               V2f(new Float{path.value.bounds[2]}, new Float{path.value.bounds[3]}))
+
+public lostanza defn get (path:ref<SVGpath>, i:ref<Int>) -> ref<V2f> :
+  return V2f(new Float{path.value.pts[i.value * 2]}, new Float{path.value.pts[i.value * 2 + 1]})
+
+public defn cubic-bezier (ip1:V2f, ip2:V2f, ip3:V2f, ip4:V2f, tol:Float, level:Int) -> Seq<V2f> :
+  generate<V2f> :
+    let loop (p1:V2f = ip1, p2:V2f = ip2, p3:V2f = ip3, p4:V2f = ip4, level:Int = level) :
+      if level <= 12 :
+        val p12 = 0.5f * (p1 + p2)
+        val p23 = 0.5f * (p2 + p3)
+        val p34 = 0.5f * (p3 + p4)
+        val p123 = 0.5f * (p12 + p23)
+        val p234 = 0.5f * (p23 + p34)
+        val p1234 = 0.5f * (p123 + p234)
+        if distance(LineSegment2f(p1, p4), p1234) > (tol * tol) :
+          loop(p1, p12, p123, p1234, level + 1)
+          loop(p1234, p234, p34, p4, level + 1)
+        else :
+          yield(p4)
+
+public defn sample (path:SVGpath, tol:Float) -> Seq<V2f> :
+  val guts = for i in 0 to (num-points(path) - 1) by 3 seq-cat :
+    cubic-bezier(path[i], path[i + 1], path[i + 2], path[i + 3], tol, 0)
+  if closed?(path) :
+    cat-all $ [[path[0]], guts, [path[0]]]
+  else :
+    cat([path[0]], guts)
+

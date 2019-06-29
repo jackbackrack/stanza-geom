@@ -2054,6 +2054,17 @@ val @doc-linesegment = "LINESEGMENT -- line between two points"
   defmethod print (o:OutputStream, l:LineSegment) :
     print(o, "%_(%_ %_)" % [LineSegmentName start(l) end(l)])
 
+public defn distance (l:LineSegment2f, xy:V2f) -> Float :
+  val [p, q] = [start(l), end(l)]
+  val pq = q - p
+  val dxy = xy - p
+  val d = dot(pq, pq)
+  val t0 = dot(pq, dxy)
+  val t1 = t0 / d when d > 0.0f else t0
+  val t = 0.0f when t1 < 0.0f else (1.0f when t1 > 1.0f else t1)
+  val ndxy = p + t * pq - xy
+  dot(ndxy, ndxy)
+
 public defn intersects? (a:LineSegment2f, b:LineSegment2f) -> True|False :
   val [p, r] = [start(a), end(a) - start(a)]
   val [q, s] = [start(b), end(b) - start(b)]
