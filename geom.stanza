@@ -1543,8 +1543,8 @@ public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<B
   ;; val bdz = to-tuple $ seq({ volume(dims(bounds(_))) }, res)
   ;; val rres = to-tuple $ filter({ volume(dims(bounds(_))) > 0.0f }, res)
   ;; println("STACKING RRES %_" % [rres])
-  ;; filter({ area*(dims(bounds(_))) > 0.0f }, res)
-  res
+  filter({ area*(dims(bounds(_))) > 0.0f }, res)
+  ;; res
 
 public defn stack-idx<?T> (ishapes:Seqable<?T&Poseable>, idx:Int, dir:Float) -> Seq<T> :
   val shapes = to-tuple $ ishapes
