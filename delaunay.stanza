@@ -677,6 +677,8 @@ public defn delete-site (s:Subdivision, vx:Vertex, dist:Float) : ;; -> [Tuple<Ed
   ;; println("ADDS   %_" % [to-tuple $ seq(id, adds)])
   ;; [dels, adds]
 
+val trace? = true
+
 public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> False|Edge :
   ;; println(">>> INSERT-SITE %_" % [vx])
   label<False|Edge> return :
@@ -684,10 +686,10 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
     var e:Edge = locate(s, x)
 
     if coincide(x, value(org(e)), dist) :
-      ;; println("COINCIDE ORG")
+      if trace?: println("COINCIDE ORG")
       return(e)
     if coincide(x, value(dest(e)), dist) :
-      ;; println("COINCIDE DEST")
+      if trace?: println("COINCIDE DEST")
       return(sym(e))
 
     val has-left = has-left-face(e)
@@ -718,7 +720,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
     ;; is not one of e's endpoints.
 
     if is-on-edge :
-      ;; println("IS-ON-EDGE %_ CONSTRAINED? %_" % [e, constrained?(quad(e))])
+      if trace?:  println("IS-ON-EDGE %_ CONSTRAINED? %_" % [e, constrained?(quad(e))])
       val xx = snap(x, value(org(e)), value(dest(e)))
       if coincide(xx, value(org(e)), dist) :
         return(e)
@@ -726,7 +728,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
         return(sym(e))
 
       if has-right and has-left :
-        ;; println("HAS-RIGHT AND HAS-LEFT")
+        if trace?: println("HAS-RIGHT AND HAS-LEFT")
         val a = oprev(e)
         val b = dnext(e)
         val c = lnext(e)
@@ -739,7 +741,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
         fix-edge(s, c)
         fix-edge(s, d)
       else :
-        ;; println("NOT HAS-RIGHT OR NOT HAS-LEFT")
+        if trace?: println("NOT HAS-RIGHT OR NOT HAS-LEFT")
         if has-right :
           e = sym(e)
         val c = lnext(e)
@@ -793,7 +795,7 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
         e = lprev(onext(e))
 
 public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) -> False|Edge :
-  ;; println(">>> INSERT-EDGE %_ %_" % [a, b])
+  if trace?: println(">>> INSERT-EDGE %_ %_" % [a, b])
   label<False|Edge> return:
     match(constrained-insert-site(s, a, 0.0f), constrained-insert-site(s, b, 0.0f)) :
       (start-ea:Edge, eb:Edge) :
@@ -831,7 +833,7 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) -> False|Edge :
               loop()
           ;; check to see if an edge is already there
           if on?(ab, value(dest(ea))) :
-            ;; println("EDGE %_ -> %_ ALREADY THERE %_" % [ea, dest(ea), abs(eval(ab, value(dest(ea))))])
+            if trace?: println("EDGE %_ -> %_ ALREADY THERE %_" % [ea, dest(ea), abs(eval(ab, value(dest(ea))))])
             set-res(ea)
             aa = value(dest(ea))
             if aa == bb : return(ea)
@@ -843,13 +845,13 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) -> False|Edge :
               if on?(ab, value(dest(lnext(t)))) :
                 if lnext(lnext(lnext(t))) == ea :
                   ;; edge is already there
-                  ;; println("EDGE %_ ALREADY THERE" % [lnext(lnext(t))])
+                  if trace?:  println("EDGE %_ ALREADY THERE" % [lnext(lnext(t))])
                   set-res(lnext(lnext(t)))
                   ea = sym(lnext(t))
                 else :
                   ;; need a new edge
                   val ne = connect(s, lnext(t), ea)
-                  ;; println("NEED NEW EDGE -- CONSTRAINING -- CONNECTING %_ TO %_" % [lnext(t), ne])
+                  if trace?: println("NEED NEW EDGE -- CONSTRAINING -- CONNECTING %_ TO %_" % [lnext(t), ne])
                   set-res(ne)
                   set-constrained?(quad(ne), true)
                   ea = sym(lnext(t))
@@ -858,9 +860,9 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) -> False|Edge :
                   ;; println("DONE TRIANGULATING")
               else if left?(ab, value(dest(lnext(t)))) :
                 ;; edges cross
-                ;; println("EDGES CROSS")
+                if trace?: println("EDGES CROSS %_ -> %_" % [lnext(t), dest(lnext(t))])
                 if not constrained?(quad(lnext(t))) :
-                  ;; println("NOT CONSTRAINED -- DELETING EDGE -- %_" % [lnext(t)])
+                  if trace?: println("NOT CONSTRAINED -- DELETING EDGE")
                   delete-edge(s, lnext(t))
                   loop(t)
                 else :
@@ -868,7 +870,7 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) -> False|Edge :
                   ;; compute and insert the intersection
                   val x = intersect(lnext(t), ab)
                   ;; split lnext(t) into two at x
-                  ;; println("CROSSING EDGE ALSO CONSTRAINED %_ SPLITTING AT %_" % [constrained?(quad(lnext(t))), x])
+                  if trace?: println("CROSSING EDGE ALSO CONSTRAINED %_ SPLITTING AT %_" % [constrained?(quad(lnext(t))), x])
                   ;; println("AB %_ -> %_" % [a, b])
                   ;; println("LNEXT %_ -> %_" % [lnext(t), dest(lnext(t))])
                   split-edge(s, lnext(t), x)
@@ -881,6 +883,7 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) -> False|Edge :
                   triangulate(s, oprev(ne))
               else :
                 loop(lnext(t))
+        if trace?: println("<<< INSERT-EDGE DONE")
         res
       (fa, fb) :
         println("DIDN'T FIND %_ %_" % [fa, fb])

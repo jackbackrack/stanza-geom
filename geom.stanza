@@ -6,6 +6,31 @@ defpackage geom:
   import collections
   import utils
 
+public defn rot2 (pt:V2f, ang:Float) :
+  val [c, s] = [cos(ang), sin(ang)]
+  V2f(x(pt) * c - y(pt) * s, y(pt) * c + x(pt) * s)
+
+public defn atan2 (v:V2f) : atan2(y(v), x(v))
+
+public defn cm-to-in (c:Float) : c / 2.54f
+
+public defn in-to-mm (c:Float) : c * 25.4f
+
+public defn in-to-mm (v:V2f) -> V2f :
+  V2f(in-to-mm(x(v)), in-to-mm(y(v)))
+
+public defn in-to-pt (i:Float) : i * 72.0f
+
+public defn angle-of (v:V2f) -> Float : radians-to-degrees(atan2(v))
+
+public defn angle-of (s:V2f, e:V2f) -> Float : angle-of(e - s)
+
+public defn angle-between (v0:V2f, v1:V2f) -> Float :
+  radians-to-degrees((- atan2(x(v0) * y(v1) - y(v0) * x(v1), x(v0) * x(v1) + y(v0) * y(v1))))
+
+public defn polar-to-cartesian (r:Float, rads:Float) -> V2f :
+  V2f(r * cos(rads), r * sin(rads))
+
 val @doc-geom = "## GEOM -- explicit geometry and support data types"
 
 public defn ensure-index-in-bounds (i:Int, n:Int) :
@@ -1223,13 +1248,15 @@ public defn reset! (t:Transformation) :
 
 val @doc-poseable = "POSEABLES -- geom with attributes and bounds and moveable"
 
-public deftype Poseable <: Geom
+public deftype Bounded
+public defmulti bounds (p:Bounded) -> Box3f
+
+public deftype Poseable <: Geom&Bounded
 public defmulti clone<?T> (s:?T&Poseable, name:False|Symbol, color:V4f, poses:Tuple<KeyValue<Symbol,Mat44f>>, tags:Tuple<Symbol>) -> T
 public defmulti name (p:Poseable) -> False|Symbol
 public defmulti color (p:Poseable) -> V4f
 public defmulti tags (p:Poseable) -> Tuple<Symbol>
 public defmulti poses (p:Poseable) -> Tuple<KeyValue<Symbol,Mat44f>>
-public defmulti bounds (p:Poseable) -> Box3f
 public defmulti xyz<?T> (mat:Mat44f, p:?T&Poseable) -> T
 public defmulti any-shapes (p:Poseable) -> Seqable<AnyShape>
 public defmulti get (s:Poseable, iname:Symbol) -> False|Poseable
@@ -1957,7 +1984,7 @@ val @doc-line = "LINE -- infinite line"
 ;;   ;; println-all(["CLOSEST POINT TO " x(pt) "," y(pt) " NORMAL " x(normal) "," y(normal) " ALIGN " align])
 ;;   Half(normal, (if align > 0.0f : 1.0f else : -1.0f) * len(pt))
 
-public val EPS = 1.0e-6f
+public val EPS = 1.0e-5f
 
 val @doc-implicitline = "IMPLICITLINE -- half space"
 
@@ -1995,7 +2022,10 @@ public defn classify (l:ImplicitLine, p:V2f) -> Int :
 
 public defn on? (l:ImplicitLine, p:V2f) -> True|False :
   val tmp = eval(l, p)
-  abs(tmp) <= EPS
+  val res = abs(tmp) <= EPS
+  ;; println("ON? %_ P %_ RES %_ TMP %_" % [l, p, res, tmp])
+  res
+  
 
 public defn left? (l:ImplicitLine, p:V2f) -> True|False :
   eval(l, p) < (- EPS)
@@ -2038,10 +2068,16 @@ val @doc-linesegment = "LINESEGMENT -- line between two points"
       Box in [Box2f Box3f]
       LineSegmentName in ["LineSegment2f" "LineSegment3f"]) :
 
-  public defstruct LineSegment <: Geom :
+  public defstruct LineSegment <: Geom&Bounded&Equalable :
     start: Vec
     end:   Vec
 
+  defmethod equal? (a:LineSegment, b:LineSegment) -> True|False :
+    start(a) == start(b) and end(a) == end(b)
+
+  defmethod bounds (l:LineSegment) :
+    xyz(union(Box(start(l)), Box(end(l))))
+  
   public defn center (l:LineSegment) -> Vec :
     0.5f * (start(l) + end(l))
 
@@ -2233,6 +2269,92 @@ defn do-print-svg-header (s:OutputStream, bounds:Box2f, f:OutputStream -> False)
 defn do-print-svg (s:OutputStream, polygon:Polygon) :
   for c in contours(polygon) do :
     do-print-svg(s, color(polygon), c)
+
+defn simplify-polygon (poly-:Tuple<V2f>, max-angle-deg:Float, max-dist:Float) -> Seqable<V2f> :
+  defn sqr (a:Float) : a * a
+  val mincos = cos(max-angle-deg * PI-F / 180.0f)
+  val sqr-min-length = sqr(max-dist)
+  val poly = to-vector<V2f> $ poly-
+  ;; println("MAX-ANGLE-DEG %_ MAX-DIST %_ IN %_" % [max-angle-deg, max-dist, length(poly)])
+  val tmp  = Vector<V2f>()
+  defn swap () :
+    clear(poly)
+    add-all(poly, tmp)
+
+  defn sqr-magnitude (v:V2f) : dot(v, v)
+
+  ;; Repeatedly simplify until nothing changes
+
+  ;; println("SIMPLIFY %_ MINCOS %_" % [poly, mincos])
+
+  label<False> return :
+    while true :
+      clear(tmp)
+      ;; If u-v-w is collinear, remove v
+      val m = length(poly)
+      val changed? = let loop (i:Int = 0, changed?:True|False = false) :
+        if i < m :
+          val h = (i - 1 + m) % m
+          val j = (i + 1) % m
+          val a = poly[h] - poly[i]
+          val b = poly[j] - poly[i]
+
+          ;; println("DOT-NORM H %_ I %_ J %_ DOT %_" % [poly[h], poly[i], poly[j], dot(normalize(a), normalize(b))])
+          if dot(normalize(a), normalize(b)) < mincos :
+            ;; println("A")
+            loop(i + 1, true)
+          else :
+            add(tmp, poly[i])
+            loop(i + 1, changed?)
+        else :
+          changed?
+
+      ;; println("STRAIGHT CHANGED? %_ TMP %_" % [changed?, length(tmp)])
+      ;; println(tmp)
+      if changed? :
+        swap()
+      else :
+        ;; Collapse short edges
+        clear(tmp)
+        val changed? = let loop (i:Int = 0, changed?:True|False = false) :
+          if i < m :
+            val h = (i - 1 + m) % m
+            val j = (i + 1) % m
+            val k = (i + 2) % m
+
+            if sqr-magnitude(poly[i] - poly[j]) < sqr-min-length :
+              ;; Check which end point to leave intact
+              val hi = normalize(poly[i] - poly[h])
+              val hj = normalize(poly[j] - poly[h])
+              val ik = normalize(poly[k] - poly[i])
+              val jk = normalize(poly[k] - poly[j])
+
+              if i == (m - 1) or dot(hi,hj) > dot(ik,jk) :
+                ;; It's better to drop i
+                ;; println("C")
+                loop(i + 1, true)
+              else :
+                ;; It's better to drop j
+                ;; println("D")
+                add(tmp, poly[i])
+                loop(i + 2, true)
+
+            else :
+              add(tmp, poly[i])
+              loop(i + 1, changed?)
+          else :
+            changed?
+
+        ;; println("SMALL CHANGED? %_ TMP %_" % [changed?, length(tmp)])
+        if changed? :
+          swap()
+        else :
+          return(false)
+  poly
+
+
+public defn simplify (polygon:Polygon, max-angle-deg:Float, max-dist:Float) -> Polygon :
+  Polygon([Contour(to-tuple $ simplify-polygon(vertices(contours(polygon)[0]), max-angle-deg, max-dist))])
 
 ;;; POLYLINE
 

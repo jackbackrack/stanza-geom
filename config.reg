@@ -21,6 +21,7 @@ defregistry stanza-geom :
       link Darwin ["${GEN}/nano-svg.o" "-lc++"]
       link GNU/Linux ["${GEN}/nano-svg.o" "-lstdc++"]
   file "aabb-tree.stanza"
+  file "nodeless-aabb-tree.stanza"
   ;; file "grid-junior.stanza"
   file "spanning-tree.stanza"
   file "delaunay.stanza"
