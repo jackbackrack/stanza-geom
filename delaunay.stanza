@@ -677,7 +677,7 @@ public defn delete-site (s:Subdivision, vx:Vertex, dist:Float) : ;; -> [Tuple<Ed
   ;; println("ADDS   %_" % [to-tuple $ seq(id, adds)])
   ;; [dels, adds]
 
-val trace? = true
+val trace? = false
 
 public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> False|Edge :
   ;; println(">>> INSERT-SITE %_" % [vx])
