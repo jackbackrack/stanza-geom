@@ -501,9 +501,8 @@ public defn scan (g:Grid, t:Triangle) :
 
 public defn scan (g:Grid, p:Polygon) :
   ;; println("SCAN %_ grid bounds %_ polygon bounds %_" % [p bounds(g) bounds(p)])
-  val mesh = triangulate(p)
-  for face in faces(mesh) do :
-    scan(g, Triangle([xy(vertices(mesh)[x(face)]), xy(vertices(mesh)[y(face)]), xy(vertices(mesh)[z(face)])]))
+  for tri in triangles(p) do :
+    scan(g, tri)
 
 public defn Grid (box:Box3f, dim:Float) -> Grid :
   val fdims = xy(dims $ box)

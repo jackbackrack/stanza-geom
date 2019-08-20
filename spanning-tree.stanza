@@ -31,7 +31,7 @@ public defstruct IntGraph :
   nbrs : Vector<Int>
 
 defmethod print (o:OutputStream, e:IntGraph) :
-  print(o, "IntGraph(%_, %__)" % [id(e), nbrs(e)])
+  print(o, "IntGraph(%_, %_)" % [id(e), nbrs(e)])
 
 defn IntGraph (point:Int) : IntGraph(point, Vector<Int>())
 
@@ -50,12 +50,12 @@ defn edges (tree:SpanningGraph) -> Seqable<Edge> :
           loop(nbr)
 
 defmethod print (o:OutputStream, e:SpanningGraph) :
-  print(o, "SpanningGraph(%_, %_, %_)" % [points(e), graphs(e)])
+  print(o, "SpanningGraph(%_, %_)" % [points(e), graphs(e)])
 
 defn length (tree:SpanningGraph) -> Float :
   sum(seq(length{points(tree), _}, edges(tree)))
 
-public defn SpanningGraph (ipoints:Seqable<V2f>, seed-edges:Seqable<Edge>) -> SpanningGraph :
+public defn SpanningGraph (ipoints:Seqable<V2f>, seed-edges:Tuple<Edge>) -> SpanningGraph :
   val points = to-tuple $ ipoints
   if length(points) == 0 :
     SpanningGraph([], [] as Tuple<IntGraph>)
@@ -89,6 +89,9 @@ public defn SpanningGraph (ipoints:Seqable<V2f>, seed-edges:Seqable<Edge>) -> Sp
           add(nbrs(graphs[b(edge)]), a(edge))
           merge!(sets[a(edge)], sets[b(edge)])
           return(false) when one-set?(sets)
+    for edge in seed-edges do :
+      if not contains?(nbrs(graphs[a(edge)]), b(edge)) : add(nbrs(graphs[a(edge)]), b(edge))
+      if not contains?(nbrs(graphs[b(edge)]), a(edge)) : add(nbrs(graphs[b(edge)]), a(edge))
     ;; println("DONE")
     SpanningGraph(points, graphs)
 
@@ -102,16 +105,17 @@ public defstruct SpanningTree :
 
 defn SpanningTree (graph:SpanningGraph) -> SpanningTree :
   val visited? = HashSet<Int>()
-  val tree = let loop (g:Int = 0) :
+  val tree = let loop (g:Int = 0, d:Int = 0) :
+    ;; for i in 0 to d do: print("  ")
     add(visited?, g)
     val elts = generate<IntTree> :
       for nbr in nbrs(graphs(graph)[g]) do :
-        yield(loop(nbr)) when not visited?[nbr]
+        yield(loop(nbr, d + 1)) when not visited?[nbr]
     IntTree(g, to-tuple $ elts)
   SpanningTree(points(graph), tree)
 
 public defn SpanningTree (points:Seqable<V2f>, seed-edges:Seqable<Edge>) -> SpanningTree :
-  SpanningTree(SpanningGraph(points, seed-edges))
+  SpanningTree(SpanningGraph(points, to-tuple $ seed-edges))
 
 public defn SpanningTree (points:Seqable<V2f>) -> SpanningTree :
   SpanningTree(SpanningGraph(points, []))

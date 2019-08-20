@@ -1,0 +1,261 @@
+;; See license.txt for details about licensing.
+
+defpackage nodeless-aabb-tree :
+  import core
+  import math
+  import collections
+  import utils
+  import geom with :
+    prefix(Node) => geom-
+
+;;; TODO: LIMITATION OF DATA ONLY BEING USED IN ONE TREE
+
+;; public deftype AABB <: Equalable&Bounded
+defn box (x:Bounded) : xy(bounds(x))
+
+val gen-ids = to-seq $ 0 to false
+
+deftype Node <: Equalable
+defmulti id (n:Node) -> Int
+defmulti parent (n:Node) -> False|Node
+defmulti set-parent (n:Node, p:False|Node) -> False
+public defmulti aabb (n:Node) -> Box2f
+defmulti set-aabb (n:Node, b:Box2f) -> False
+
+defstruct LeafNode <: Node :
+  id : Int with: (as-method => true)
+  parent : False|Node with : (as-method => true, setter => set-parent)
+  aabb : Box2f with: (as-method => true, setter => set-aabb)
+  data : False|(Equalable&Bounded) with: (setter => set-data)
+
+defstruct BranchNode <: Node :
+  id : Int with: (as-method => true)
+  parent : False|Node with : (as-method => true, setter => set-parent)
+  aabb : Box2f with: (as-method => true, setter => set-aabb)
+  children : Tuple<Node> with: (setter => set-children)
+  children-crossed? : True|False with : (setter => set-children-crossed?)
+
+defmethod equal? (a:Node, b:Node) :
+  id(a) == id(b)
+
+defmethod print (o:OutputStream, node:LeafNode) :
+  print(o, "LeafNode(%_, %_, %_)" % [id(node), aabb(node), data(node)])
+
+defmethod print (o:OutputStream, node:BranchNode) :
+  print(o, "BranchNode(%_, %_, %_)" % [id(node), aabb(node), to-tuple $ seq(id, children(node))])    
+
+public defn LeafNode (data:(Equalable&Bounded)) :
+  LeafNode(next(gen-ids), false, box(data), data)
+
+defn update-aabb (node:Node, margin:Float) :
+  set-aabb(node, 
+           match(node) :
+             (node:LeafNode) : fatten(box(data(node) as (Equalable&Bounded)), xy(margin))
+             (node:BranchNode) : union(aabb(children(node)[0]), aabb(children(node)[1])))
+   
+defn LeafNode (data:(Equalable&Bounded), margin:Float) :
+  val node = LeafNode(data)
+  update-aabb(node, margin)
+  node
+
+defn sibling (node:Node) :
+  val pc = children(parent(node) as BranchNode)
+  pc[1] when pc[0] == node else pc[0]
+
+public defstruct AABBTree :
+  root : False|Node with: ( setter => set-root, init => false )
+  margin : Float
+  invalid-nodes : Vector<Node> with: ( init => Vector<Node>() )
+
+defmethod print (o:OutputStream, t:AABBTree) :
+  print(o, "Tree(%_)" % [root(t)])
+
+public defn all-data (t:AABBTree) -> Seq<(Equalable&Bounded)> :
+  match(root(t)) :
+    (r:False) : to-seq $ []
+    (r:Node) :
+      generate<(Equalable&Bounded)> :
+        let enum (node:Node = r) :
+          match(node) :
+            (node:LeafNode) :
+              yield(data(node) as (Equalable&Bounded))
+            (node:BranchNode) :
+              enum(children(node)[0])
+              enum(children(node)[1])
+
+public defn dump (t:AABBTree) :
+  match(root(t)) :
+    (r:False) : false
+    (r:Node) :
+      let dump (node:Node = r, depth:Int = 0) :
+        for i in 0 to depth do : print("  ")
+        print("%_ %_" % [id(node), aabb(node)])
+        match(node) :
+          (node:LeafNode) :
+            println(" %_ PARENT? %_" % [data(node), parent(node) is Node])
+          (node:BranchNode) :
+            println(" PARENT? %_ " % [parent(node) is Node])
+            dump(children(node)[0], depth + 1)
+            dump(children(node)[1], depth + 1)
+
+public defn check (t:AABBTree) :
+  match(root(t)) :
+    (r:False) : false
+    (r:Node) :
+      let check (node:Node = r) :
+        if parent(node) is-not False :
+          if not contains?(aabb(parent(node) as BranchNode), aabb(node)) :
+            println("BADLY FORMED NODE %_ PARENT %_" % [node, parent(node)])
+        match(node) :
+          (node:LeafNode) : false
+          (node:BranchNode) :
+            check(children(node)[0])
+            check(children(node)[1])
+
+public defn query-nodes (t:AABBTree, target:Box2f, same?:(Equalable&Bounded) -> True|False) -> Seqable<LeafNode> :
+  match(root(t)) :
+    (r:False) :
+      to-seq $ []
+    (r:Node) :
+      ;; println("QUERY %_" % [target])
+      val res = Vector<LeafNode>()
+      let query (node:Node = r) :
+        ;; println("I %_ => %_" % [aabb(node), intersects2?(box(target), aabb(node))])
+        if intersects?(target, aabb(node)) :
+          match(node) :
+            (node:LeafNode) :
+              if not same?(data(node) as (Equalable&Bounded)) :
+                add(res, node)
+            (node:BranchNode) :
+              query(children(node)[0])
+              query(children(node)[1])
+      res
+
+public defn find (t:AABBTree, target:(Equalable&Bounded)) -> Seqable<LeafNode> :
+  query-nodes(t, box(target), { equal?(target, _) })
+
+public defn query (t:AABBTree, target:Box2f, same?:(Equalable&Bounded) -> True|False) -> Seqable<(Equalable&Bounded)> :
+  seq({ data(_) as (Equalable&Bounded) }, query-nodes(t, target, same?))
+
+public defn query (t:AABBTree, target:Box2f) -> Seqable<(Equalable&Bounded)> :
+  query(t, target, { false })
+
+public defn query (t:AABBTree, target:(Equalable&Bounded)) -> Seqable<(Equalable&Bounded)> :
+  query(t, box(target), { _ == target })
+
+public defn all-query (t:AABBTree, target:(Equalable&Bounded)) -> Seqable<(Equalable&Bounded)> :
+  query(t, box(target), { false })
+
+public defn add (t:AABBTree, aabb:(Equalable&Bounded)) :
+  val new-leaf = LeafNode(aabb, margin(t))
+  match(root(t)) :
+    (r:False) : set-root(t, new-leaf)
+    (r:Node) :  insert-node(t, new-leaf, { root(t) as Node }, set-root{t, _})
+
+defn area (box:Box2f) : area(dims(box))
+
+defn insert-node (t:AABBTree, node:Node, dad:() -> Node, set-dad:BranchNode -> False) :
+  match(dad()) :
+    (p:LeafNode) :
+      val new-parent = BranchNode(next(gen-ids), false, neg-inf-box2f(), [node, p], false)
+      set-parent(new-parent, parent(p))
+      set-parent(node, new-parent)
+      set-parent(p, new-parent)
+      set-dad(new-parent)
+    (p:BranchNode) :
+      val aabb0 = aabb(children(p)[0])
+      val aabb1 = aabb(children(p)[1])
+      val area-diff0 = area(union(aabb0, aabb(node))) - area(aabb0)
+      val area-diff1 = area(union(aabb1, aabb(node))) - area(aabb1)
+      val idx = 0 when area-diff0 < area-diff1 else 1
+      insert-node(t, node, { children(p)[idx] }, { set-child(p, idx, _) })
+  update-aabb(dad(), margin(t))
+    
+public defn remove (t:AABBTree, aabb:(Equalable&Bounded)) :
+  for node in find(t, aabb) do :
+    set-data(node, false)
+    remove-node(t, node)
+
+defn set-child (pp:BranchNode, idx:Int, elt:Node) :
+  set-children(pp, [elt, children(pp)[1]] when (idx == 0) else [children(pp)[0], elt])
+
+defn remove-node (t:AABBTree, node:Node) :
+  match(parent(node)) :
+    (p:Node) :
+      val sib = sibling(node)
+      match(parent(p)) :
+        (pp:BranchNode) :
+          set-parent(sib, pp)
+          val cs = children(pp)
+          set-children(pp, [sib, cs[1]] when p == cs[0] else [cs[0], sib])
+          let update-bounds (n:Node = pp) :
+            update-aabb(n, margin(t))
+            if parent(n) is Node : update-bounds(parent(n) as Node)
+        (pp:False) :
+          set-root(t, sib)
+          set-parent(sib, false)
+    (p:False) :
+      set-root(t, false)
+
+public defn update (t:AABBTree) :
+  match(root(t)) :
+    (r:False) : false
+    (r:LeafNode) :
+      update-aabb(r, margin(t))
+    (r:BranchNode) :
+      clear(invalid-nodes(t))
+      let loop (node:Node = r) :
+        match(node) :
+          (node:LeafNode) :
+            if intersects?(aabb(node), box(data(node) as (Equalable&Bounded))) :
+              add(invalid-nodes(t), node)
+          (node:BranchNode) :
+            loop(children(node)[0])
+            loop(children(node)[1])
+      for node in invalid-nodes(t) do :
+        remove-node(t, node)
+        update-aabb(node, margin(t))
+        insert-node(t, node, { root(t) as Node }, set-root{t, _})
+      clear(invalid-nodes(t))
+
+public defn compute-pairs (t:AABBTree) -> Seqable<[(Equalable&Bounded), (Equalable&Bounded)]> :
+  if root(t) is False|LeafNode :
+    []
+  else :
+    let clear (node:Node = root(t) as Node) :
+      match(node) :
+        (node:BranchNode) :
+          set-children-crossed?(node, false)
+          do(clear, children(node))
+        (node:LeafNode) : false
+    val res = Vector<[(Equalable&Bounded), (Equalable&Bounded)]>()
+    val cs = children(root(t) as BranchNode)
+    let loop (n0:Node = cs[0], n1:Node = cs[1]) :
+      defn cross-children (n:BranchNode) :
+        if not children-crossed?(n) :
+          loop(children(n)[0], children(n)[1])
+          set-children-crossed?(n, true)
+      match(n0) :
+        (n0:LeafNode) :
+          match(n1) :
+            (n1:LeafNode) :
+              if intersects?(box(data(n0) as (Equalable&Bounded)), box(data(n1) as (Equalable&Bounded))) :
+                add(res, [data(n0) as (Equalable&Bounded), data(n1) as (Equalable&Bounded)])
+            (n1:BranchNode) :
+              cross-children(n1)
+              if intersects?(aabb(n0), aabb(n1)) :
+                for child in children(n1) do : loop(n0, child)
+        (n0:BranchNode) :
+          match(n1) :
+            (n1:LeafNode) :
+              cross-children(n0)
+              if intersects?(aabb(n0), aabb(n1)) :
+                for child in children(n0) do : loop(child, n1)
+            (n1:BranchNode) :
+              cross-children(n0)
+              cross-children(n1)
+              if intersects?(aabb(n0), aabb(n1)) :
+                for c0 in children(n0) do : 
+                  for c1 in children(n1) do :
+                    loop(c0, c1)
+    res
