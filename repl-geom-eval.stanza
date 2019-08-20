@@ -1,0 +1,13 @@
+defpackage repl-geom-eval :
+  import core
+  import stz/repl
+  import repl-eval
+  import geom
+  import geom-serializer
+
+public defn geom-eval (repl:REPL, pkg:Symbol, e:String) -> Geom :
+  val s = eval(repl, pkg, string-join(["serialize(shape-eval(" e "))"]))
+  deserialize-geom(StringInputStream $ s)
+
+public defn geom-evals (repl:REPL, pkg:Symbol, e:String) -> Seq<Geom> :
+  seq(deserialize-geom, seq(StringInputStream, evals(repl, pkg, string-join(["seq({ serialize(shape-eval(_)) }, " e ")"]))))
