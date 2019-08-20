@@ -25,3 +25,6 @@ defregistry stanza-geom :
   file "spanning-tree.stanza"
   file "delaunay.stanza"
   file "intersections.stanza"
+  file "geom-serializer.stanza"
+  file "repl-geom-eval.stanza"
+  file "shapes.stanza"
