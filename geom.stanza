@@ -1230,10 +1230,13 @@ public defstruct Transformation :
   ball : ArcBall with: (setter => set-ball)
   mag : Float with: (setter => set-mag)
   mov : V2f with: (setter => set-mov)
-  last-x : Float with: (setter => set-last-x)
+  last-point : V2f with: (setter => set-last-point)
+
+public defn last-x (t:Transformation) : x(last-point(t))
+public defn set-last-x (t:Transformation, nx:Float) : set-last-point(t, V2f(nx, y(last-point(t))))
 
 public defn clone (xform:Transformation) :
-  Transformation(clone(ball(xform)), mag(xform), V2f(0.0f, 0.0f), 0.0f)
+  Transformation(clone(ball(xform)), mag(xform), V2f(0.0f, 0.0f), V2f(0.0f, 0.0f))
 
 public defn mov! (xform:Transformation, amount:V2f) :
   set-mov(xform, mov(xform) + MOV-SCALE * amount)
@@ -1242,7 +1245,10 @@ public defn reset! (t:Transformation) :
   reset!(ball(t))
   set-mov(t, V2f(0.0f, 0.0f))
   set-mag(t, 1.0f)
-  set-last-x(t, 0.0f)
+  set-last-point(t, V2f(0.0f, 0.0f))
+
+public defn times (t:Transformation, s:Transformation) -> Transformation :
+  Transformation(ball(t), mag(t) * mag(s), mag(t) * mov(s) + mov(t), last-point(t))
 
 ;;;; POSEABLES
 
