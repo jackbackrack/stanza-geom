@@ -14,6 +14,12 @@ defregistry stanza-geom :
       dependency "${GEN}/clipper.o"
       link Darwin ["${GEN}/clipper.o" "-lpolyclipping" "-lc++"]
       link GNU/Linux ["${GEN}/clipper.o" "-lpolyclipping" "-lstdc++"]
+  file "nano-svg.cpp"
+  file "svg.stanza" :
+    package svg :
+      dependency "${GEN}/nano-svg.o"
+      link Darwin ["${GEN}/nano-svg.o" "-lc++"]
+      link GNU/Linux ["${GEN}/nano-svg.o" "-lstdc++"]
   file "aabb-tree.stanza"
   ;; file "grid-junior.stanza"
   file "spanning-tree.stanza"

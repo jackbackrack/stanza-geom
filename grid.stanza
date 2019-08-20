@@ -484,11 +484,11 @@ public defn idx-of (g:Grid, p:V3f) : idx-of(dim(g), idims(g), p)
 
 public defn scan (g:Grid, t:Triangle) :
   val box = bounds(t)
-  val boxi = Box3i(idx-of(g, xyz(lo(box))), idx-of(g, xyz(hi(box))))
+  val boxi = Box3i(idx-of(g, xyz(lo(box))) - xyz(1), idx-of(g, xyz(hi(box))) + xyz(1))
   ;; println("TRIANGLE %_ BOX %_ BOXI %_ STOCK-BOX %_" % [ t box boxi bounds(g) ])
   ;; val fac = 0.5f * dim(g)
-  for j in y(lo(boxi)) to y(hi(boxi)) do :
-    for i in x(lo(boxi)) to x(hi(boxi)) do :
+  for j in y(lo(boxi)) through y(hi(boxi)) do :
+    for i in x(lo(boxi)) through x(hi(boxi)) do :
       val pi = V2i(i, j)
       val p  = pt-of(g, xyz(pi))
       if inside?(t, p) :
@@ -505,3 +505,15 @@ public defn scan (g:Grid, p:Polygon) :
   for face in faces(mesh) do :
     scan(g, Triangle([xy(vertices(mesh)[x(face)]), xy(vertices(mesh)[y(face)]), xy(vertices(mesh)[z(face)])]))
 
+public defn Grid (box:Box3f, dim:Float) -> Grid :
+  val fdims = xy(dims $ box)
+  val rdims = to-v2i $ round $ (fdims / dim + V2f(2.0f, 2.0f)) ; estimate dims
+  val rgrid = Grid(V3i(x(rdims), y(rdims), 1), dim)
+  val pts = corners(box)
+  val idims = dims $ reduce(union, seq({ Box2i(xy(idx-of(rgrid, xyz(_)))) }, pts)) ; calc real dims
+  Grid(V3i(x(idims) + 2, y(idims) + 2, 1), dim)
+
+public defn Grid (poly:Polygon, dim:Float) -> Grid :
+  val res = Grid(bounds(poly), dim)
+  scan(res, poly)
+  res
