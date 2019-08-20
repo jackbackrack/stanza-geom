@@ -1,0 +1,282 @@
+#use-added-syntax(stz-serializer-lang)
+
+defpackage geom-serializer :
+  import core
+  import collections
+  import utils
+  import geom
+  import stz/serializer
+
+public defserializer (out:OutputStream, in:InputStream) :
+
+  defunion geom (Geom) :
+    LineSegment2f: (start:v2f, end:v2f)
+    LineSegment3f: (start:v3f, end:v3f)
+    Contour: (vertices:tuple(v2f))
+    Polygon: (state:anyshapestate, contours:tuple(geom as Contour))
+    PolyLine2f: (state:anyshapestate, strokes:tuple(tuple(v2f)))
+    PolyLine3f: (state:anyshapestate, strokes:tuple(tuple(v3f)))
+    Mesh: (state:anyshapestate, vertices:tuple(v3f), faces:tuple(v3i))
+    Assembly: (mat:mat44f, name:opt<Symbol>(symbol), color:v4f, children:tuple(geom as Geom&Poseable))
+    Msg: (value:string)
+    
+  defunion v2f (V2f) : 
+    V2f: (x:float, y:float)
+
+  defunion v3f (V3f) : 
+    V3f: (x:float, y:float, z:float)
+
+  defunion v4f (V4f) : 
+    V4f: (x:float, y:float, z:float, a:float)
+
+  defunion v2i (V2i) : 
+    V2i: (x:int, y:int)
+
+  defunion v3i (V3i) : 
+    V3i: (x:int, y:int, z:int)
+
+  defunion box1f (Box1f) : 
+    Box1f: (lo:float, hi:float)
+
+  defunion box2f (Box2f) : 
+    Box2f: (lo:v2f, hi:v2f)
+
+  defunion box3f (Box3f) : 
+    Box3f: (lo:v3f, hi:v3f)
+
+  defunion box1i (Box1i) : 
+    Box1i: (lo:int, hi:int)
+
+  defunion box2i (Box2i) : 
+    Box2i: (lo:v2i, hi:v2i)
+
+  defunion box3i (Box3i) : 
+    Box3i: (lo:v3i, hi:v3i)
+
+  defunion quat (Quat) :
+    Quat: (w:float, v:v3f)
+
+  defatom mat44f (m:Mat44f) :
+    writer :
+      for i in 0 to 16 do : write-float(m[i])
+    reader :
+      val elts = to-tuple $ repeatedly(read-float, 16)
+      Mat44f(elts[00], elts[01], elts[02], elts[03], elts[04], elts[05], elts[06], elts[07],
+             elts[08], elts[09], elts[10], elts[11], elts[12], elts[13], elts[14], elts[15])
+
+  defunion anyshapestate (AnyShapeState) :
+    AnyShapeState: (name:opt<Symbol>(symbol), color:v4f, tags:tuple(symbol), poses:tuple(symvalue(mat44f)))
+
+  reader defn read-symvalue<?T> (f: () -> ?T) :
+    read-symbol() => f()
+
+  writer defn write-symvalue<?T> (f: T -> False, xs:KeyValue<Symbol,?T>) :
+    write-symbol(key(xs))
+    f(value(xs))
+
+  reader defn read-tuple<?T> (f: () -> ?T) :
+    val n = read-int()
+    to-tuple(repeatedly(f, n))
+
+  writer defn write-tuple<?T> (f: T -> False, xs:Tuple<?T>) :
+    write-int(length(xs))
+    do(f, xs)
+
+  reader defn read-list<?T> (f: () -> ?T) :
+    val n = read-int()
+    to-list(repeatedly(f, n))
+
+  writer defn write-list<?T> (f: T -> False, xs:List<?T>) :
+    write-int(length(xs))
+    do(f, xs)
+
+  reader defn read-opt<T> (f: () -> T) :
+    val n = read-byte()
+    f() when n == 1Y
+
+  writer defn write-opt<T> (f: T -> False, x:T|False) :
+    match(x) :
+      (x:False) :
+        write-byte(0Y)
+      (x:T) :
+        write-byte(1Y)
+        f(x)
+
+  defatom bool (x:True|False) :
+    writer :
+      match(x) :
+        (x:True) : put(out, 1Y)
+        (x:False) : put(out, 0Y)
+    reader :
+      switch(get-byte(in)) :
+        1Y : true
+        0Y : false
+        else : throw(DeserializeException())
+
+  defatom lit (x:?) :
+    writer :
+      match(x) :
+        (x:Char) :
+          write-byte(0Y)
+          write-char(x)
+        (x:Byte) :
+          write-byte(1Y)
+          write-byte(x)
+        (x:Int) :
+          write-byte(2Y)
+          write-int(x)
+        (x:Long) :
+          write-byte(3Y)
+          write-long(x)
+        (x:Float) :
+          write-byte(4Y)
+          write-float(x)
+        (x:Double) :
+          write-byte(5Y)
+          write-double(x)
+        (x:String) :
+          write-byte(6Y)
+          write-string(x)
+        (x:Symbol) :
+          write-byte(7Y)
+          write-symbol(x)
+        (x:List) :
+          write-byte(8Y)
+          write-list(write-lit, x)
+        (x:True) :
+          write-byte(9Y)
+        (x:False) :
+          write-byte(10Y)
+
+    reader :
+      switch(read-byte()) :
+        0Y : read-char()
+        1Y : read-byte()
+        2Y : read-int()
+        3Y : read-long()
+        4Y : read-float()
+        5Y : read-double()
+        6Y : read-string()
+        7Y : read-symbol()
+        8Y : read-list(read-lit)
+        9Y : true
+        10Y : false
+        else : throw(DeserializeException())
+
+  defatom int (x:Int) :
+    writer :
+      to-var-int(x, put{out, _})
+    reader :
+      from-var-int(read-byte)
+
+  defatom long (x:Long) :
+    writer :
+      put(out, x)
+    reader :
+      match(get-long(in)) :
+        (x:Long) : x
+        (x:False) : throw(DeserializeException())
+
+  defatom float (x:Float) :
+    writer :
+      put(out, x)
+    reader :
+      match(get-float(in)) :
+        (x:Float) : x
+        (x:False) : throw(DeserializeException())
+
+  defatom double (x:Double) :
+    writer :
+      put(out, x)
+    reader :
+      match(get-double(in)) :
+        (x:Double) : x
+        (x:False) : throw(DeserializeException())
+
+  defatom byte (x:Byte) :
+    writer :
+      put(out, x)
+    reader :
+      match(get-byte(in)) :
+        (x:Byte) : x
+        (x:False) : throw(DeserializeException())
+
+  defatom char (x:Char) :
+    writer :
+      print(out, x)
+    reader :
+      match(get-char(in)) :
+        (x:Char) : x
+        (x:False) : throw(DeserializeException())
+
+  defatom string (x:String) :
+    writer :
+      write-int(length(x))
+      print(out, x)
+    reader :
+      val n = read-int()
+      String(repeatedly(read-char, n))
+
+  defatom symbol (x:Symbol) :
+    writer :
+      write-string(to-string(x))
+    reader :
+      to-symbol(read-string())
+
+defn to-var-int (x:Int, Y: Byte -> False) :
+  defn B0 (x:Int) : Y(to-byte(x))
+  defn B1 (x:Int) : Y(to-byte(x >> 8))
+  defn B2 (x:Int) : Y(to-byte(x >> 16))
+  defn B3 (x:Int) : Y(to-byte(x >> 24))
+  if x >= 0 :
+    if x < 250 : B0(x)
+    else if x < 506 : (Y(250Y), B0(x - 250))
+    else if x < 762 : (Y(251Y), B0(x - 506))
+    else if x < 1018 : (Y(252Y), B0(x - 762))
+    else if x < 32768 : (Y(253Y), B1(x), B0(x))
+    else if x < 8388608 : (Y(254Y), B2(x), B1(x), B0(x))
+    else : (Y(255Y), B3(x), B2(x), B1(x), B0(x))
+  else :
+    if x >= -32768 : (Y(253Y), B1(x), B0(x))
+    else if x >= -8388608 : (Y(254Y), B2(x), B1(x), B0(x))
+    else : (Y(255Y), B3(x), B2(x), B1(x), B0(x))
+
+defn from-var-int (N: () -> Byte) -> Int :
+  defn B0 () : to-int(N())
+  defn B1 () : B0() << 8
+  defn B2 () : B0() << 16
+  defn S1 () : (B0() << 24) >>> 16
+  defn S2 () : (B0() << 24) >>> 8
+  defn S3 () : (B0() << 24)
+
+  val x = N()
+  switch(x) :
+    255Y : S3() | B2() | B1() | B0()
+    254Y : S2() | B1() | B0()
+    253Y : S1() | B0()
+    252Y : B0() + 762
+    251Y : B0() + 506
+    250Y : B0() + 250
+    else : to-int(x)
+
+defmethod put (s:StringBuffer, x:Byte) :
+  add(s, to-char(x))
+
+public defn serialize (g:Geom) -> String :
+  val out = StringBuffer()
+  serialize(out, g)
+  to-string(out)
+
+;; defn main () :
+;;   val poly-0 = polygon-n(100.0f, 16)
+;;   ;; val out = FileOutputStream("tst.ser")
+;;   val out = StringBuffer()
+;;   serialize(out, poly-0)
+;;   ;; close(out)
+;;   ;; val in = FileInputStream("tst.ser")
+;;   val in = StringInputStream(to-string $ out)
+;;   val p0 = deserialize-geom(in)
+;;   println(p0)
+;;   ;; close(in)
+;; 
+;; main()
