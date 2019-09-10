@@ -55,26 +55,35 @@ defmethod print (o:OutputStream, e:SpanningGraph) :
 defn length (tree:SpanningGraph) -> Float :
   sum(seq(length{points(tree), _}, edges(tree)))
 
+defn all-edges (verts:Tuple<Vertex>) -> Seqable<Edge> :
+  generate<Edge> :
+    for i in 0 to length(verts) do :
+      for j in (i + 1) to length(verts) do :
+        yield(Edge(i, j))
+
 public defn SpanningGraph (ipoints:Seqable<V2f>, seed-edges:Tuple<Edge>) -> SpanningGraph :
   val points = to-tuple $ ipoints
   if length(points) == 0 :
     SpanningGraph([], [] as Tuple<IntGraph>)
   else :
-    ;; println("SPANNING-TREE %_" % [length(points)])
-    ;; val edges = to-tuple $ lazy-qsort(length{points, _}, all-edges(points))
-    ;; val log2n = max(4, ceil-log2(length(points)) - 2)
-    ;; println("LOG2N %_" % [log2n])
     val verts = to-tuple $ seq(Vertex, points)
-    val vert-mapper = to-inttable<Int> $ for (vert in verts, i in 0 to false) seq : id(vert) => i
-    val v2f-edges = edges(Subdivision(verts))
-    ;; println("DELAUNAY")
-    val unsorted-edges = generate<Edge> :
-      for e in v2f-edges do :
-        ;; println("e %_ ORG %_ DEST %_" % [e, key?(edge-mapper, org(e)), key?(edge-mapper, dest(e))])
-        if key?(vert-mapper, id(org(e))) and key?(vert-mapper, id(dest(e))) :
-          yield(Edge(vert-mapper[id(org(e))], vert-mapper[id(dest(e))]))
+    val unsorted-edges =
+      if false and  length(points) <= 6 and length(seed-edges) == 0 :
+        all-edges(verts)
+      else :
+        ;; println("SPANNING-TREE %_" % [length(points)])
+        ;; val edges = to-tuple $ lazy-qsort(length{points, _}, all-edges(points))
+        ;; val log2n = max(4, ceil-log2(length(points)) - 2)
+        ;; println("LOG2N %_" % [log2n])
+        val v2f-edges = edges(Subdivision(verts))
+        ;; println("DELAUNAY")
+        val vert-mapper = to-inttable<Int> $ for (vert in verts, i in 0 to false) seq : id(vert) => i
+        generate<Edge> :
+          for e in v2f-edges do :
+            ;; println("e %_ ORG %_ DEST %_" % [e, key?(edge-mapper, org(e)), key?(edge-mapper, dest(e))])
+            if key?(vert-mapper, id(org(e))) and key?(vert-mapper, id(dest(e))) :
+              yield(Edge(vert-mapper[id(org(e))], vert-mapper[id(dest(e))]))
     val edges = to-tuple $ cat(seed-edges, lazy-qsort(length{points, _}, unsorted-edges))
-    ;; println("SORTED EDGES")
     val graphs = to-tuple $ for i in 0 to length(points) seq : IntGraph(i)
     val sets = to-tuple $ for i in 0 to length(points) seq : #UFSet<Int>(i, i, 1)
     ;; for edge in edges do :
@@ -99,9 +108,15 @@ public defstruct IntTree :
   idx      : Int
   children : Tuple<IntTree>
 
+defmethod print (o:OutputStream, t:IntTree) :
+  print(o, "IntTree(%_, %_)" % [idx(t), children(t)])
+
 public defstruct SpanningTree :
   points : Tuple<V2f>
   tree   : IntTree
+
+defmethod print (o:OutputStream, t:SpanningTree) :
+  print(o, "SpanningTree(%_, %_)" % [points(t), tree(t)])
 
 defn SpanningTree (graph:SpanningGraph) -> SpanningTree :
   val visited? = HashSet<Int>()
