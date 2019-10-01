@@ -428,6 +428,9 @@ public defn indices (dims:V3i) -> Seq<V3i> :
   defmethod print (o:OutputStream, v:PrimVec) :
     print(o, "%_(%~, %~)" % [PrimVecName, x(v), y(v)])
 
+  public defn sqr-magnitude (a:PrimVec) -> Prim :
+    dot(a, a)
+
   public defn magnitude (a:PrimVec) -> Prim :
     sqrt(dot(a, a))
 
@@ -1063,12 +1066,15 @@ public defn quat-from-axis (axis:V3f, rads:Float) -> Quat :
   val n = normalize(axis)
   Quat(cos(angle), sin-angle * n)
 
-public defn sin-cos (a:Float) : [ sin(a) cos(a) ]
+public defn sin-cos (a:Float) : V2f(sin(a) cos(a))
+public defn cos-sin (a:Float) : V2f(cos(a) sin(a))
+
+public defn sin-cos-tup (a:Float) : [ sin(a) cos(a) ]
 
 public defn quat-from-euler (radz:V3f) -> Quat :
-  val [sr cr] = sin-cos(0.5f * x(radz))
-  val [sp cp] = sin-cos(0.5f * y(radz))
-  val [sy cy] = sin-cos(0.5f * z(radz))
+  val [sr cr] = sin-cos-tup(0.5f * x(radz))
+  val [sp cp] = sin-cos-tup(0.5f * y(radz))
+  val [sy cy] = sin-cos-tup(0.5f * z(radz))
   Quat(    cy * cr * cp + sy * sr * sp,
        V3f(cy * sr * cp - sy * cr * sp,
            cy * cr * sp + sy * sr * cp,
@@ -2096,16 +2102,28 @@ val @doc-linesegment = "LINESEGMENT -- line between two points"
   defmethod print (o:OutputStream, l:LineSegment) :
     print(o, "%_(%_ %_)" % [LineSegmentName start(l) end(l)])
 
+public defn closest-point-to (l:LineSegment2f, p:V2f) -> V2f :
+  val l2 = sqr-magnitude(end(l) - start(l))
+  if l2 == 0.0f :
+    start(l)
+  else :
+    val dir = vector(l)
+    val t = max(0.0f, min(1.0f, dot(p - start(l), dir) / l2))
+    start(l) + t * dir
+
 public defn distance (l:LineSegment2f, xy:V2f) -> Float :
-  val [p, q] = [start(l), end(l)]
-  val pq = q - p
-  val dxy = xy - p
-  val d = dot(pq, pq)
-  val t0 = dot(pq, dxy)
-  val t1 = t0 / d when d > 0.0f else t0
-  val t = 0.0f when t1 < 0.0f else (1.0f when t1 > 1.0f else t1)
-  val ndxy = p + t * pq - xy
-  dot(ndxy, ndxy)
+  distance(closest-point-to(l, xy), xy)
+
+;; public defn distance (l:LineSegment2f, xy:V2f) -> Float :
+;;   val [p, q] = [start(l), end(l)]
+;;   val pq = q - p
+;;   val dxy = xy - p
+;;   val d = dot(pq, pq)
+;;   val t0 = dot(pq, dxy)
+;;   val t1 = t0 / d when d > 0.0f else t0
+;;   val t = 0.0f when t1 < 0.0f else (1.0f when t1 > 1.0f else t1)
+;;   val ndxy = p + t * pq - xy
+;;   dot(ndxy, ndxy)
 
 public defn intersects? (a:LineSegment2f, b:LineSegment2f) -> True|False :
   val [p, r] = [start(a), end(a) - start(a)]
@@ -2566,6 +2584,133 @@ public defn gc (m:Mesh) -> Mesh :
 ;; ;;   call-c(triangulator_end_polygon, tess-ptr)
 ;; ;; 
 ;; ;;   Mesh(vertices, faces)
+
+val @doc-circle = "CIRCLE -- a circle"
+
+public defstruct Circle <: Equalable :
+  center : V2f
+  radius : Float
+
+defmethod equal? (a:Circle, b:Circle) -> True|False :
+  center(a) == center(b) and radius(a) == radius(b)
+
+defmethod print (o:OutputStream, c:Circle) :
+  print(o, "Circle(%_, %_)" % [center(c), radius(c)])
+
+public defn distance (c:Circle, p:V2f) -> Float :
+  distance(center(c), p)
+
+public defn inside? (c:Circle, p:V2f) -> True|False :
+  distance(c, p) < radius(c)
+
+public defn outer-tangent (c0:Circle, c1:Circle) -> LineSegment2f :
+  val gamma = -1.0f * atan2(center(c1) - center(c0))
+  val beta = asin((radius(c1) - radius(c0)) / distance(center(c0), center(c1)))
+  val alpha = gamma - beta
+  val sc = cos-sin(0.5f * PI-F - alpha)
+  val t0 = center(c0) + radius(c0) * sc
+  val t1 = center(c1) + radius(c1) * sc
+  LineSegment2f(t0, t1)
+
+public defn reflect-point (l:LineSegment2f, p:V2f, dir:Float) -> V2f :
+  val pv = p - start(l)
+  val lv = end(l) - start(l)
+  val a = angle(pv, lv)
+  start(l) + rot2(pv, dir * a)
+
+public defn reflect-tangent (c0:Circle, c1:Circle, t:LineSegment2f, dir:Float) -> LineSegment2f :
+  val rp0 = reflect-point(LineSegment2f(center(c0), center(c1)), start(t), dir * 2.0f)
+  val rp1 = reflect-point(LineSegment2f(center(c1), center(c0)), end(t),   2.0f)
+  LineSegment2f(rp0, rp1)
+
+public defn reflect-outer-tangent (c0:Circle, c1:Circle, t:LineSegment2f) -> LineSegment2f :
+  reflect-tangent(c0, c1, t, -1.0f)
+
+public defn outer-tangents (c0:Circle, c1:Circle) -> [LineSegment2f, LineSegment2f] :
+  val t0 = outer-tangent(c0, c1)
+  [t0, reflect-outer-tangent(c0, c1, t0)]
+
+public defn homothetic-center (c0:Circle, c1:Circle) -> V2f :
+  (radius(c1) / (radius(c0) + radius(c1))) * center(c0) + (radius(c0) / (radius(c0) + radius(c1))) * center(c1)
+
+public defn tangent-point (c:Circle, p:V2f) -> V2f :
+  val del = center(c) - p
+  val dist = magnitude(del)
+  val side = sqrt(sqr(dist) - sqr(radius(c)))
+  val theta = asin(radius(c) / dist)
+  p + side * rot2(normalize(del), theta)
+
+public defn inner-tangent (c0:Circle, c1:Circle) -> LineSegment2f :
+  val c = homothetic-center(c0, c1)
+  val t0 = tangent-point(c0, c)
+  val t1 = tangent-point(c1, c)
+  LineSegment2f(t0, t1)
+
+public defn reflect-inner-tangent (c0:Circle, c1:Circle, t:LineSegment2f) -> LineSegment2f :
+  reflect-tangent(c0, c1, t, 1.0f)
+
+public defn inner-tangents (c0, c1) -> [LineSegment2f, LineSegment2f] :
+  val t0 = inner-tangent(c0, c1)
+  [t0, reflect-inner-tangent(c0, c1, t0)]
+
+public defn normalize-half-angle (a:Float) -> Float :
+  (a + PI-F) % (2.0f * PI-F) - PI-F
+
+public defn angle-delta (a0:Float, a1:Float) -> Float :
+  val a = normalize-half-angle(a0 - a1)
+  a when abs(a) <= PI-F else ((2.0f * PI-F - abs(a)) * -1.0f * sign(a))
+
+public defn angle (c:Circle, p:V2f) -> Float :
+  atan2(p - center(c))
+
+public defn point-delta (p0:V2f, p1:V2f, c:Circle, trace?:True|False) -> Float :
+  angle-delta(angle(c, p0), angle(c, p1))
+
+public defn point-delta (tangent:LineSegment2f, ls:LineSegment2f, c0:Circle, c1:Circle) -> Float :
+  val sd = abs(point-delta(start(tangent), start(ls), c0, false))
+  val ed = abs(point-delta(end(tangent),   end(ls),   c1, false))
+  sd + ed
+
+public defn tangents (c0:Circle, c1:Circle) -> Seq<LineSegment2f> :
+  cat(outer-tangents(c0, c1), inner-tangents(c0, c1))
+
+public defn closest-tangent (c0:Circle, c1:Circle, ls:LineSegment2f) -> LineSegment2f :
+  var best-tangent:LineSegment2f
+  var min-delta:Float = 1.0e3f
+  var best-index:Int = -1
+  for (tangent in tangents(c0, c1), i in 0 to false) do :
+    val delta = point-delta(tangent, ls, c0, c1)
+    if delta < min-delta :
+      min-delta = delta
+      best-tangent = tangent
+      best-index = i
+  best-tangent
+
+public defn arc (c:Circle, sp:V2f, ep:V2f, iinc:Float) -> Seqable<V2f> :
+  val delta = point-delta(ep, sp, c, true)
+  val n = abs(ceil(delta / iinc))
+  val inc = 0.0f when n == 0.0f else (delta / n)
+  val sv = sp - center(c)
+  for i in 0 through to-int(n) seq :
+    center(c) + rot2(sv, inc * to-float(i))
+
+public defn intersection? (c:Circle, ls:LineSegment2f) -> True|False :
+  val d = end(ls) - start(ls)
+  val f = start(ls) - center(c)
+  val a = dot(d, d)
+  val b = 2.0f * dot(f, d)
+  val e = dot(f, f) - sqr(radius(c))
+  val sqr-discriminant = sqr(b) - 4.0f * a * e
+  val res =
+    if sqr-discriminant < 0.0f :
+      false
+    else :
+      val discriminant = sqrt(sqr-discriminant)
+      val t1 = ((- b) - discriminant) / (2.0f * a)
+      val t2 = ((- b) + discriminant) / (2.0f * a)
+      (t1 >= 0.0f and t1 <= 1.0f) or (t2 >= 0.0f and t2 <= 1.0f)
+  ;; println("C %_ LS %_ SQR-DISCRIMINANT %_ RES %_" % [c, ls, sqr-discriminant, res])
+  res
 
 val @doc-shape = "SHAPE -- a solid object"
 
