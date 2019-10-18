@@ -67,6 +67,10 @@ public defstruct AABBTree :
   margin : Float
   invalid-nodes : Vector<Node> with: ( init => Vector<Node>() )
 
+public defn clear (t:AABBTree) :
+  set-root(t, false)
+  clear(invalid-nodes(t))
+
 defmethod print (o:OutputStream, t:AABBTree) :
   print(o, "Tree(%_)" % [root(t)])
 
