@@ -5,33 +5,33 @@ package geom-gfx defined-in "geom-gfx.stanza"
 package grid defined-in "grid.stanza"
 package grid requires :
   ccfiles:
-    "{GEN}/grid.o"
+    "{WORKDIR}/build/grid.o"
   ccflags:
     on-platform:
       os-x  : "-lc++"
       linux : "-lstdc++"
-compile file "{GEN}/grid.o" from "grid.cpp" :
-  "g++ -c -O3 {.}/grid.cpp -o {GEN}/grid.o"
+compile file "{WORKDIR}/build/grid.o" from "grid.cpp" :
+  "g++ -c -O3 {.}/grid.cpp -o {WORKDIR}/build/grid.o"
 package clipper defined-in "clipper.stanza"
 package clipper requires :
   ccfiles:
-    "{GEN}/clipper.o"
+    "{WORKDIR}/build/clipper.o"
   ccflags:
     on-platform:
       os-x  : ("-lpolyclipping" "-lc++")
       linux : ("-lpolyclipping" "-lstdc++")
-compile file "{GEN}/clipper.o" from "clipper.cpp" :
-  "g++ -c -O3 {.}/clipper.cpp -o {GEN}/clipper.o"
+compile file "{WORKDIR}/build/clipper.o" from "clipper.cpp" :
+  "g++ -c -O3 {.}/clipper.cpp -o {WORKDIR}/build/clipper.o"
 package svg defined-in "svg.stanza"
 package svg requires :
   ccfiles:
-    "{GEN}/nano-svg.o"
+    "{WORKDIR}/build/nano-svg.o"
   ccflags:
     on-platform:
       os-x  : "-lc++"
       linux : "-lstdc++"
-compile file "{GEN}/nano-svg.o" from "nano-svg.cpp" :
-  "g++ -c -O3 {.}/nano-svg.cpp -o {GEN}/nano-svg.o"
+compile file "{WORKDIR}/build/nano-svg.o" from "nano-svg.cpp" :
+  "g++ -c -O3 {.}/nano-svg.cpp -o {WORKDIR}/build/nano-svg.o"
 package spanning-tree defined-in "spanning-tree.stanza"
 package delaunay defined-in "delaunay.stanza"
 package intersections defined-in "intersections.stanza"
