@@ -36,6 +36,7 @@ package spanning-tree defined-in "spanning-tree.stanza"
 package delaunay defined-in "delaunay.stanza"
 package intersections defined-in "intersections.stanza"
 package geom-serializer defined-in "geom-serializer.stanza"
+package geom-visualizer defined-in "geom-visualizer.stanza"
 package repl-geom-eval defined-in "repl-geom-eval.stanza"
 package shapes defined-in "shapes.stanza"
 

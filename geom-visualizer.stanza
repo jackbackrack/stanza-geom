@@ -1,0 +1,89 @@
+; #use-added-syntax(serialize)
+defpackage geom-visualizer :
+  import core
+  ;import serialize
+  import stz/serializer
+  import collections
+  import geom
+  import geom-serializer
+  import socket
+
+; public deftype VisualizerCommand
+; 
+; public defstruct VisualizeGeom <: VisualizerCommand :
+;   value: Geom
+; with:
+;   printer => true
+; 
+; public defstruct VisualizeHSplit <: VisualizerCommand :
+;   commands: Tuple<VisualizerCommand>
+; with:
+;   printer => true
+; 
+; public defstruct VisualizeVSplit <: VisualizerCommand :
+;   commands: Tuple<VisualizerCommand>
+; with:
+;   printer => true
+; 
+; public defstruct VisualizeGSplit <: VisualizerCommand :
+;   commands: Tuple<VisualizerCommand>
+; with:
+;   printer => true
+; 
+; public defstruct VisualizeTile <: VisualizerCommand :
+;   command: VisualizerCommand
+; with:
+;   printer => true
+; 
+; public defstruct Visualize <: VisualizerCommand :
+;   command: VisualizerCommand
+; with:
+;   printer => true
+; 
+; register-struct-serializers (o:OutputStream, i:InputStream) :
+;   geom-visualizer/VisualizeGeom :
+;     value: Geom
+; 
+;   geom-visualizer/VisualizeHSplit :
+;     commands: Tuple<VisualizerCommand>
+; 
+;   geom-visualizer/VisualizeVSplit :
+;     commands: Tuple<VisualizerCommand>
+; 
+;   geom-visualizer/VisualizeGSplit :
+;     commands: Tuple<VisualizerCommand>
+; 
+;   geom-visualizer/VisualizeTile :
+;     command: VisualizerCommand
+; 
+;   geom-visualizer/Visualize :
+;     command: VisualizerCommand
+; 
+; public defn tile (geom:Geom) -> VisualizerCommand :
+;   VisualizeTile $ VisualizeGeom(geom)
+; 
+; public defn gsplit (tiles:Seqable<VisualizerCommand>) :
+;   VisualizeGSplit $ to-tuple $ tiles
+; 
+; public defn hsplit (tiles:Seqable<VisualizerCommand>) :
+;   VisualizeHSplit $ to-tuple $ tiles
+; 
+; public defn vsplit (tiles:Seqable<VisualizerCommand>) :
+;   VisualizeVSplit $ to-tuple $ tiles
+; 
+; public defn visualize (s:BufferedSocket, c:VisualizerCommand) :
+;   serialize(s, Visualize $ c)
+; 
+; public defn visualize (c:VisualizerCommand) :
+;   visualize(ReplClient("localhost", 51717), c)
+; 
+; public defn visualize (geom:Geom) :
+;   visualize(tile(geom))
+;
+
+public defn visualize (s:BufferedSocket, g:Geom) :
+  serialize(s, g)
+
+public defn visualize (geom:Geom) :
+  visualize(ReplClient("localhost", 51717), geom)
+
