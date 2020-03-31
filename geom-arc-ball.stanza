@@ -1,5 +1,6 @@
 defpackage geom/arc-ball :
   import core
+  import math
   import geom/vec
   import geom/mat
   import geom/quat

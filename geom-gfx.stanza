@@ -18,9 +18,9 @@ defpackage geom/gfx:
   import geom/assembly
   import geom/geom
   import geom/arc-ball
-  import gl
-  import gfx
-  import font
+  import gfx/gl
+  import gfx/drawing
+  import gfx/font
 
 extern glLoadMatrixf: (ptr<float>) -> int
 extern glMultMatrixf: (ptr<float>) -> int
