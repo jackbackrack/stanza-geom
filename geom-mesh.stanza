@@ -1,0 +1,93 @@
+defpackage geom/mesh :
+  import core
+  import geom/vec
+  import geom/mat
+  import geom/box
+  import geom/bounded
+  import geom/poseable
+  import geom/shape
+ 
+val @doc-mesh = "MESH -- triangulated surfaces"
+
+public defstruct Mesh <: AnyShape&Equalable :
+  state: AnyShapeState with: (as-method => true)
+  vertices: Tuple<V3f>
+  faces:    Tuple<V3i>
+
+defmethod equal? (a:Mesh, b:Mesh) -> True|False :
+  vertices(a) == vertices(b) and faces(a) == faces(b)
+
+public defn Mesh (vertices:Tuple<V3f>, faces:Tuple<V3i>) :
+  Mesh(default-anyshape-state(), vertices, faces)
+
+defmethod clone (mesh:Mesh, state:AnyShapeState) -> Mesh :
+  Mesh(state, vertices(mesh), faces(mesh))
+
+defmethod xyz (mat:Mat44f, mesh:Mesh) -> Mesh :
+  Mesh(state(mesh), to-tuple $ for v in vertices(mesh) seq : mat * v, faces(mesh))
+
+defmethod bounds (p:Mesh) -> Box3f :
+  reduce(union, neg-inf-box3f(), seq(Box3f, vertices(p)))
+
+defmethod bit-or (a:Mesh, b:Mesh) -> Mesh :
+  val b-faces = for face in faces(b) seq : face + xyz(length(faces(a)))  
+  Mesh(state(a) | state(b), to-tuple $ cat(vertices(a), vertices(b)), to-tuple $ cat(faces(a), b-faces))
+    
+defmethod print (o:OutputStream, m:Mesh) :
+  print-all(o, ["Mesh(" vertices(m) "," faces(m) ")"])
+
+public defn triangle-area (verts:Tuple<V3f>) -> Float :
+  val ls = to-tuple $ for i in 1 to 4 seq : distance(verts[i - 1], verts[i % 3])
+  val p  = (sum $ ls) / 2.0f
+  p * product $ for l in ls seq : (p - l)
+
+public defn surface-area (m:Mesh) -> Float :
+  val verts = vertices(m)
+  defn face-area (face:V3i) -> Float :
+    triangle-area $ [verts[x(face)], verts[y(face)], verts[z(face)]]
+  abs $ sum $ seq(face-area, faces(m))
+
+public defn gc (m:Mesh) -> Mesh :
+  val used = Array<True|False>(length(vertices(m)), false)
+  for tri in faces(m) do :
+    for i in 0 to 3 do :
+      used[tri[i]] = true
+  val new-verts = to-tuple $ filter(vertices(m), used)
+  val mapping = Array<Int>(length(vertices(m)), -1)
+  let loop (idx:Int = 0, off:Int = 0) :
+    if idx < length(vertices(m)) :
+      if used[idx] :
+        mapping[idx] = idx - off
+        loop(idx + 1, off)
+      else :
+        loop(idx + 1, off + 1)
+  val new-tris = to-tuple $ for tri in faces(m) seq :
+    V3i(mapping[x(tri)], mapping[y(tri)], mapping[z(tri)])
+  Mesh(new-verts, new-tris)
+ 
+;; ;; public defn triangulate (p: Polygon) :
+;; ;;   val vertices = Vector<V3f>()
+;; ;;   val faces  = Vector<Int>()
+;; ;; 
+;; ;;   defn vertex-callback (index: Int) :
+;; ;;     ;; println("Vertex Callback")
+;; ;;     add(faces, index)
+;; ;; 
+;; ;;   defn combine-callback (x:Float, y:Float, z:Float) -> Int :
+;; ;;     ;; println("Combine Callback")
+;; ;;     add(vertices, V3f(x, y, z))
+;; ;;     length(vertices) - 1
+;; ;; 
+;; ;;   val tess-ptr = call-c(triangulator_new, vertex-callback, combine-callback)
+;; ;; 
+;; ;;   call-c(triangulator_begin_polygon, tess-ptr)
+;; ;;   for c in contours(p) do :
+;; ;;     call-c(triangulator_begin_contour, tess-ptr)
+;; ;;     for p in points(c) do :
+;; ;;       add(vertices, p)
+;; ;;       call-c(triangulator_vertex, tess-ptr, length(vertices) - 1, x(p), y(p), z(p))
+;; ;;     call-c(triangulator_end_contour, tess-ptr)
+;; ;;   call-c(triangulator_end_polygon, tess-ptr)
+;; ;; 
+;; ;;   Mesh(vertices, faces)
+

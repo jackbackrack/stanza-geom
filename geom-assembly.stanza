@@ -1,0 +1,72 @@
+defpackage geom/assembly :
+  import core
+  import geom/vec
+  import geom/mat
+  import geom/box
+  import geom/bounded
+  import geom/poseable
+  import geom/shape
+
+val @doc-assembly = "ASSEMBLY -- grouping poseables"
+
+public deftype Assembly<T> <: Poseable
+public defmulti children (a:Assembly) -> Tuple<Poseable>
+public defmulti mat (l:Assembly) -> Mat44f
+
+public defn Assembly<?T> (mat:Mat44f, name:False|Symbol, color:V4f, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
+  val children = to-tuple $ poseables
+  ;; if length(children) == 0 : fatal("EMPTY CHILDREN")
+  new Assembly<T> :
+    defmethod children (this) : children
+    defmethod name (this) : name
+    defmethod tags (this) : to-tuple $ unique $ cat-all $ seq(tags, children)
+    defmethod bounds (this) : mat * reduce(bit-or, seq(bounds, children))
+    defmethod mat (this) : mat
+    defmethod color (this) : color
+    defmethod any-shapes (this) : seq(rgb{color, _}, seq(xyz{mat, _}, cat-all $ seq(any-shapes, children)))
+    defmethod poses (this) : to-tuple $ cat-all $ seq(poses, children)
+
+public defn ungroup (a:Assembly) -> Seqable<Poseable> :
+  seq(rgb{color(a), _}, seq(xyz{mat(a), _}, children(a)))
+
+defmethod clone (p:Assembly, name:False|Symbol, color:V4f, poses:Tuple<KeyValue<Symbol,Mat44f>>, tags:Tuple<Symbol>) -> Assembly :
+  Assembly(mat(p), name, color, children(p))
+
+public defn Assembly<?T> (mat:Mat44f, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
+  Assembly(mat, false, WHITE, poseables)
+  
+public defn Assembly<?T> (poseables:Seqable<?T&Poseable>) -> Assembly<T> :
+  Assembly(id-mat44f(), poseables)
+  
+public defmethod get (s:AnyShape, iname:Symbol) -> False|AnyShape :
+  s when iname == name(s)
+
+public defmethod get (a:Assembly, iname:Symbol) -> False|Poseable :
+  if iname == name(a) :
+    a
+  else :
+    label<False|Poseable> return :
+      for c in children(a) do :
+        val e = c[iname]
+        return(e) when e is-not False
+
+public defmethod update (s:AnyShape, iname:Symbol, value:AnyShape) -> AnyShape :
+  value when iname == name(s) else s
+
+public defmethod update (a:Assembly, iname:Symbol, value:Poseable) -> Poseable :
+  if iname == name(a) :
+    value
+  else :
+    label<Assembly> return :
+      val ncs = for c in children(a) seq :
+        update(c, iname, value)
+      Assembly(mat(a), name(a), color(a), ncs)
+
+public defn group (poseables:Seqable<Poseable>) : Assembly(poseables)
+
+defmethod print (s:OutputStream, a:Assembly) :
+  print(s, "Assembly(%_ %,)" % [name(a), children(a)])
+
+public defmethod xyz (xf:Mat44f, a:Assembly) :
+  Assembly(mat(a) * xf, name(a), color(a), children(a))
+

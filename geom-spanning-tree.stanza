@@ -1,10 +1,11 @@
-defpackage spanning-tree :
+defpackage geom/spanning-tree :
   import core
   import collections
   import math
   import union-find
-  import geom
-  import delaunay with :
+  import geom/vec
+  import geom/line-segment
+  import geom/delaunay with :
     prefix( Edge ) => del-
 
 defn abs (v:V2f) : V2f(abs(x(v)), abs(y(v)))

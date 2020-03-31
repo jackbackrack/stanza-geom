@@ -1,6 +1,11 @@
-defpackage shapes :
+defpackage geom/shapes :
   import core
-  import geom
+  import geom/vec
+  import geom/mat
+  import geom/bounded
+  import geom/poseable
+  import geom/shape
+  import geom/space
   import libfive
 
 public defn bulk-rem (p:Poseable, c:Shape) :

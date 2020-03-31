@@ -1,0 +1,304 @@
+defpackage geom/space :
+  import core
+  import collections
+  import geom/vec
+  import geom/mat
+  import geom/box
+  import geom/geom
+  import geom/bounded
+  import geom/poseable
+  import geom/assembly
+  import geom/shape
+
+public defmulti spacer<?T> (g:?T&Poseable, dims:V3f) -> T
+
+;; public defn space-x (gdim:Float, shape:AnyShape) : mag1(gdim / x(dims(bounds(shape))), shape)
+;; public defn space-y (gdim:Float, shape:AnyShape) : mag1(gdim / y(dims(bounds(shape))), shape)
+;; public defn space-z (gdim:Float, shape:AnyShape) : mag1(gdim / z(dims(bounds(shape))), shape)
+
+public defn spacer-x<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(gdim, 0.0f, 0.0f))
+public defn spacer-y<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(0.0f, gdim, 0.0f))
+public defn spacer-z<?T> (gdim:Float, g:?T&Poseable) : spacer(g, V3f(0.0f, 0.0f, gdim))
+
+public defn resize-idx<?T> (gdim:Float, idx:Int, shape:?T&AnyShape) -> T :
+  mag1(gdim / dims(bounds(shape))[idx], shape)
+
+public defn resize<?T> (gdims:V3f, shape:?T&AnyShape) -> T :
+  mag1(min(gdims / dims(bounds(shape))), shape)
+
+public defn resize<?T> (gdims:V2f, shape:?T&AnyShape) -> T :
+  mag1(min(gdims / xy(dims(bounds(shape)))), shape)
+
+public defn resize-x<?T> (gdim:Float, shape:?T&AnyShape) -> T : resize-idx(gdim, 0, shape)
+public defn resize-y<?T> (gdim:Float, shape:?T&AnyShape) -> T : resize-idx(gdim, 1, shape)
+public defn resize-z<?T> (gdim:Float, shape:?T&AnyShape) -> T : resize-idx(gdim, 2, shape)
+
+public defn resize (gdims:V2f) : resize{gdims, _}
+public defn resize (gdims:V3f) : resize{gdims, _}
+public defn resize-x (gdim:Float) : resize-x{gdim, _}
+public defn resize-y (gdim:Float) : resize-y{gdim, _}
+public defn resize-z (gdim:Float) : resize-z{gdim, _}
+
+public defn remove-spacers (p:Poseable) -> Poseable :
+  match(p) :
+    (a:Assembly) : Assembly(mat(a), name(a), color(a),
+                            seq(remove-spacers, filter({ area*(dims(bounds(_))) > 0.0f }, children(a))))
+    (s) : s
+
+public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<Box3f>, idx:Int, dir:Float) -> Seq<T> :
+  val [shapes, boundz] = [to-tuple(ishapes), to-tuple(iboundz)]
+  val tot = sum $ for bounds in boundz seq : dims(bounds)[idx]
+  ;; println("TOT %_" % [tot])
+  var tot-fac:Float = 0.0f
+  val res =
+    generate<T&Poseable> :
+      for (child in shapes, bounds in boundz) do :
+        val now-fac = dims(bounds)[idx] / tot
+        val ctr     = center(bounds)[idx]
+        val amount  = dir * (tot / 2.0f - (tot-fac + now-fac / 2.0f) * tot) - ctr
+        val del     = amount * V3f-unit(idx)
+        ;; println("STACKING %_ DEL %_ TOT %_ BOUNDS %_ DIMS %_ VOLUME %_" % [child del tot bounds dims(bounds) volume(dims(bounds))])
+        yield(mov(del, child))
+        tot-fac = tot-fac + now-fac
+  ;; for r in res do :
+  ;;   println("STACKED %_ BOUNDS %_ DIMS %_ VOLUME %_" % [r bounds(r) dims(bounds(r)) volume(dims(bounds(r)))])
+  ;; val bdz = to-tuple $ seq({ volume(dims(bounds(_))) }, res)
+  ;; val rres = to-tuple $ filter({ volume(dims(bounds(_))) > 0.0f }, res)
+  ;; println("STACKING RRES %_" % [rres])
+  filter({ area*(dims(bounds(_))) > 0.0f }, res)
+  ;; res
+
+public defn stack-idx<?T> (ishapes:Seqable<?T&Poseable>, idx:Int, dir:Float) -> Seq<T> :
+  val shapes = to-tuple $ ishapes
+  stack-idx-using(shapes, seq(bounds, shapes), idx, dir)
+
+public defn stack-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-idx(shapes, 0,  -1.0f)
+
+public defn stack-y<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-idx(shapes, 1,  -1.0f)
+
+public defn stack-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-idx(shapes, 2,  -1.0f)
+
+public defn stack-meld-idx<?T> (t:Float, ishapes:Seqable<?T&Poseable>, idx:Int, dir:Float) -> Seq<T> :
+  val shapes = to-tuple $ ishapes
+  defn offset (b:Box3f) :
+    val a = -0.5f * t * V3f-unit(idx)
+    val res = fatten(b, a)
+    ;; println("B %_ T %_ A %_ -> %_" % [b, t, a, res])
+    res 
+  stack-idx-using(shapes, seq({ offset(bounds(_)) }, shapes), idx, dir)
+
+public defn stack-meld-x<?T> (t:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-meld-idx(t, shapes, 0,  -1.0f)
+
+public defn stack-meld-y<?T> (t:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-meld-idx(t, shapes, 1,  -1.0f)
+
+public defn stack-meld-z<?T> (t:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-meld-idx(t, shapes, 2,  -1.0f)
+
+public defn stack-meld-x (t:Float) : stack-meld-x{t, _}
+public defn stack-meld-y (t:Float) : stack-meld-y{t, _}
+public defn stack-meld-z (t:Float) : stack-meld-z{t, _}
+
+public deftype AnyGlue <: Poseable
+public defmulti amount (g:AnyGlue) -> Float
+
+public defn glue-amount<?T> (shape:?T&Poseable) -> Float :
+  match(shape) :
+    (g:AnyGlue) : amount(g)
+    (s)         : 0.0f
+
+public deftype AssemblyGlue <: AnyGlue & Assembly
+public deftype ShapeGlue <: AnyGlue & AnyShape
+defmulti glue (g:AssemblyGlue) -> ShapeGlue
+
+public defn AssemblyGlue (glue:ShapeGlue) :
+  new AssemblyGlue :
+    defmethod glue (this) : glue
+    defmethod color (this): BLACK
+    defmethod bounds (this) : bounds(glue)
+    defmethod amount (this) : amount(glue)
+
+public defmulti glue-of<?T> (s:?T&Poseable, a:Float) -> T
+
+public defn glue-when<?T> (first?:True|False, last?:True|False, ends:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  generate<T> :
+    var last-shape:T&Poseable
+    for (shape in shapes, i in 0 to false) do :
+      if i > 0 :
+        yield(glue-of(shape, 1.0f))
+      else if first? :
+        yield(glue-of(shape, ends))
+      yield(shape)
+      last-shape = shape
+    yield(glue-of(last-shape, ends)) when last? 
+
+public defn glue-even<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  glue-when(true, false, 1.0f, shapes)
+
+public defn glue-odd<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  glue-when(false, false, 1.0f, shapes)
+
+public defn glue-all<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  glue-when(true, true, 1.0f, shapes)
+
+public defn glue-evenly<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  glue-when(true, true, 0.5f, shapes)
+
+public defn glue<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  glue-odd(shapes)
+
+public defn assign-glue-idx<?T> (ishapes:Seqable<?T&Poseable>, target:Float, idx:Int) -> Seq<T> :
+  val shapes = to-tuple(ishapes)
+  val tot = sum $ for shape in shapes seq : dims(bounds(shape))[idx]
+  val glue-tot = sum $ for shape in shapes seq : glue-amount(shape)
+  val gap-tot = (target - tot)
+  for shape in shapes seq :
+    match(shape) :
+      (g:AnyGlue&T) :
+        val s = (amount(g) / glue-tot) * gap-tot * V3f-unit(idx)
+        spacer(shape, s)
+      (s)           : s
+
+;; public defn interleave<?T> (a:Seqable<?T&Poseable>, b:Seqable<?T&Poseable>) -> Seq<T> :
+;;   generate<T> :
+;;     val [sa, sb] = [to-seq(a), to-seq(b)]
+;;     let loop (a?:True|False = true) :
+;;       if not empty?(sa) and not empty?(sa):
+;;         yield(next(sa) when a? else next(sb))
+;;         loop(not a?)
+
+public defn stack-idx<?T> (d:Float, idx:Int, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-idx(assign-glue-idx(shapes, d, idx), idx, 1.0f)
+
+public defn stack-x<?T> (w:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-x(assign-glue-idx(shapes, w, 0))
+public defn stack-y<?T> (h:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-y(assign-glue-idx(shapes, h, 1))
+public defn stack-z<?T> (d:Float, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  stack-z(assign-glue-idx(shapes, d, 2))
+public defn stack-x (w:Float) : stack-x{w, _}
+public defn stack-y (h:Float) : stack-y{h, _}
+public defn stack-z (d:Float) : stack-z{d, _}
+
+public defn space-idx<?T> (iseps:Seqable<Float>, idx:Int, ishapes:Seqable<?T&Poseable>) -> Seq<T> :
+  val shapes = to-tuple $ ishapes
+  val seps = to-tuple $ for (sep in iseps, i in 0 to (length(shapes) - 1)) seq : sep
+  val tot = sum $ seps
+  val start = -0.5f * tot
+  val offs = to-tuple $ generate<Float> :
+    let loop (off = start, i = 0) :
+      yield(off)
+      if i < length(seps) : loop(off + seps[i], i + 1)
+  ;; println("SHAPES %_ SEPS %_ TOT %_ START %_ OFFS %_ DIMZ %_" %
+  ;;         [shapes, seps, tot, start, offs, to-tuple $ seq({ dims(bounds(_)) }, shapes)])
+  for (shape in shapes, off in offs) seq :
+    mov(off * V3f-unit(idx), shape)
+
+public defn space-x<?T> (seps:Seqable<Float>, shapes:Seqable<?T&Poseable>) : space-idx(seps, 0, shapes)
+public defn space-y<?T> (seps:Seqable<Float>, shapes:Seqable<?T&Poseable>) : space-idx(seps, 1, shapes)
+public defn space-z<?T> (seps:Seqable<Float>, shapes:Seqable<?T&Poseable>) : space-idx(seps, 2, shapes)
+
+public defn space-idx<?T> (sep:Float, idx:Int, shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  space-idx(repeatedly({ sep }), idx, shapes)
+
+public defn space-x<?T> (sep:Float, shapes:Seqable<?T&Poseable>) : space-idx(sep, 0, shapes)
+public defn space-y<?T> (sep:Float, shapes:Seqable<?T&Poseable>) : space-idx(sep, 1, shapes)
+public defn space-z<?T> (sep:Float, shapes:Seqable<?T&Poseable>) : space-idx(sep, 2, shapes)
+
+public defn space-idx (sep:Float, idx:Int) : space-idx{repeatedly({ sep }), idx, _}
+
+public defn space-x (sep:Float) : space-idx(sep, 0)
+public defn space-y (sep:Float) : space-idx(sep, 1)
+public defn space-z (sep:Float) : space-idx(sep, 2)
+
+defn align-it<?T> (ishapes:Seqable<?T&Poseable>, value:(Box3f) -> Float, mov:(Float, T) -> T) -> Seq<T> :
+  val shapes = to-tuple(ishapes)
+  val target = reduce(union, seq(bounds, shapes))
+  ;; val target = bounds(shapes[0])
+  for (child in shapes) seq :
+    mov(value(target) - value(bounds(child)), child)
+
+val id-pose = id-mat44f()
+
+public defn attach<?T> (src:?T&Poseable, spos:Mat44f, dst:?T&Poseable, dpos:Mat44f) -> Seqable<T> :
+  [xyz(inverse(spos) * dpos, src), dst]
+
+public defn attach<?T> (src:?T&Poseable, si:Symbol, dst:?T&Poseable, di:Symbol) -> Seqable<T> :
+  attach(src, lookup?(poses(src),si,id-pose), dst, lookup?(poses(dst),di, id-pose))
+
+public defn align-min-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  align-it(shapes, { x(lo(_)) }, mov-x)
+
+public defn align-max-x<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  align-it(shapes, { x(hi(_)) }, mov-x)
+
+public defn align-min-y<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  align-it(shapes, { y(lo(_)) }, mov-y)
+
+public defn align-max-y<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  align-it(shapes, { y(hi(_)) }, mov-y)
+
+public defn align-min-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  align-it(shapes, { z(lo(_)) }, mov-z)
+
+public defn align-max-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
+  align-it(shapes, { z(hi(_)) }, mov-z)
+
+public defn axis-aligned-smash<?T> (s:?T&Poseable) -> T :
+  val bb    = bounds(s)
+  val dims  = dims(bb)
+  val idx   = min-idx(dims)
+  val ctr   = center(bb)
+  defn rot (s) : if idx == 0 : reflect-xz(s) else if idx == 1 : reflect-yz(s) else : s
+  val res = rot(mov((- ctr), s))
+  ;; println("SMASH %_ (%_ %_) -> %_" % [s bb ctr res])
+  res
+
+defn segment<?T> (shapes:Seqable<?T>, width:T -> Float, max-width:Float, space:Float) -> Seqable<Tuple<T>> :
+  val row = Vector<T>()
+  generate<Tuple<T>> :
+    for pc in shapes do :
+      val off = sum $ join(seq(width, cat(row, [pc])), space)
+      if off > max-width :
+        yield(to-tuple $ row)
+        ;; println("OFF %_ > %_" % [off max-width])
+        clear(row)
+      ;; println("ADD ROW")
+      add(row, pc)
+    if length(row) > 0 : yield(to-tuple $ row)
+
+public defn nest (pcs:Seqable<Poseable>, size:V2f, spacer:V3f -> Poseable, space:Float) -> Seqable<Assembly> :
+  val apcs  = to-tuple $ pcs
+  ;; println("NEST A %_" % [apcs])
+  val rpcs  = to-tuple $ seq(fn (pc): reflect-xy(pc) when max-idx(dims(bounds(pc))) != max-idx(size) else pc, apcs)
+  ;; println("NEST R %_" % [rpcs])
+  val spcs  = to-tuple $ lazy-qsort({ y(dims(bounds(_))) }, rpcs)
+  ;; println("NEST S %_" % [spcs])
+  val rows  = to-tuple $ segment(spcs, { x(dims(bounds(_))) }, x(size), space)
+  ;; println("NEST ROWS %_" % [rows])
+  ;; val pages = segment(rows, { y(dims(bounds(union(shapes $ Assembly $ _)))) }, y(size), space)
+  val pages = to-tuple $ segment(rows, { y(dims(bounds(Assembly $ _))) }, y(size), space)
+  ;; println("PAGES %_" % [pages])
+  val res = to-tuple $ for page in pages seq :
+    val rrows = for row in page seq:
+      ;; println("ROW %_" % [row])
+      Assembly(stack-x(join(row, spacer(x3f(space)))))
+    Assembly(stack-y(join(rrows, Assembly([ spacer(y3f(space)) ]))))
+  ;; println("NEST RES %_" % [res])
+  res
+
+;;; SHAPE
+
+;; public deftype Shape <: AnyShape
+;; 
+;; public defn shapes (any-shapes:Seqable<AnyShape>) -> Seqable<Shape> :
+;;   generate<Shape> : for e in any-shapes do : yield(e as Shape) when e is Shape
+;; 
+;; public defn shapes (p:Poseable) : shapes(any-shapes(p))
+
+;;;; AGGREGATE GEOMS
+

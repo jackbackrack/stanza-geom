@@ -1,0 +1,72 @@
+defpackage geom/mechanism :
+  import core
+  import geom/vec
+  import geom/mat
+  import geom/quat
+  import geom/poseable
+
+val @doc-mechanism = "MECHANISM -- representing linkage consisting of links, nodes, and joints including top level nodes and root link for modular construction"
+
+public defstruct Mechanism :
+  root:Link
+  nodes:Tuple<NodeRef>
+  links:Tuple<Link>
+  joints:Tuple<Joint>
+  children:Tuple<Mechanism>
+
+public defn assign-poses (m:Mechanism) :
+  defn elaborate (j:Joint) :
+    val c0 = connection(j)[0]
+    val c1 = connection(j)[1]
+    val np = inverse(pose(nodes(link(c1))[node(c1)])) *
+             rot-mat44f(V3f(0.0f, 0.0f, 1.0f), degrees-to-radians(state(j))) *
+             pose(nodes(link(c0))[node(c0)]) *             
+             pose(link(c0))
+    set-pose(link(c1), np)
+  for joint in joints(m) do :
+    elaborate(joint)
+  for child in children(m) do :
+    assign-poses(child)
+
+public defn all-links (m:Mechanism) :
+  cat(links(m), cat-all(seq(all-links, children(m))))
+
+public defn elaborate (m:Mechanism) :
+  set-pose(root(m), id-mat44f())
+  assign-poses(m)
+  group $ seq(fn (l) : xyz(pose(l), geom(l)), all-links(m))  
+
+val @doc-link = "LINK -- single mechanism block with geometry, nodes, and settable pose"
+
+public defstruct Link :
+  geom:Poseable
+  nodes:Tuple<Node>
+  pose:Mat44f with: (setter => set-pose)
+  limits:False|Box3f
+
+public defn Link (geom:Poseable, nodes:Tuple<Node>) :
+  Link(geom, nodes, id-mat44f(), false)
+
+val @doc-node = "NODE -- link relative pose for placing a joint connecting two links"
+
+public defstruct Node :
+  pose:Mat44f
+
+public defn Node (pose:Pose) : Node(to-mat44f $ pose)
+
+val @doc-joint = "JOINT -- z axis revolute constraint between two links at respective nodes with settable angular state"
+
+public defstruct Joint :
+  connection:[NodeRef, NodeRef]
+  state:Float with: (setter => set-state)
+  limits:False|Box1f
+
+public defn Joint (connection:[NodeRef, NodeRef], state:Float) :
+  Joint(connection, state, false)
+
+val @doc-noderef = "NODEREF -- link node reference for specifying joint"
+
+public defstruct NodeRef :
+  link:Link
+  node:Int
+

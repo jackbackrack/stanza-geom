@@ -1,10 +1,21 @@
 #use-added-syntax(stz-serializer-lang)
 
-defpackage geom-serializer :
+defpackage geom/serializer :
   import core
   import collections
-  import utils
-  import geom
+  ; import utils
+  import geom/geom
+  import geom/vec
+  import geom/mat
+  import geom/quat
+  import geom/box
+  import geom/polygon
+  import geom/line-segment
+  import geom/polyline
+  import geom/mesh
+  import geom/poseable
+  import geom/assembly
+  import geom/shape
   import stz/serializer
 
 public defserializer (out:OutputStream, in:InputStream) :

@@ -1,0 +1,35 @@
+defpackage geom/angle :
+  import core
+  import math
+  import geom/vec
+  import geom/mat
+  import geom/quat
+
+public defn degrees-to-radians (d:Float) -> Float :
+  d * to-float(PI-F) / 180.0f
+
+public defn radians-to-degrees (a:Float) -> Float :
+  a * 180.0f / to-float(PI-F)
+
+public defn degrees-to-radians (a:V3f) -> V3f :
+  V3f(degrees-to-radians(x(a)), degrees-to-radians(y(a)), degrees-to-radians(z(a)))
+
+public defn radians-to-degrees (a:V3f) -> V3f :
+  V3f(radians-to-degrees(x(a)), radians-to-degrees(y(a)), radians-to-degrees(z(a)))
+
+public defn rot2 (pt:V2f, ang:Float) :
+  val [c, s] = [cos(ang), sin(ang)]
+  V2f(x(pt) * c - y(pt) * s, y(pt) * c + x(pt) * s)
+
+public defn atan2 (v:V2f) : atan2(y(v), x(v))
+
+public defn angle-of (v:V2f) -> Float : radians-to-degrees(atan2(v))
+
+public defn angle-of (s:V2f, e:V2f) -> Float : angle-of(e - s)
+
+public defn angle-between (v0:V2f, v1:V2f) -> Float :
+  radians-to-degrees((- atan2(x(v0) * y(v1) - y(v0) * x(v1), x(v0) * x(v1) + y(v0) * y(v1))))
+
+public defn polar-to-cartesian (r:Float, rads:Float) -> V2f :
+  V2f(r * cos(rads), r * sin(rads))
+

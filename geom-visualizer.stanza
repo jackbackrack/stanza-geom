@@ -1,12 +1,12 @@
 ; #use-added-syntax(serialize)
-defpackage geom-visualizer :
+defpackage geom/visualizer :
   import core
+  import collections
+  import utils/socket
   ;import serialize
   import stz/serializer
-  import collections
-  import geom
-  import geom-serializer
-  import socket
+  import geom/geom
+  import geom/serializer
 
 ; public deftype VisualizerCommand
 ; 

@@ -1,12 +1,65 @@
 ;; See license.txt for details about licensing.
 
-defpackage svg :
+defpackage geom/svg :
   import core
-  import math
   import collections
-  import geom
+  import math
+  import geom/vec
+  import geom/box
+  import geom/polygon
+  import geom/line-segment
+  import geom/polyline
+  import geom/bounded
+  import geom/poseable
+  import geom/assembly
 
-val @doc-svg = "## SVG -- READING SVG FILES"
+val @doc-write-svg = "## SVG -- WRITING SVG FILES"
+
+defn do-print-svg (s:OutputStream, assembly:Assembly) :
+  for elt in children(assembly) do :
+    match(elt) :
+      (c:PolyLine2f|Polygon|Assembly) : do-print-svg(s, xyz(mat(assembly), c))
+      (c) : false
+
+defn do-print-svg (s:OutputStream, color:V4f, points:Seqable<V2f>, close?:True|False) :
+  print(s, "<path d=\"")
+  for (p in points, i in 0 to false) do :  
+    print-all(s, [" " ("M" when i == 0 else "L") " " x(p) " " y(p)])
+  print(s, " %_\" fill=\"none\" stroke=\"rgb(%_%%, %_%%, %_%%)\" stroke-width=\"%_\"/>" %
+           [("Z " when close? else "") 100.0f * x(color), 100.0f * y(color), 100.0f * z(color), *line-width*])
+
+defn do-print-svg (s:OutputStream, color:V4f, contour:Contour) :
+  do-print-svg(s, color, vertices(contour), true)
+
+defn do-print-svg-header (s:OutputStream, bounds:Box2f, f:OutputStream -> False) :
+  println-all(s, ["<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"])
+  println-all(s, ["<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\""])
+  println-all(s, [" width=\"" x(dims(bounds)) "\" height=\"" y(dims(bounds)) "\" id=\"cons\">"])
+  f(s)
+  println(s, "\n</svg>")
+
+defn do-print-svg (s:OutputStream, polygon:Polygon) :
+  for c in contours(polygon) do :
+    do-print-svg(s, color(polygon), c)
+
+defn do-print-svg (s:OutputStream, polyline:PolyLine2f) :
+  for line in strokes(polyline) do :
+    do-print-svg(s, color(polyline), line, false)
+
+defn svg (s:OutputStream, g:Assembly|PolyLine2f|Polygon, bbox:Box2f) :
+  do-print-svg-header(s, bbox, {
+    val mg = mov(xyz(-1.0f * lo(bbox)), g)
+    do-print-svg(s, mg) })
+
+public defn svg (g:Assembly|PolyLine2f|Polygon, filename:String, bbox:Box2f) :
+  val s = FileOutputStream(filename)
+  try : svg(s, g, bbox)
+  finally : close(s)
+
+public defn svg (g:Assembly|PolyLine2f|Polygon, filename:String, margin:V2f) :
+  svg(g, filename, fatten(xy(bounds(g)), margin))
+
+val @doc-read-svg = "## SVG -- READING SVG FILES"
 
 lostanza deftype svg_path :
   pts : ptr<float>

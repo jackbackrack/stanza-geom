@@ -1,0 +1,53 @@
+defpackage geom/line :
+  import core
+  import geom/vec
+  import geom/geom
+
+val @doc-line = "LINE -- infinite line"
+
+#for (Line in [Line2f Line2d Line3f Line3d]
+      Prim in [Float Double Float Double]
+      PrimVec in [V2f V2d V3f V3d]
+      One in [1.0f 1.0 1.0f 1.0]
+      Zero in [0.0f 0.0 0.0f 0.0]
+      Max in [FLOAT-MAX DOUBLE-MAX FLOAT-MAX DOUBLE-MAX]) :
+
+  public defstruct Line <: Geom :
+    pos: PrimVec
+    dir: PrimVec
+
+  public defn closest-point-to (l:Line, point:PrimVec) -> PrimVec :
+    dot((point - pos(l)), dir(l)) * dir(l) + pos(l)
+
+  public defn closest-point-to (l0:Line, l1:Line) -> PrimVec :
+    val posLpos = pos(l0) - pos(l1)
+    val c = dot(dir(l0), posLpos)
+    val a = dot(dir(l1), dir(l0))
+    val f = dot(dir(l1), posLpos)
+    val num = c - a * f
+    val denom = a * a - One
+    if abs(denom) < One and abs(num) >= abs(denom) * Max :
+      pos(l0)
+    else :
+      pos(l0) + (num / denom) * dir(l0)
+
+  public defn eval (l:Line, mag:Prim) -> PrimVec :
+    pos(l) + mag * dir(l)
+
+  public defn place (l:Line, pt:PrimVec) -> Prim :
+    dot(pt - pos(l), dir(l))
+
+  public defn line-of (p0:PrimVec, p1:PrimVec) -> Line :
+    Line(p0, normalize(p1 - p0))
+
+  defmethod print (o:OutputStream, l:Line) :
+    print(o, "Line(%_, %_)" % [pos(l), dir(l)])
+
+;; public defn extrude (p0:V3f, p1:V3f) -> Half :
+;;   val line   = line-of(p0, p1)
+;;   val normal = V3f(y(dir(line)), (- x(dir(line))))
+;;   val pt     = closest-point-to(line, V3f(0.0f, 0.0f))
+;;   val align  = dot(normal, normalize(pt))
+;;   ;; println-all(["CLOSEST POINT TO " x(pt) "," y(pt) " NORMAL " x(normal) "," y(normal) " ALIGN " align])
+;;   Half(normal, (if align > 0.0f : 1.0f else : -1.0f) * len(pt))
+

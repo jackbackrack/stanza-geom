@@ -1,0 +1,105 @@
+defpackage geom/shape :
+  import core
+  import math
+  import geom/vec
+  import geom/angle
+  import geom/mat
+  import geom/box
+  import geom/pose
+  import geom/poseable
+  import geom/bounded
+  import geom/geom
+
+;;; ANYSHAPE
+
+public defstruct AnyShapeState :
+  name : False|Symbol
+  color : V4f
+  tags : Tuple<Symbol>
+  poses : Tuple<KeyValue<Symbol,Mat44f>>
+
+public defn default-anyshape-state () : AnyShapeState(false, WHITE, [], [])
+
+val @doc-anyshape = "ANYSHAPE -- leaf poseables allowing more transformations"
+
+public deftype AnyShape <: Poseable
+public defmulti state (a:AnyShape) -> AnyShapeState
+public defmulti clone<?T> (shape:?T&AnyShape, state:AnyShapeState) -> T
+public defmethod name (p:AnyShape) : name(state(p))
+public defmethod color (p:AnyShape) : color(state(p))
+public defmethod tags (p:AnyShape) : tags(state(p))
+public defmethod poses (p:AnyShape) : poses(state(p))
+
+defmethod any-shapes (p:AnyShape) : [p] ;; DEFAULT
+
+public defn bit-or (a:AnyShapeState, b:AnyShapeState) -> AnyShapeState :
+  AnyShapeState(name(a) when name(a) is Symbol else name(b), color(a),
+                to-tuple $ cat(tags(a), tags(b)), to-tuple $ cat(poses(a), poses(b)))
+
+defmethod clone (s:AnyShape, name:False|Symbol, color:V4f, poses:Tuple<KeyValue<Symbol,Mat44f>>, tags:Tuple<Symbol>) :
+  clone(s, AnyShapeState(name, color, tags, poses))
+
+public defn add-poses<?T> (s:?T&AnyShape, poses:Tuple<KeyValue<Symbol,Mat44f>>) -> T :
+  clone(s, AnyShapeState(name(s), color(s), tags(s), poses))
+public defn add-tags<?T> (s:?T&AnyShape, tags:Tuple<Symbol>) -> T :
+  clone(s, AnyShapeState(name(s), color(s), tags, poses(s)))
+
+public defn add-min-x-pose<?T> (s:?T&AnyShape, dir:Float) -> T :
+  add-poses(s, [`min-x => pose-mat44f(x3f(x(lo(bounds(s)))), y3f(dir *  90.0f))])
+public defn add-max-x-pose<?T> (s:?T&AnyShape, dir:Float) -> T :
+  add-poses(s, [`max-x => pose-mat44f(x3f(x(hi(bounds(s)))), y3f(dir * -90.0f))])
+public defn add-min-y-pose<?T> (s:?T&AnyShape, dir:Float) -> T :
+  add-poses(s, [`min-y => pose-mat44f(y3f(y(lo(bounds(s)))), x3f(dir * -90.0f))])
+public defn add-max-y-pose<?T> (s:?T&AnyShape, dir:Float) -> T :
+  add-poses(s, [`max-y => pose-mat44f(y3f(y(hi(bounds(s)))), x3f(dir *  90.0f))])
+public defn add-min-z-pose<?T> (s:?T&AnyShape, dir:Float) -> T :
+  add-poses(s, [`min-z => pose-mat44f(z3f(z(lo(bounds(s)))), y3f(180.0f when dir == 1.0f else 0.0f ))])
+public defn add-max-z-pose<?T> (s:?T&AnyShape, dir:Float) -> T :
+  add-poses(s, [`max-z => pose-mat44f(z3f(z(hi(bounds(s)))), y3f(  0.0f when dir == 1.0f else 180.0f))])
+
+
+public defn name (a:AnyShape, b:AnyShape) :
+  name(a) when name(a) is Symbol else name(b)
+
+public defn tags (a:AnyShape, b:AnyShape) :
+  to-tuple $ unique $ cat(tags(a), tags(b))
+
+public defn poses (a:AnyShape, b:AnyShape) :
+  to-tuple $ unique $ cat(poses(a), poses(b))
+
+public defn color (a:AnyShape, b:AnyShape) :
+  color(a)
+
+public defn dim-min (d:Float) -> Float : d * -0.5f
+public defn dim-max (d:Float) -> Float : d *  0.5f
+
+public defn dim-min (dim:V3f) -> V3f : V3f(dim-min(x(dim)), dim-min(y(dim)), dim-min(z(dim)))
+public defn dim-max (dim:V3f) -> V3f : V3f(dim-max(x(dim)), dim-max(y(dim)), dim-max(z(dim)))
+
+val @doc-shape = "SHAPE -- a solid object"
+
+public deftype Shape <: AnyShape
+
+public defn shapes (any-shapes:Seqable<AnyShape>) -> Seqable<Shape> :
+  generate<Shape> : for e in any-shapes do : yield(e as Shape) when e is Shape and area*(dims(bounds(e))) > 0.0f
+
+public defn shapes (p:Poseable) : shapes(any-shapes(p))
+
+public var *resolution* = 8.0f
+public defn set-resolution (r:Float) : *resolution* = r
+
+;; public defmulti slice (z:Float, s:Shape3) -> Shape2
+;; public defmulti pixels (z:Float, s:Shape3) -> Pixels
+;; public defmulti box (b:Box3f) -> Shape3
+;; public defmulti cube (v:V3f) -> Shape3
+;; 
+;; public defmulti rect (b:Box2f) -> Shape2
+;; public defmulti circle (d:Float) -> Shape2
+;; public defmulti triangle (a:V2f, b:V2f, c:V2f) -> Shape2
+;; public defmulti extrude (h:Float, shape:Shape2) -> Shape3
+;; 
+;; public defmulti bit-and (a:Shape3, b:Shape3) -> Shape3
+;; public defmulti rem (a:Shape3, b:Shape3) -> Shape3
+;; public defmulti offset (s:Shape3, o:Float) -> Shape3
+
+public defmulti shape-eval (e) -> Geom

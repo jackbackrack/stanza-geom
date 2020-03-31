@@ -1,29 +1,54 @@
-package aabb-tree defined-in "aabb-tree.stanza"
-package nodeless-aabb-tree defined-in "nodeless-aabb-tree.stanza"
-package geom defined-in "geom.stanza"
-package geom-gfx defined-in "geom-gfx.stanza"
-package grid defined-in "grid.stanza"
-package grid requires :
+package geom/aabb-tree defined-in "geom-aabb-tree.stanza"
+package geom/angle defined-in "geom-angle.stanza"
+package geom/assembly defined-in "geom-assembly.stanza"
+package geom/bounded defined-in "geom-bounded.stanza"
+package geom/nodeless-aabb-tree defined-in "geom-nodeless-aabb-tree.stanza"
+package geom/geom defined-in "geom-geom.stanza"
+package geom/gfx defined-in "geom-gfx.stanza"
+package geom/grid defined-in "geom-grid.stanza"
+package geom/shape defined-in "geom-shape.stanza"
+package geom/arc-ball defined-in "geom-arc-ball.stanza"
+package geom/box defined-in "geom-box.stanza"
+package geom/circle defined-in "geom-circle.stanza"
+package geom/half defined-in "geom-half.stanza"
+package geom/implicit-line defined-in "geom-implicit-line.stanza"
+package geom/line-segment defined-in "geom-line-segment.stanza"
+package geom/line defined-in "geom-line.stanza"
+package geom/mat defined-in "geom-mat.stanza"
+package geom/mechanism defined-in "geom-mechanism.stanza"
+package geom/mesh defined-in "geom-mesh.stanza"
+package geom/pixels defined-in "geom-pixels.stanza"
+package geom/polygon defined-in "geom-polygon.stanza"
+package geom/polyline defined-in "geom-polyline.stanza"
+package geom/poseable defined-in "geom-poseable.stanza"
+package geom/pose defined-in "geom-pose.stanza"
+package geom/quat defined-in "geom-quat.stanza"
+package geom/space defined-in "geom-space.stanza"
+package geom/triangle defined-in "geom-triangle.stanza"
+package geom/utils defined-in "geom-utils.stanza"
+package geom/units defined-in "geom-units.stanza"
+package geom/vec defined-in "geom-vec.stanza"
+package geom/grid requires :
   ccfiles:
-    "{WORKDIR}/build/grid.o"
+    "{WORKDIR}/build/geom-grid.o"
   ccflags:
     on-platform:
       os-x  : "-lc++"
       linux : "-lstdc++"
-compile file "{WORKDIR}/build/grid.o" from "grid.cpp" :
-  "g++ -c -O3 {.}/grid.cpp -o {WORKDIR}/build/grid.o"
-package clipper defined-in "clipper.stanza"
-package clipper requires :
+compile file "{WORKDIR}/build/geom-grid.o" from "geom-grid.cpp" :
+  "g++ -c -O3 {.}/geom-grid.cpp -o {WORKDIR}/build/geom-grid.o"
+package geom/clipper defined-in "geom-clipper.stanza"
+package geom/clipper requires :
   ccfiles:
-    "{WORKDIR}/build/clipper.o"
+    "{WORKDIR}/build/geom-clipper.o"
   ccflags:
     on-platform:
       os-x  : ("-lpolyclipping" "-lc++")
       linux : ("-lpolyclipping" "-lstdc++")
-compile file "{WORKDIR}/build/clipper.o" from "clipper.cpp" :
-  "g++ -c -O3 {.}/clipper.cpp -o {WORKDIR}/build/clipper.o"
-package svg defined-in "svg.stanza"
-package svg requires :
+compile file "{WORKDIR}/build/geom-clipper.o" from "geom-clipper.cpp" :
+  "g++ -c -O3 {.}/geom-clipper.cpp -o {WORKDIR}/build/geom-clipper.o"
+package geom/svg defined-in "geom-svg.stanza"
+package geom/svg requires :
   ccfiles:
     "{WORKDIR}/build/nano-svg.o"
   ccflags:
@@ -32,12 +57,12 @@ package svg requires :
       linux : "-lstdc++"
 compile file "{WORKDIR}/build/nano-svg.o" from "nano-svg.cpp" :
   "g++ -c -O3 {.}/nano-svg.cpp -o {WORKDIR}/build/nano-svg.o"
-package spanning-tree defined-in "spanning-tree.stanza"
-package delaunay defined-in "delaunay.stanza"
-package intersections defined-in "intersections.stanza"
-package geom-serializer defined-in "geom-serializer.stanza"
-package geom-visualizer defined-in "geom-visualizer.stanza"
+package geom/spanning-tree defined-in "geom-spanning-tree.stanza"
+package geom/delaunay defined-in "geom-delaunay.stanza"
+package geom/intersections defined-in "geom-intersections.stanza"
+package geom/serializer defined-in "geom-serializer.stanza"
+package geom/visualizer defined-in "geom-visualizer.stanza"
+package geom/shapes defined-in "geom-shapes.stanza"
 package repl-geom-eval defined-in "repl-geom-eval.stanza"
-package shapes defined-in "shapes.stanza"
 
  

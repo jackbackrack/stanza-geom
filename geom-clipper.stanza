@@ -1,10 +1,13 @@
 ;; See license.txt for details about licensing.
 
-defpackage clipper :
+defpackage geom/clipper :
   import core
   import math
   import collections
-  import geom
+  import geom/vec
+  import geom/polygon
+  import geom/poseable
+  import geom/shape
 
 val @doc-clipper = "## CLIPPER -- polygon offsetting and solid geometry operations"
 

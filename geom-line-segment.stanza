@@ -1,0 +1,81 @@
+defpackage geom/line-segment :
+  import core
+  import geom/vec
+  import geom/mat
+  import geom/box
+  import geom/geom
+  import geom/bounded
+
+val @doc-linesegment = "LINESEGMENT -- line between two points"
+
+#for (Prim in [Float Float]
+      Vec in [V2f V3f]
+      LineSegment in [LineSegment2f LineSegment3f]
+      Box in [Box2f Box3f]
+      LineSegmentName in ["LineSegment2f" "LineSegment3f"]) :
+
+  public defstruct LineSegment <: Geom&Bounded&Equalable :
+    start: Vec
+    end:   Vec
+
+  defmethod equal? (a:LineSegment, b:LineSegment) -> True|False :
+    start(a) == start(b) and end(a) == end(b)
+
+  defmethod bounds (l:LineSegment) :
+    xyz(union(Box(start(l)), Box(end(l))))
+  
+  public defn center (l:LineSegment) -> Vec :
+    0.5f * (start(l) + end(l))
+
+  public defn vector (l:LineSegment) -> Vec :
+    end(l) - start(l)
+
+  public defn magnitude (l:LineSegment) -> Prim :
+    magnitude(vector(l))
+
+  defmethod print (o:OutputStream, l:LineSegment) :
+    print(o, "%_(%_ %_)" % [LineSegmentName start(l) end(l)])
+
+public defn closest-point-to (l:LineSegment2f, p:V2f) -> V2f :
+  val l2 = sqr-magnitude(end(l) - start(l))
+  if l2 == 0.0f :
+    start(l)
+  else :
+    val dir = vector(l)
+    val t = max(0.0f, min(1.0f, dot(p - start(l), dir) / l2))
+    start(l) + t * dir
+
+public defn distance (l:LineSegment2f, xy:V2f) -> Float :
+  distance(closest-point-to(l, xy), xy)
+
+;; public defn distance (l:LineSegment2f, xy:V2f) -> Float :
+;;   val [p, q] = [start(l), end(l)]
+;;   val pq = q - p
+;;   val dxy = xy - p
+;;   val d = dot(pq, pq)
+;;   val t0 = dot(pq, dxy)
+;;   val t1 = t0 / d when d > 0.0f else t0
+;;   val t = 0.0f when t1 < 0.0f else (1.0f when t1 > 1.0f else t1)
+;;   val ndxy = p + t * pq - xy
+;;   dot(ndxy, ndxy)
+
+public defn intersects? (a:LineSegment2f, b:LineSegment2f) -> True|False :
+  val [p, r] = [start(a), end(a) - start(a)]
+  val [q, s] = [start(b), end(b) - start(b)]
+  val r%s = r % s
+  val q-p = q - p
+  val q-p%r = q-p % r
+  val q-p%s = q-p % s
+  if r%s == 0.0f :
+    if q-p%r == 0.0f :
+      val t0 = dot(q-p, r) / dot(r, r)
+      val t1 = t0 + dot(s, r) / dot(r, r)
+      val bx = Box1f(t0) | Box1f(t1)
+      lo(bx) >= 0.0f and hi(bx) <= 1.0f
+    else :
+      false
+  else :
+    val t = (q-p % s) / r%s
+    val u = (q-p % r) / r%s
+    t >= 0.0f and t <= 1.0f and u >= 0.0f and u <= 1.0f 
+

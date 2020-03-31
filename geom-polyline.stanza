@@ -1,0 +1,113 @@
+defpackage geom/polyline :
+  import core
+  import utils/seqable
+  import geom/vec
+  import geom/mat
+  import geom/box
+  import geom/line-segment
+  import geom/polygon
+  import geom/bounded
+  import geom/poseable
+  import geom/assembly
+  import geom/shape
+
+val @doc-polyline = "POLYLINE -- lists of open paths called strokes"
+
+#for (Prim in [Float Float]
+      Vec in [V2f V3f]
+      PolyLine in [PolyLine2f PolyLine3f]
+      LineSegment in [LineSegment2f LineSegment3f]
+      Box in [Box2f Box3f]
+      neg-inf-box in [neg-inf-box2f neg-inf-box3f]
+      PolyLineName in ["PolyLine2f" "PolyLine3f"]) :
+
+  public defstruct PolyLine <: AnyShape&Equalable :
+    state: AnyShapeState with: (as-method => true)
+    ;; strokes: Tuple<Stroke>
+    strokes: Tuple<Tuple<Vec>>
+
+  defmethod equal? (a:PolyLine, b:PolyLine) -> True|False :
+    strokes(a) == strokes(b)
+
+  public defn PolyLine (strokes:Seqable<Tuple<Vec>>) :
+    PolyLine(default-anyshape-state(), to-tuple $ strokes)
+
+  defmethod clone (poly:PolyLine, state:AnyShapeState) -> PolyLine :
+    PolyLine(state, strokes(poly))
+
+  defmethod xyz (mat:Mat44f, poly:PolyLine) -> PolyLine :
+    PolyLine(state(poly), for s in strokes(poly) map : for v in s map : mat * v)
+
+  defmethod print (o:OutputStream, c:PolyLine) :
+    print(o, "%_(%_)" % [PolyLineName strokes(c)])
+
+  defmethod bounds (p:PolyLine) -> Box3f :
+    val boxes = seq(reduce{union, neg-inf-box(), seq(Box, _)}, strokes(p))
+    xyz(reduce(union, neg-inf-box(), boxes))
+
+  public defmethod bit-or (a:PolyLine, b:PolyLine) -> PolyLine :
+    PolyLine(state(a) | state(b), to-tuple $ cat(strokes(a), strokes(b)))
+    
+  public defn cat (p1:PolyLine, p2:PolyLine) -> PolyLine :
+    PolyLine(cat(strokes(p1), strokes(p2)))
+
+  public defn segments (polyline:PolyLine) -> Seq<LineSegment> :
+    generate<LineSegment> :
+      for s in strokes(polyline) do :
+        for i in 0 to (length(s) - 1) do :
+          yield(LineSegment(s[i], s[i + 1]))
+
+  public defn perimeter (polyline:PolyLine) -> Float :
+    sum $ seq(magnitude, segments(polyline))
+
+public defn to-polyline2f (g:PolyLine3f) -> PolyLine2f :
+  val stks = for s in strokes(g) seq : to-tuple(seq(xy, s))
+  PolyLine2f(to-tuple(stks))
+
+public defn to-polyline2f (g:Polygon) -> PolyLine2f :
+  val stks = for c in contours(g) seq : to-tuple(cat(vertices(c), [vertices(c)[0]]))
+  PolyLine2f(to-tuple(stks))
+
+public defn to-polyline2f (ls:Seqable<LineSegment2f>) -> PolyLine2f :
+  PolyLine2f $ to-tuple $ seq(fn (s) : [start(s), end(s)], ls)
+
+public defn to-polygon (g:PolyLine2f) -> Polygon :
+  val cts = for s in strokes(g) seq : Contour(to-tuple(s[0 to length(s) - 1]))
+  Polygon(to-tuple(cts))
+
+public defn to-polyline3f (g:PolyLine2f) -> PolyLine3f :
+  val stks = for s in strokes(g) seq : to-tuple(seq(xyz, s))
+  PolyLine3f(to-tuple(stks))
+
+public defn cubic-interpolate (y0:Float, y1:Float, y2:Float, y3:Float, mu:Float) -> Float :
+  val mu2 = mu * mu
+  val a0 = -0.5f * y0 + 1.5f * y1 - 1.5f * y2 + 0.5f * y3
+  val a1 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3
+  val a2 = -0.5f * y0 + 0.5f * y2
+  val a3 = y1
+  a0 * mu * mu2 + a1 * mu2 + a2 * mu + a3
+
+public defn cubic-interpolate (p0:V2f, p1:V2f, p2:V2f, p3:V2f, mu:Float) -> V2f :
+  V2f(cubic-interpolate(x(p0), x(p1), x(p2), x(p3), mu),
+      cubic-interpolate(y(p0), y(p1), y(p2), y(p3), mu))
+
+public defn cubic-interpolate (l:Tuple<V2f>, n:Int) -> Seqable<V2f> :
+  val len = length(l)
+  val pts = for i in 0 to (len - 1) seq-cat :
+    val p0 = l[0]     when i ==         0 else l[i - 1]
+    val p3 = l[i + 1] when i == (len - 2) else l[i + 2]
+    for j in 0 to n seq :
+      val mu = to-float(j) / to-float(n)
+      cubic-interpolate(p0, l[i], l[i + 1], p3, mu)
+  cat(pts, [last(l)])
+
+public defn cubic-interpolate-wrapped (l:Tuple<V2f>, n:Int) -> Seqable<V2f> :
+  val len = length(l)
+  val pts = to-tuple $ for i in 0 to len seq-cat :
+    val p0 = l[(i - 1 + len) % len]
+    val p3 = l[(i + 2)       % len]
+    for j in 0 to n seq :
+      val mu = to-float(j) / to-float(n)
+      cubic-interpolate(p0, l[i], l[(i + 1) % len], p3, mu)
+  cat(pts, [pts[0]])
+

@@ -1,0 +1,223 @@
+defpackage geom/polygon :
+  import core
+  import math
+  import collections
+  import geom/vec
+  import geom/mat
+  import geom/box
+  import geom/line-segment
+  import geom/polyline
+  import geom/shape
+  import geom/geom
+  import geom/bounded
+  import geom/poseable
+  import geom/space
+
+val @doc-contour = "CONTOUR -- closed paths"
+
+public defstruct Contour <: Geom&Equalable :
+  vertices: Tuple<V2f>
+
+defmethod equal? (a:Contour, b:Contour) -> True|False :
+  vertices(a) == vertices(b)
+
+public defn bounds (c:Contour) -> Box3f :
+  reduce(union, neg-inf-box3f(), seq(Box3f{xyz(_)}, vertices(c)))
+
+defmethod print (o:OutputStream, c:Contour) :
+  val pv = to-tuple(vertices(c)[0 to 100]) when length(vertices(c)) > 100 else vertices(c)
+  print(o, "Contour([%,])" % [pv])
+
+public var *line-width* = 0.001
+public defn set-line-width (x:Float) : *line-width* = x
+
+public defn times (mat:Mat44f, p:Contour) -> Contour :
+  Contour(for p in vertices(p) map : mat * p)
+
+public defn to-stroke (contour:Contour) -> Tuple<V2f> :
+  to-tuple $ cat(vertices(contour), [ vertices(contour)[0] ])
+
+public defn segments (contour:Contour) -> Seq<LineSegment2f> :
+  val pts = vertices(contour)
+  for i in 0 to length(pts) seq :
+    LineSegment2f(pts[i], pts[(i + 1) % length(pts)])
+
+public defn area (verts:Tuple<V2f>) -> Float :
+  val a = sum $ for i in 1 to (length(verts) + 1) seq :
+    val [p1, p2] = [verts[i - 1], verts[i % length(verts)]]
+    x(p1) * y(p2) - x(p2) * y(p1)
+  ;; println("AREA %_ -> %_" % [verts, a])
+  a
+
+public defn area (contour:Contour) -> Float :
+  area(vertices(contour))
+
+public defn area (polygon:Polygon) -> Float :
+  sum $ seq(area, contours(polygon))
+
+;; ;;; STROKE
+;; 
+;; public defstruct Stroke <: Geom :
+;;   points: Tuple<V2f>
+;; 
+;; defmethod print (o:OutputStream, c:Stroke) :
+;;   print("Stroke(%,)" % [points(c)])
+;; 
+;; public defn times (mat:Mat44f, p:Stroke) -> Stroke :
+;;   Stroke(for p in points(p) map : mat * p)
+
+val @doc-polygon = "POLYGON -- list of contours"
+
+public defstruct Polygon <: AnyShape&Equalable :
+  state: AnyShapeState with: (as-method => true)
+  contours: Tuple<Contour>
+
+defmethod equal? (a:Polygon, b:Polygon) -> True|False :
+  contours(a) == contours(b)
+
+public defn Polygon (contours:Seqable<Contour>) :
+  Polygon(default-anyshape-state(), to-tuple $ contours)
+
+public defn get (p:Polygon, i:Int) -> Contour : contours(p)[i]
+public defn get (c:Contour, i:Int) -> V2f : vertices(c)[i]
+
+public defn polygon-n (d:Float, n:Int) -> Polygon :
+  val r = 0.5f * d
+  val points = 
+    for i in 0 to n seq :
+      val a = to-float(i) * 2.0f * PI-F / to-float(n)
+      V2f(r * sin(a), r * cos(a))
+  to-polygon(Contour(to-tuple(points)))
+
+public defn polygon-rect (dims:V2f) -> Polygon :
+  to-polygon(Contour(to-tuple(corners(dims-to-box(dims)))))
+
+defmethod spacer (g:Polygon, gdims:V3f) :
+  polygon-rect(xy(gdims))
+
+public defn to-polygon (c:Contour) -> Polygon :
+  Polygon([c])
+
+public defn to-polygon (b:Box2f) -> Polygon :
+  to-polygon $ Contour $ corners(b)
+
+public defn to-polyline (p:Polygon) -> PolyLine2f :
+  PolyLine2f(to-tuple $ seq(to-stroke, contours(p)))
+
+defmethod clone (poly:Polygon, state:AnyShapeState) -> Polygon :
+  Polygon(state, contours(poly))
+
+public defmethod bounds (p:Polygon) -> Box3f :
+  reduce(union, neg-inf-box3f(), seq(bounds, contours(p)))
+
+defmethod xyz (mat:Mat44f, poly:Polygon) -> Polygon :
+  Polygon(state(poly), to-tuple $ for c in contours(poly) map : mat * c)
+
+public defn to-v2f (vals:Seqable<Float>) -> V2f :
+  val elts = to-tuple $ vals
+  V2f(elts[0], elts[1])
+  
+public defn Polygon (cs:Seqable<Seqable<V2f>>) -> Polygon :
+  Polygon(to-tuple $ seq(Contour, seq(to-tuple, cs)))
+
+public defn vertices (p:Polygon) -> Tuple<V2f> :
+  to-tuple $ cat-all(for c in contours(p) seq : vertices(c))
+
+public defn segments (polygon:Polygon) -> Seq<LineSegment2f> :
+  cat-all(seq(segments, contours(polygon)))
+
+public defn perimeter (polygon:Polygon) -> Float :
+  sum $ seq(magnitude, segments(polygon))
+
+public defn cat (p1:Polygon, p2:Polygon) -> Polygon :
+  Polygon(cat(contours(p1), contours(p2)))
+
+defmethod print (o:OutputStream, c:Polygon) :
+  print(o, "Polygon([%,])" % [contours(c)])
+
+defn simplify-polygon (poly-:Tuple<V2f>, max-angle-deg:Float, max-dist:Float) -> Seqable<V2f> :
+  defn sqr (a:Float) : a * a
+  val mincos = cos(max-angle-deg * PI-F / 180.0f)
+  val sqr-min-length = sqr(max-dist)
+  val poly = to-vector<V2f> $ poly-
+  ;; println("MAX-ANGLE-DEG %_ MAX-DIST %_ IN %_" % [max-angle-deg, max-dist, length(poly)])
+  val tmp  = Vector<V2f>()
+  defn swap () :
+    clear(poly)
+    add-all(poly, tmp)
+
+  defn sqr-magnitude (v:V2f) : dot(v, v)
+
+  ;; Repeatedly simplify until nothing changes
+
+  ;; println("SIMPLIFY %_ MINCOS %_" % [poly, mincos])
+
+  label<False> return :
+    while true :
+      clear(tmp)
+      ;; If u-v-w is collinear, remove v
+      val m = length(poly)
+      val changed? = let loop (i:Int = 0, changed?:True|False = false) :
+        if i < m :
+          val h = (i - 1 + m) % m
+          val j = (i + 1) % m
+          val a = poly[h] - poly[i]
+          val b = poly[j] - poly[i]
+
+          ;; println("DOT-NORM H %_ I %_ J %_ DOT %_" % [poly[h], poly[i], poly[j], dot(normalize(a), normalize(b))])
+          if dot(normalize(a), normalize(b)) < mincos :
+            ;; println("A")
+            loop(i + 1, true)
+          else :
+            add(tmp, poly[i])
+            loop(i + 1, changed?)
+        else :
+          changed?
+
+      ;; println("STRAIGHT CHANGED? %_ TMP %_" % [changed?, length(tmp)])
+      ;; println(tmp)
+      if changed? :
+        swap()
+      else :
+        ;; Collapse short edges
+        clear(tmp)
+        val changed? = let loop (i:Int = 0, changed?:True|False = false) :
+          if i < m :
+            val h = (i - 1 + m) % m
+            val j = (i + 1) % m
+            val k = (i + 2) % m
+
+            if sqr-magnitude(poly[i] - poly[j]) < sqr-min-length :
+              ;; Check which end point to leave intact
+              val hi = normalize(poly[i] - poly[h])
+              val hj = normalize(poly[j] - poly[h])
+              val ik = normalize(poly[k] - poly[i])
+              val jk = normalize(poly[k] - poly[j])
+
+              if i == (m - 1) or dot(hi,hj) > dot(ik,jk) :
+                ;; It's better to drop i
+                ;; println("C")
+                loop(i + 1, true)
+              else :
+                ;; It's better to drop j
+                ;; println("D")
+                add(tmp, poly[i])
+                loop(i + 2, true)
+
+            else :
+              add(tmp, poly[i])
+              loop(i + 1, changed?)
+          else :
+            changed?
+
+        ;; println("SMALL CHANGED? %_ TMP %_" % [changed?, length(tmp)])
+        if changed? :
+          swap()
+        else :
+          return(false)
+  poly
+
+
+public defn simplify (polygon:Polygon, max-angle-deg:Float, max-dist:Float) -> Polygon :
+  Polygon([Contour(to-tuple $ simplify-polygon(vertices(contours(polygon)[0]), max-angle-deg, max-dist))])
+

@@ -1,0 +1,14 @@
+;; See license.txt for details about licensing.
+
+defpackage geom/geom:
+  import core
+  import math
+  import geom/vec
+
+val @doc-geom = "## GEOM -- explicit geometry and support data types"
+
+public deftype Geom
+
+public defstruct Msg <: Geom :
+  value : String
+

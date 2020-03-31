@@ -1,0 +1,7 @@
+defpackage geom/bounded :
+  import core
+  import geom/box
+
+public deftype Bounded
+public defmulti bounds (p:Bounded) -> Box3f
+

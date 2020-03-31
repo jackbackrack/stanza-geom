@@ -1,0 +1,185 @@
+defpackage geom/box :
+  import core
+  import geom/geom
+  import geom/vec
+  import geom/mat
+
+val @doc-box = "BOXES -- tracking bounds"
+
+#for (Prim in [Int Float Double Int Float Double Int Float Double]
+      BoxElt in [V3i V3f V3d V2i V2f V2d Int Float Double ]
+      BoxName in ["Box3i" "Box3f" "Box3d" "Box2i" "Box2f" "Box2d" "Box1i" "Box1f" "Box1d"]
+      BoxElt-fill in [V3i-fill V3f-fill V3d-fill V2i-fill V2f-fill V2d-fill to-int to-float to-double]
+      Box in [Box3i Box3f Box3d Box2i Box2f Box2d Box1i Box1f Box1d]
+      neg-inf in [neg-inf-i, neg-inf-f, neg-inf-d, neg-inf-i, neg-inf-f, neg-inf-d neg-inf-i, neg-inf-f, neg-inf-d]
+      pos-inf in [pos-inf-i, pos-inf-f, pos-inf-d, pos-inf-i, pos-inf-f, pos-inf-d pos-inf-i, pos-inf-f, pos-inf-d]
+      pos-inf-box in [pos-inf-box3i, pos-inf-box3f, pos-inf-box3d, pos-inf-box2i, pos-inf-box2f, pos-inf-box2d pos-inf-box1i, pos-inf-box1f, pos-inf-box1d]
+      neg-inf-box in [neg-inf-box3i, neg-inf-box3f, neg-inf-box3d, neg-inf-box2i, neg-inf-box2f, neg-inf-box2d neg-inf-box1i, neg-inf-box1f, neg-inf-box1d]
+      x2 in [2 2.0f 2.0, 2, 2.0f, 2.0, 2, 2.0f, 2.0]
+      x0 in [0 0.0f 0.0, 0, 0.0f, 0.0, 0, 0.0f, 0.0]) :
+
+  public defstruct Box <: Geom & Equalable :
+    lo: BoxElt
+    hi: BoxElt
+
+  public defn Box (v:BoxElt) -> Box :
+    Box(v, v)
+
+  defmethod print (o:OutputStream, b:Box) :
+    print-all(o, [BoxName "(", lo(b), ",", hi(b) ")"])
+
+  public defn contains? (b:Box, p:BoxElt) -> True|False :
+    not empty?(b & Box(p))
+
+  public defn center (b:Box) -> BoxElt :
+    (lo(b) + hi(b)) / x2
+
+  public defn dims (b:Box) -> BoxElt :
+    hi(b) - lo(b)
+
+  public defn dims-to-box (dims:BoxElt) -> Box :
+    val hdims = dims / x2
+    Box((- hdims), hdims)
+
+  public defn union (b:Box, v:BoxElt) -> Box :
+    Box(min(lo(b), v), max(hi(b), v))
+
+  public defn union (b0:Box, b1:Box) -> Box :
+    Box(min(lo(b0), lo(b1)), max(hi(b0), hi(b1)))
+
+  public defn bit-or (b0:Box, b1:Box) -> Box :
+    union(b0, b1)
+
+  public defn bit-and (b0:Box, b1:Box) -> Box :
+    Box(max(lo(b0), lo(b1)), min(hi(b0), hi(b1)))
+
+  public defn pos-inf-box () -> Box:
+    Box(BoxElt-fill(neg-inf), BoxElt-fill(pos-inf))
+
+  public defn neg-inf-box () -> Box:
+    Box(BoxElt-fill(pos-inf), BoxElt-fill(neg-inf))
+
+  public defn fatten (b:Box, amount:BoxElt) -> Box :
+    Box(lo(b) - amount, hi(b) + amount)
+
+  ;; public defn fatten (b:Box, dims:Prim) -> Box :
+  ;;   fatten(b, BoxElt-fill(dims))
+
+  public defn plus (b:Box, off:BoxElt) -> Box :
+    Box(lo(b) + off, hi(b) + off)
+
+  public defn minus (b:Box, off:BoxElt) -> Box :
+    Box(lo(b) - off, hi(b) - off)
+
+  defmethod equal? (b1:Box, b2:Box) :
+    lo(b1) == lo(b2) and hi(b1) == hi(b2)
+
+  public defn contains? (b0:Box, b1:Box) -> True|False :
+    contains?(b0, lo(b1)) and contains?(b0, hi(b1))
+
+  public defn clamp (b:Box, v:BoxElt) -> BoxElt :
+    max(lo(b), min(hi(b), v))
+
+public defn indices (bounds:Box3i) -> Seq<V3i> :
+  generate<V3i> :
+    for k in z(lo(bounds)) through z(hi(bounds)) do :
+      for j in y(lo(bounds)) through y(hi(bounds)) do :
+        for i in x(lo(bounds)) through x(hi(bounds)) do :
+          yield(V3i(i, j, k))
+
+public defn indices (bounds:Box2i) -> Seq<V2i> :
+  generate<V2i> :
+    for j in y(lo(bounds)) through y(hi(bounds)) do :
+      for i in x(lo(bounds)) through x(hi(bounds)) do :
+        yield(V2i(i, j))
+
+#for (BoxElt in [Int Float Double]
+      Box in [Box1i Box1f Box1d]
+      Box2 in [Box2i Box2f Box2d]
+      Box3 in [Box3i Box3f Box3d]
+      x0 in [0 0.0f 0.0]) :
+
+  public defn xy (b:Box) : Box2(xy(lo(b)), xy(hi(b)))
+
+  public defn xyz (b:Box) : Box3(xyz(lo(b)), xyz(hi(b)))
+
+  public defn empty? (b:Box) -> True|False :
+    dims(b) < x0
+
+  public defn corners (b:Box) -> Tuple<BoxElt> :
+    [lo(b), hi(b)]
+
+  public defn intersects? (b0:Box, b1:Box) -> True|False :
+    not (hi(b0) < lo(b1) or lo(b0) > hi(b1))
+
+#for (BoxElt in [V2i V2f V2d]
+      Box in [Box2i Box2f Box2d]
+      Box3 in [Box3i Box3f Box3d]
+      x0 in [0 0.0f 0.0]) :
+
+  public defn xy (b:Box) -> Box : b
+
+  public defn xyz (b:Box) -> Box3 :
+    Box3(xyz(lo(b)), xyz(hi(b)))
+
+  public defn empty? (b:Box) -> True|False :
+    val d = dims(b)
+    x(d) < x0 or y(d) < x0
+
+  public defn corners (b:Box) -> Tuple<BoxElt> :
+    val [l, h] = [lo(b), hi(b)]
+    [BoxElt(x(l), y(l)),
+     BoxElt(x(l), y(h)), 
+     BoxElt(x(h), y(h)),
+     BoxElt(x(h), y(l))] 
+
+  public defn intersects? (b0:Box, b1:Box) -> True|False :
+    not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
+         (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))))
+
+#for (BoxElt in [V3i V3f V3d]
+      Box in [Box3i Box3f Box3d]
+      Box2 in [Box2i Box2f Box2d]
+      x0 in [0 0.0f 0.0]) :
+
+  public defn xy (b:Box) -> Box2 :
+    Box2(xy(lo(b)), xy(hi(b)))
+
+  public defn xyz (b:Box) -> Box : b
+
+  public defn empty? (b:Box) -> True|False :
+    val d = dims(b)
+    x(d) < x0 or y(d) < x0 or z(d) < x0
+
+  public defn corners (b:Box) -> Tuple<BoxElt> :
+    val [l, h] = [lo(b), hi(b)]
+    [BoxElt(x(l), y(l), z(l)),
+     BoxElt(x(l), y(l), z(h)), 
+     BoxElt(x(l), y(h), z(h)),
+     BoxElt(x(h), y(h), z(h)),
+     BoxElt(x(h), y(l), z(h)),
+     BoxElt(x(h), y(l), z(l)), 
+     BoxElt(x(h), y(h), z(l)), 
+     BoxElt(x(l), y(h), z(l))
+     ]
+
+  public defn intersects? (b0:Box, b1:Box) -> True|False :
+    not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
+         (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))) or
+         (z(hi(b0)) < z(lo(b1)) or z(lo(b0)) > z(hi(b1))))
+
+public defn times (mat:Mat44f, b:Box3f) -> Box3f :
+  reduce(union, map(Box3f{ mat * _ }, corners(b)))
+
+public defn times (mat:Mat44f, b:Box2f) -> Box2f :
+  reduce(union, map(Box2f{ xy(mat * xyz(_)) }, corners(b)))
+
+public val pos-inf-f =  1.0e6f
+public val neg-inf-f = -1.0e6f
+public val pos-inf-d =  1.0e6
+public val neg-inf-d = -1.0e6
+public val pos-inf-i =  (1 << 30)
+public val neg-inf-i = (-(1 << 30))
+
+
+

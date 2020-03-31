@@ -1,0 +1,110 @@
+defpackage geom/arc-ball :
+  import core
+  import geom/vec
+  import geom/mat
+  import geom/quat
+
+val epsilon = 0.000001f
+
+public defstruct ArcBall :
+  st-vec: V3f with: (setter => st-vec-set)
+  en-vec: V3f with: (setter => en-vec-set)
+  adjust-width: Float with: (setter => adjust-width-set)
+  adjust-height: Float with: (setter => adjust-height-set)
+  quat : Quat with: (setter => set-quat)
+  base-quat : Quat with: (setter => set-base-quat)
+  rot : Mat44f with: (setter => set-rot)
+
+public defn clone (ball:ArcBall) :
+  ArcBall(adjust-width(ball), adjust-height(ball))
+  
+public defn set-bounds (a:ArcBall, new-width:Float, new-height:Float) :
+  ;; adjust-width-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
+  ;; adjust-height-set(a, 1.0f / ((new-width - 1.0f) * 0.5f))
+  adjust-width-set(a, new-width)
+  adjust-height-set(a, new-height)
+
+defn clip (x:Float, mn:Float, mx:Float) -> Float :
+  min(mx, max(mn, x))
+
+public defn map-to-sphere (a:ArcBall, new-pt:V2f) -> V3f :
+  ;; val pt = V2f(x(new-pt) * adjust-width(a) - 1.0f, 1.0f - (y(new-pt) * adjust-height(a)))
+  val pt = V2f(clip((-(2.0f * x(new-pt) / adjust-width(a)  - 1.0f)), -1.0f, 1.0f),
+               clip(  (2.0f * y(new-pt) / adjust-height(a) - 1.0f),  -1.0f, 1.0f))
+  ;; println-all(["NEW-PT " new-pt " AW " adjust-width(a) " AH " adjust-height(a) " PT = " pt])
+  val len2 = dot(pt, pt)
+  val res = 
+    if len2 > 1.0f :
+      ;; (1.0f / sqrt(len2)) * pt
+      ;; println("> 1.0f")
+      val len  = sqrt(len2)
+      val res  = V3f(x(pt), y(pt), 1.0f / len)
+      val rlen = sqrt(len2 + z(res) * z(res))
+      normalize(res / rlen)
+    else :
+      V3f(x(pt), y(pt), sqrt(1.0f - len2))
+  ;; println-all(["RES = " res])
+  res
+
+public defn ArcBall (new-width:Float, new-height:Float) -> ArcBall :
+  val res = ArcBall(V3f(0.0f, 0.0f, 0.0f), V3f(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, Quat(), Quat(), id-mat44f())
+  set-bounds(res, new-width, new-height)
+  res
+
+public defn click (a:ArcBall, new-pt:V2f) :
+  ;; println-all(["CLICK " new-pt])
+  st-vec-set(a, map-to-sphere(a, new-pt))
+  set-quat(a, base-quat(a))
+
+public defn reset! (a:ArcBall) :
+  set-rot(a, id-mat44f())
+  set-quat(a, Quat())
+  set-base-quat(a, Quat())
+
+public defn drag (a:ArcBall, new-pt:V2f) :
+  ;; println-all(["DRAG  " new-pt])
+  en-vec-set(a, map-to-sphere(a, new-pt))
+  val perp = st-vec(a) % en-vec(a)
+  if magnitude(perp) > epsilon :
+    val q = normalize(Quat(dot(st-vec(a), en-vec(a)), perp))
+    ;; set-quat(a, (- q) * base-quat(a))
+    ;; set-quat(a, conjugate(q) * base-quat(a))
+    ;; set-quat(a, base-quat(a) * conjugate(q))
+    set-quat(a, base-quat(a) * q)
+    set-rot(a, quat-to-mat44f(quat(a)))
+    q
+    
+public defn complete-drag (a:ArcBall) :
+ set-base-quat(a, quat(a))
+
+var MOV-AMOUNT:Float = 2000.0f
+public defn mov-amount () : MOV-AMOUNT
+public defn set-mov-amount (a:Float) : MOV-AMOUNT = a
+
+public val MAG-SCALE  = 0.008f
+public val MOV-SCALE  = 0.0001f
+
+public defstruct Transformation :
+  ball : ArcBall with: (setter => set-ball)
+  mag : Float with: (setter => set-mag)
+  mov : V2f with: (setter => set-mov)
+  last-point : V2f with: (setter => set-last-point)
+
+public defn last-x (t:Transformation) : x(last-point(t))
+public defn set-last-x (t:Transformation, nx:Float) : set-last-point(t, V2f(nx, y(last-point(t))))
+
+public defn clone (xform:Transformation) :
+  Transformation(clone(ball(xform)), mag(xform), V2f(0.0f, 0.0f), V2f(0.0f, 0.0f))
+
+public defn mov! (xform:Transformation, amount:V2f) :
+  set-mov(xform, mov(xform) + MOV-SCALE * amount)
+
+public defn reset! (t:Transformation) :
+  reset!(ball(t))
+  set-mov(t, V2f(0.0f, 0.0f))
+  set-mag(t, 1.0f)
+  set-last-point(t, V2f(0.0f, 0.0f))
+
+public defn times (t:Transformation, s:Transformation) -> Transformation :
+  Transformation(ball(t), mag(t) * mag(s), mag(t) * mov(s) + mov(t), last-point(t))
+

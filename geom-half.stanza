@@ -1,0 +1,44 @@
+defpackage geom/half :
+  import core
+  import geom/vec
+
+public defstruct Half :
+  normal:   V3f
+  distance: Float
+
+public defmethod print (o:OutputStream, g:Half) :
+  print-all(o, ["half(" normal(g) "," distance(g) ")"])
+
+public defn half (x:Float, y:Float, z:Float, d:Float) -> Half :
+  Half(V3f(x, y, z), d)
+
+public defn half (v:V3f, d:Float) -> Half :
+  Half(v, d)
+
+public defn half (p1:V3f, p2:V3f, p3:V3f) -> Half :
+  val normal = normalize((p2 - p1) % (p3 - p1))
+  val distance = dot(normal, p1)
+  Half(normal, distance)
+
+;; defn times (g:Half, m:Mat44f) -> Half :
+;;   var dir1:V3f       = V3f(1.0f, 0.0f, 0.0f) % normal(g)
+;;   var dir1-len:Float = dot(dir1, dir1)
+;;   var tmp:V3f        = V3f(0.0f, 1.0f, 0.0f) % normal(g)
+;;   var tmp-len:Float  = dot(tmp, tmp)
+;;   if tmp-len > dir1-len :
+;;     dir1     = tmp
+;;     dir1-len = tmp-len
+;;   tmp     = V3f(0.0f,0.0f, 1.0f) % normal(g)
+;;   tmp-len = dot(tmp, tmp)
+;;   if tmp-len > dir1-len :
+;;     dir1     = tmp
+;;   val dir2  = dir1 % normal(g)
+;;   val point = distance(g) * normal(g)
+;;   half(point * m, (point + dir2) * m, (point + dir1) * m)
+
+public defn distance-to (plane:Half, point:V3f) -> Float :
+  dot(point, normal(plane)) - distance(plane)
+
+public defn level (g:Half, point:V3f) -> Float :
+  (- distance-to(g, point))
+

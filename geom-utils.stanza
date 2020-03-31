@@ -1,0 +1,12 @@
+defpackage geom/utils :
+  import core
+
+public val EPS = 1.0e-5f
+
+public defn ensure-index-in-bounds (i:Int, n:Int) :
+  #if-defined(OPTIMIZE) :
+    false
+  #else :
+    if i < 0 or i >= n :
+      fatal("Index (%_) out of bounds." % [i])
+

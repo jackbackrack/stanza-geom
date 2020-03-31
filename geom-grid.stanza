@@ -1,14 +1,19 @@
 ;; See license.txt for details about licensing.
 
-defpackage grid :
+defpackage geom/grid :
   import core
   import math
   import collections
-  import utils
-  import geom
-  import gl
-  import glu
-  import gfx
+  import utils/rnd
+  import geom/vec
+  import geom/box
+  import geom/pixels
+  import geom/triangle
+  import geom/polygon
+  import geom/bounded
+  import gfx/gl
+  import gfx/glu
+  import gfx/drawing
 
 public val trace? = false
 

@@ -1,0 +1,25 @@
+defpackage geom/pixels :
+  import core
+  import geom/geom
+  import geom/vec
+
+public defstruct Pixels <: Geom :
+  idims: V3i
+  dim: Float
+  data: ByteArray
+
+public defn index (g:Pixels, i:Int, j:Int, k:Int) -> Int :
+  (k * idims(g)[0] * idims(g)[1]) + j * idims(g)[0] + i
+
+public defn index (g:Pixels, pos:V3i) -> Int :
+  index(g, x(pos), y(pos), z(pos))
+
+public defn get (g:Pixels, i:Int, j:Int, k:Int) -> Byte :
+  data(g)[index(g, i, j, k)]
+
+public defn get (g:Pixels, pos:V3i) -> Byte :
+  data(g)[index(g, pos)]
+
+public defn set (g:Pixels, pos:V3i, v:Byte) -> False :
+  data(g)[index(g, pos)] = v
+

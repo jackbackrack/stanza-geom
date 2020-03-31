@@ -1,0 +1,29 @@
+defpackage geom/pose :
+  import core
+  import geom/angle
+  import geom/vec
+  import geom/mat
+  import geom/quat
+  import geom/poseable
+  import geom/geom
+
+val @doc-pose = "POSE -- representing translation and rotation"
+
+public defstruct Pose :
+  mov: V3f
+  rot: V3f
+
+public defn Pose (mov:V3f) : Pose(mov, V3f(0.0f, 0.0f))
+public defn Pose () : Pose(V3f(0.0f, 0.0f))
+
+val id-Pose = Pose()
+
+public defn to-mat44f (p:Pose) -> Mat44f :
+  (quat-to-mat44f $ quat-from-euler $ degrees-to-radians $ rot(p)) * mov-mat44f(mov(p))
+
+public defn pose-mat44f (mov:V3f, rot:V3f) -> Mat44f :
+  to-mat44f $ Pose(mov, rot) 
+
+public defn pose-mat44f (mov:V3f) : pose-mat44f(mov, V3f(0.0f, 0.0f, 0.0f))
+
+

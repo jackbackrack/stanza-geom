@@ -1,0 +1,13 @@
+defpackage geom/units :
+  import core
+  import geom/vec
+
+public defn cm-to-in (c:Float) : c / 2.54f
+
+public defn in-to-mm (c:Float) : c * 25.4f
+
+public defn in-to-mm (v:V2f) -> V2f :
+  V2f(in-to-mm(x(v)), in-to-mm(y(v)))
+
+public defn in-to-pt (i:Float) : i * 72.0f
+

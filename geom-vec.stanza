@@ -1,0 +1,406 @@
+defpackage geom/vec :
+  import core
+  import math
+  import utils/rnd
+  import geom/geom
+  import geom/utils
+
+defn round (x:Int) : x
+defn sqrt (x:Int) : to-int(round(sqrt(to-float(x))))
+
+val @doc-vx = "2/3 DIM VECTORS -- ponts and dimensions"
+
+#for (Prim in [Int Float Double]
+      prim in [int float double]
+      PrimVec in [V3i V3f V3d]
+      PrimVecName in ["V3i" "V3f" "V3d"]
+      PrimVec2 in [V2i V2f V2d]
+      eset in [e3i e3f e3d]
+      xset in [x3i x3f x3d]
+      yset in [y3i y3f y3d]
+      zset in [z3i z3f z3d]
+      prim-fill in [V3i-fill V3f-fill V3d-fill]
+      prim-unit in [V3i-unit V3f-unit V3d-unit]
+      x0 in [0 0.0f 0.0]
+      x1 in [1 1.0f 1.0]) :
+
+  public lostanza deftype PrimVec <: Array<Prim> & Hashable & Geom :
+    x: prim
+    y: prim
+    z: prim
+
+  public lostanza defn PrimVec (x:ref<Prim>, y:ref<Prim>, z:ref<Prim>) -> ref<PrimVec> :
+    return new PrimVec{x.value, y.value, z.value}
+
+  public lostanza defn x (v:ref<PrimVec>) -> ref<Prim> :
+    return new Prim{v.x}
+
+  public lostanza defn y (v:ref<PrimVec>) -> ref<Prim> :
+    return new Prim{v.y}
+
+  public lostanza defn z (v:ref<PrimVec>) -> ref<Prim> :
+    return new Prim{v.z}
+
+  public defn PrimVec (x:Prim, y:Prim) -> PrimVec :
+    PrimVec(x, y, x0)
+
+  public defn prim-fill (a:Prim) : PrimVec(a, a, a)
+
+  public defn prim-unit (i:Int) :
+    if i == 0 :      PrimVec(x1, x0, x0)
+    else if i == 1 : PrimVec(x0, x1, x0)
+    else :           PrimVec(x0, x0, x1)
+
+  public defn eset (i:Int, a:Prim) -> PrimVec : a * prim-unit(i)
+  public defn xset (a:Prim) -> PrimVec : PrimVec(a, x0, x0)
+  public defn yset (a:Prim) -> PrimVec : PrimVec(x0, a, x0)
+  public defn zset (a:Prim) -> PrimVec : PrimVec(x0, x0, a)
+
+  public defn set-elt (v:PrimVec, i:Int, a:Prim) -> PrimVec :
+    PrimVec(a when i == 0 else v[0], a when i == 1 else v[1], a when i == 2 else v[2])
+
+  lostanza defmethod get (v:ref<PrimVec>, i:ref<Int>) -> ref<Prim> : 
+    ensure-index-in-bounds(i, new Int{3})
+    return new Prim{addr!(v.x)[i.value]}
+
+  defmethod length (a:PrimVec) -> Int : 3
+
+  public defn area (a:PrimVec) -> Prim :
+    x(a) * y(a)
+
+  public defn volume (a:PrimVec) -> Prim :
+    x(a) * y(a) * z(a)
+
+  defmethod equal? (v1:PrimVec, v2:PrimVec) :
+    x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) 
+
+  defmethod hash (v:PrimVec) :
+    (7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v))
+
+  public defn xy (p:PrimVec) -> PrimVec2 :
+    PrimVec2(x(p), y(p))
+
+  public defn xyz (p:PrimVec) -> PrimVec : p
+
+  public defn xyz (p:Prim) -> PrimVec : PrimVec(p, p, p)
+
+  defmethod print (o:OutputStream, v:PrimVec) :
+    print(o, "%_(%~, %~, %~)" % [PrimVecName, x(v), y(v), z(v)])
+
+  public defn magnitude (a:PrimVec) -> Prim :
+    sqrt(dot(a, a))
+
+  public defn distance (v0:PrimVec, v1:PrimVec) -> Prim :
+    magnitude(v1 - v0)
+
+  public defn normalize (a:PrimVec) -> PrimVec :
+    a / magnitude(a)
+
+  public defn dot (a:PrimVec, b:PrimVec) -> Prim :
+    x(a) * x(b) + y(a) * y(b) + z(a) * z(b)
+
+  public defn min (a:PrimVec) -> Prim :
+    min(x(a), min(y(a), z(a)))
+
+  public defn max (a:PrimVec) -> Prim :
+    max(x(a), max(y(a), z(a)))
+
+  public defn min (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(min(x(a), x(b)), min(y(a), y(b)), min(z(a), z(b)))
+
+  public defn max (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(max(x(a), x(b)), max(y(a), y(b)), max(z(a), z(b)))
+
+  public defn times (a:Prim, b:PrimVec) -> PrimVec :
+    PrimVec(a * x(b), a * y(b), a * z(b))
+
+  public defn times (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) * x(b), y(a) * y(b), z(a) * z(b))
+
+  public defn divide (a:PrimVec, b:Prim) -> PrimVec :
+    PrimVec(x(a) / b, y(a) / b, z(a) / b)
+
+  public defn divide (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) / x(b), y(a) / y(b), z(a) / z(b))
+
+  public defn modulo (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(y(a) * z(b) - z(a) * y(b),
+            z(a) * x(b) - x(a) * z(b),
+            x(a) * y(b) - y(a) * x(b))
+
+  public defn plus (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) + x(b), y(a) + y(b), z(a) + z(b))
+
+  public defn minus (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) - x(b), y(a) - y(b), z(a) - z(b))
+
+  public defn negate (a:PrimVec) -> PrimVec :
+    PrimVec((- x(a)), (- y(a)), (- z(a)))
+
+  public defn abs (a:PrimVec) -> PrimVec :
+    PrimVec(abs(x(a)), abs(y(a)), abs(z(a)))
+
+  public defn map (f:Prim -> Prim, v:PrimVec) -> PrimVec :
+    PrimVec(f(x(v)), f(y(v)), f(z(v)))
+
+  public defn round (p:PrimVec) -> PrimVec :
+    PrimVec(round(x(p)), round(y(p)), round(z(p)))
+
+  public defn sorted-indices (v:PrimVec) -> V3i :
+    if x(v) < y(v) :
+      if x(v) < z(v) :
+        V3i(0, 1, 2) when y(v) < z(v) else V3i(0, 2, 1)
+      else :
+        V3i(2, 0, 1)
+    else :
+      if y(v) < z(v) :
+        V3i(1, 0, 2) when x(v) < z(v) else V3i(1, 2, 0)
+      else :
+        V3i(2, 1, 0)
+
+  public defn min-idx (v:PrimVec) -> Int :
+    sorted-indices(v)[0]
+
+  public defn mid-idx (v:PrimVec) -> Int :
+    sorted-indices(v)[1]
+
+  public defn max-idx (v:PrimVec) -> Int :
+    sorted-indices(v)[2]
+
+  public defn rnd (lo:PrimVec, hi:PrimVec) -> PrimVec :
+    PrimVec(rnd(x(lo), x(hi)), rnd(y(lo), y(hi)), rnd(z(lo), z(hi)))
+
+
+public defn indices (dims:V3i) -> Seq<V3i> :
+  generate<V3i> :
+    for k in 0 to z(dims) do :
+      for j in 0 to y(dims) do :
+        for i in 0 to x(dims) do :
+          yield(V3i(i, j, k))
+
+#for (Prim in [Float Double]
+      PrimVec in [V3f V3d]) :
+  public defn angle (a:PrimVec, b:PrimVec) -> Prim :
+    acos(dot(a, b) / (magnitude(a) * magnitude(b)))
+
+;;; V2x
+
+#for (Prim in [Int Float Double]
+      prim in [int float double]
+      PrimVec in [V2i V2f V2d]
+      PrimVecName in ["V2i" "V2f" "V2d"]
+      PrimVec3 in [V3i V3f V3d]
+      eset in [e2i e2f e2d]
+      xset in [x2i x2f x2d]
+      yset in [y2i y2f y2d]
+      prim-fill in [V2i-fill V2f-fill V2d-fill]
+      prim-unit in [V2i-unit V2f-unit V2d-unit]
+      x0 in [0 0.0f 0.0]
+      x1 in [1 1.0f 1.0]) :
+
+  public lostanza deftype PrimVec <: Array<Prim> & Hashable & Geom :
+    x: prim
+    y: prim
+
+  public lostanza defn PrimVec (x:ref<Prim>, y:ref<Prim>) -> ref<PrimVec> :
+    return new PrimVec{x.value, y.value}
+
+  public lostanza defn x (v:ref<PrimVec>) -> ref<Prim> :
+    return new Prim{v.x}
+
+  public lostanza defn y (v:ref<PrimVec>) -> ref<Prim> :
+    return new Prim{v.y}
+
+  public defn prim-fill (a:Prim) : PrimVec(a, a)
+
+  public defn prim-unit (i:Int) :
+    if i == 0 : PrimVec(x1, x0)
+    else :      PrimVec(x0, x1)
+
+  public defn eset (i:Int, a:Prim) -> PrimVec : a * prim-unit(i)
+  public defn xset (a:Prim) -> PrimVec : PrimVec(a, x0)
+  public defn yset (a:Prim) -> PrimVec : PrimVec(x0, a)
+
+  public defn set-elt (v:PrimVec, i:Int, a:Prim) -> PrimVec :
+    PrimVec(a when i == 0 else v[0], a when i == 1 else v[1])
+
+  lostanza defmethod get (v:ref<PrimVec>, i:ref<Int>) -> ref<Prim> : 
+    ensure-index-in-bounds(i, new Int{2})
+    return new Prim{addr!(v.x)[i.value]}
+
+  defmethod length (a:PrimVec) -> Int : 2
+
+  public defn area (a:PrimVec) -> Prim :
+    x(a) * y(a)
+
+  public defn volume (a:PrimVec) -> Prim :
+    x0
+
+  defmethod equal? (v1:PrimVec, v2:PrimVec) :
+    x(v1) == x(v2) and y(v1) == y(v2)
+
+  defmethod hash (v:PrimVec) :
+    ((7 * hash(x(v))) + hash(y(v)))
+
+  public defn xy (p:PrimVec) -> PrimVec : p
+
+  public defn xyz (p:PrimVec) -> PrimVec3 : PrimVec3(x(p), y(p), x0)
+
+  public defn xy (p:Prim) -> PrimVec : PrimVec(p, p)
+
+  defmethod print (o:OutputStream, v:PrimVec) :
+    print(o, "%_(%~, %~)" % [PrimVecName, x(v), y(v)])
+
+  public defn sqr-magnitude (a:PrimVec) -> Prim :
+    dot(a, a)
+
+  public defn magnitude (a:PrimVec) -> Prim :
+    sqrt(dot(a, a))
+
+  public defn distance (v0:PrimVec, v1:PrimVec) -> Prim :
+    magnitude(v1 - v0)
+
+  public defn normalize (a:PrimVec) -> PrimVec :
+    a / magnitude(a)
+
+  public defn dot (a:PrimVec, b:PrimVec) -> Prim :
+    x(a) * x(b) + y(a) * y(b)
+
+  public defn min (a:PrimVec) -> Prim :
+    min(x(a), y(a))
+
+  public defn max (a:PrimVec) -> Prim :
+    max(x(a), y(a))
+
+  public defn min (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(min(x(a), x(b)), min(y(a), y(b)))
+
+  public defn max (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(max(x(a), x(b)), max(y(a), y(b)))
+
+  public defn times (a:Prim, b:PrimVec) -> PrimVec :
+    PrimVec(a * x(b), a * y(b))
+
+  public defn times (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) * x(b), y(a) * y(b))
+
+  public defn divide (a:PrimVec, b:Prim) -> PrimVec :
+    PrimVec(x(a) / b, y(a) / b)
+
+  public defn divide (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) / x(b), y(a) / y(b))
+
+  public defn plus (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) + x(b), y(a) + y(b))
+
+  public defn minus (a:PrimVec, b:PrimVec) -> PrimVec :
+    PrimVec(x(a) - x(b), y(a) - y(b))
+
+  public defn negate (a:PrimVec) -> PrimVec :
+    PrimVec((- x(a)), (- y(a)))
+
+  public defn modulo (a:PrimVec, b:PrimVec) -> Prim :
+    x(a) * y(b) - y(a) * x(b)
+
+  public defn abs (a:PrimVec) -> PrimVec :
+    PrimVec(abs(x(a)), abs(y(a)))
+
+  public defn map (f:Prim -> Prim, v:PrimVec) -> PrimVec :
+    PrimVec(f(x(v)), f(y(v)))
+
+  public defn round (p:PrimVec) -> PrimVec :
+    PrimVec(round(x(p)), round(y(p)))
+
+  public defn sorted-indices (v:PrimVec) -> V2i :
+    V2i(0, 1) when x(v) < y(v) else V2i(1, 0)
+
+  public defn min-idx (v:PrimVec) -> Int :
+    0 when x(v) < y(v) else 1
+
+  public defn max-idx (v:PrimVec) -> Int :
+    1 when x(v) < y(v) else 0
+
+  public defn rnd (lo:PrimVec, hi:PrimVec) -> PrimVec :
+    PrimVec(rnd(x(lo), x(hi)), rnd(y(lo), y(hi)))
+
+
+#for (Prim in [Float Double]
+      PrimVec in [V2f V2d]) :
+  public defn angle (a:PrimVec, b:PrimVec) -> Prim :
+    acos(dot(a, b) / (magnitude(a) * magnitude(b)))
+
+public defn to-v3d (v:V3f) -> V3d :
+  V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
+
+public defn to-v3i (v:V3f) -> V3i :
+  V3i(to-int(x(v)), to-int(y(v)), to-int(z(v)))
+
+public defn to-v3f (v:V3i) -> V3f :
+  V3f(to-float(x(v)), to-float(y(v)), to-float(z(v)))
+
+public defn to-v2i (v:V2f) -> V2i :
+  V2i(to-int(x(v)), to-int(y(v)))
+
+public defn to-v2f (v:V2i) -> V2f :
+  V2f(to-float(x(v)), to-float(y(v)))
+
+public defn V2f (x:Double, y:Double) -> V2f :
+  V2f(to-float(x), to-float(y))
+
+;;; V4f
+
+;; public defstruct V4f <: Array<Float> :
+;;   x: Float
+;;   y: Float
+;;   z: Float
+;;   a: Float
+
+val @doc-v4f = "4 DIM VECTORS -- color"
+
+public lostanza deftype V4f <: Array<Float> & Geom & Hashable :
+  x: float
+  y: float
+  z: float
+  a: float
+
+public lostanza defn V4f (x:ref<Float>, y:ref<Float>, z:ref<Float>, a:ref<Float>) -> ref<V4f> :
+  return new V4f{x.value, y.value, z.value, a.value}
+
+public lostanza defn x (v:ref<V4f>) -> ref<Float> :
+  return new Float{v.x}
+
+public lostanza defn y (v:ref<V4f>) -> ref<Float> :
+  return new Float{v.y}
+
+public lostanza defn z (v:ref<V4f>) -> ref<Float> :
+  return new Float{v.z}
+
+public lostanza defn a (v:ref<V4f>) -> ref<Float> :
+  return new Float{v.a}
+
+public defn V4f (x:Float, y:Float, z:Float) -> V4f :
+  V4f(x, y, z, 0.0f)
+
+public lostanza defmethod get (v:ref<V4f>, i:ref<Int>) -> ref<Float> :
+  ensure-index-in-bounds(i, new Int{3})
+  return new Float{addr!(v.x)[i.value]}
+
+public defmethod length (a:V4f) -> Int : 4
+
+defmethod equal? (v1:V4f, v2:V4f) :
+  x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) and a(v1) == a(v2) 
+
+defmethod hash (v:V4f) :
+  (7 * ((7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v)))) + hash(a(v))
+
+defmethod print (o:OutputStream, v:V4f) :
+  print(o, "V4f(%~, %~, %~, %~)" % [x(v), y(v), z(v), z(v)])
+
+public val RED   = V4f(1.0f, 0.0f, 0.0f, 1.0f)
+public val GREEN = V4f(0.0f, 1.0f, 0.0f, 1.0f)
+public val BLUE  = V4f(0.0f, 0.0f, 1.0f, 1.0f)
+public val BLACK  = V4f(0.0f, 0.0f, 0.0f, 1.0f)
+public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
+
+public defn area* (dims:V3f) -> Float : dims[max-idx(dims)] * dims[mid-idx(dims)]
+

@@ -1,0 +1,102 @@
+defpackage geom/quat :
+  import core
+  import math
+  import geom/vec
+  import geom/mat
+
+val @doc-quat = "QUAT -- quaternions for interpolatable rotations"
+
+public defstruct Quat <: Equalable :
+  w: Float
+  v: V3f
+
+public defn quat-from-axis (axis:V3f, rads:Float) -> Quat :
+  val angle = rads / 2.0f
+  val sin-angle = sin(angle)
+  val n = normalize(axis)
+  Quat(cos(angle), sin-angle * n)
+
+public defn sin-cos (a:Float) : V2f(sin(a) cos(a))
+public defn cos-sin (a:Float) : V2f(cos(a) sin(a))
+
+public defn sin-cos-tup (a:Float) : [ sin(a) cos(a) ]
+
+public defn quat-from-euler (radz:V3f) -> Quat :
+  val [sr cr] = sin-cos-tup(0.5f * x(radz))
+  val [sp cp] = sin-cos-tup(0.5f * y(radz))
+  val [sy cy] = sin-cos-tup(0.5f * z(radz))
+  Quat(    cy * cr * cp + sy * sr * sp,
+       V3f(cy * sr * cp - sy * cr * sp,
+           cy * cr * sp + sy * sr * cp,
+           sy * cr * cp - cy * sr * sp))
+
+val zero-quat = quat-from-axis(V3f(1.0f, 0.0f, 0.0f), 0.0f)
+
+public defn zero? (q:Quat) : q == zero-quat
+
+public defn Quat () : zero-quat
+
+defmethod print (o:OutputStream, q:Quat) :
+  print-all(o, ["Quat(" v(q) "," w(q) ")"])
+
+defmethod equal? (q1:Quat, q2:Quat) :
+  v(q1) == v(q2) and w(q1) == w(q2) 
+
+public defn times (s:Float, q:Quat) -> Quat :
+  Quat(s * w(q), s * v(q))
+
+public defn divide (q:Quat, d:Float) -> Quat :
+  Quat(w(q) / d, v(q) / d)
+
+public defn x (q:Quat) -> Float : x(v(q))
+public defn y (q:Quat) -> Float : y(v(q))
+public defn z (q:Quat) -> Float : z(v(q))
+
+public defn times (q1:Quat, q2:Quat) -> Quat :
+  Quat(w(q1) * w(q2) - dot(v(q1), v(q2)), w(q1) * v(q2) + w(q2) * v(q1) + v(q1) % v(q2))
+
+public defn dot (q1:Quat, q2:Quat) -> Float :
+  dot(v(q1), v(q2)) + w(q1) * w(q2)
+
+public defn conjugate (q:Quat) -> Quat :
+  Quat(w(q), (- v(q)))
+
+public defn negate (q:Quat) -> Quat :
+  conjugate(q) / dot(q, q)
+
+public defn magnitude (q:Quat) -> Float :
+  sqrt(dot(q, q))
+
+public defn normalize (q:Quat) -> Quat :
+  q / magnitude(q)
+
+val DELTA = 0.95f
+
+public defn slerp (src:Quat, dst0:Quat, t:Float) -> Quat :
+  val cosom0 = dot(src, dst0)
+  val [cosom, dst] =
+    if cosom0 < 0.0f :
+      [(- cosom0), -1.0f * dst0]
+    else :
+      [cosom0, dst0]
+  val [s0, s1] =
+    if (1.0f - cosom) > DELTA :
+      val omega = acos(cosom)
+      val sinom = sin(omega)
+      [sin((1.0f - t) * omega) / sinom, sin(t * omega) / sinom]
+    else :
+      [1.0f - t, t]
+  Quat(s0 * w(src) + s1 * w(dst), s0 * v(src) + s1 * v(dst))
+
+public defn quat-to-mat44f (q:Quat) -> Mat44f :
+  val [ wx,  wy,  wz] = [w(q) * x(q), w(q) * y(q), w(q) * z(q)]
+  val [ xx,  xy,  xz] = [x(q) * x(q), x(q) * y(q), x(q) * z(q)]
+  val [ yy,  yz,  zz] = [y(q) * y(q), y(q) * z(q), z(q) * z(q)]
+  val [m00, m01, m02] = [1.0f - 2.0f * (yy + zz),        2.0f * (xy - wz),        2.0f * (xz + wy)]
+  val [m10, m11, m12] = [       2.0f * (xy + wz), 1.0f - 2.0f * (xx + zz),        2.0f * (yz - wx)]
+  val [m20, m21, m22] = [       2.0f * (xz - wy),        2.0f * (yz + wx), 1.0f - 2.0f * (xx + yy)]
+  Mat44f( m00,  m01,  m02, 0.0f,
+          m10,  m11,  m12, 0.0f,
+          m20,  m21,  m22, 0.0f,
+         0.0f, 0.0f, 0.0f, 1.0f)
+

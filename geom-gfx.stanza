@@ -1,10 +1,23 @@
 ;; See license.txt for details about licensing.
 
-defpackage geom-gfx:
+defpackage geom/gfx:
   import core
   import math
   import collections
-  import geom
+  import geom/vec
+  import geom/mat
+  import geom/box
+  import geom/polyline
+  import geom/polygon
+  import geom/mesh
+  import geom/triangle
+  import geom/line-segment
+  import geom/pixels
+  import geom/bounded
+  import geom/poseable
+  import geom/assembly
+  import geom/geom
+  import geom/arc-ball
   import gl
   import gfx
   import font
