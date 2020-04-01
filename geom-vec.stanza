@@ -347,6 +347,14 @@ public defn to-v2f (v:V2i) -> V2f :
 public defn V2f (x:Double, y:Double) -> V2f :
   V2f(to-float(x), to-float(y))
 
+public defn bisection-normal (a:V3f, b:V3f) -> V3f :
+  val n = 
+    if magnitude(a + b) < EPS :
+      a
+    else :
+      (a + b) % (a % b)
+  normalize(n)
+
 ;;; V4f
 
 ;; public defstruct V4f <: Array<Float> :

@@ -1,0 +1,36 @@
+defpackage geom/plane :
+  import core
+  import math
+  import geom/vec
+  import geom/polyline
+
+public defstruct Plane :
+  center : V3f
+  normal : V3f
+with :
+  printer => true
+
+public defn parallel-vector (p:Plane) -> V3f :
+  val vs = to-tuple $ for v in [x3f(1.0f), y3f(1.0f), z3f(1.0f)] filter : v != normal(p)
+  println(vs)
+  normalize(vs[0] % normal(p))
+
+public defn offset (p:Plane, o:Float) -> Plane :
+  Plane(center(p) + o * normal(p), normal(p))
+
+public defn invert (p:Plane) -> Plane :
+  Plane(center(p), -1.0f * normal(p))
+
+public defn close-loop (il:Seqable<V3f>) -> Tuple<V3f> :
+  val l = to-tuple(il)
+  to-tuple $ cat(l, [l[0]])
+
+public defn to-polyline (p:Plane, r:Float) -> PolyLine3f :
+  val v1 = parallel-vector(p)
+  val v2 = normalize(normal(p) % v1)
+  println("V1 = %_ V2 = %_" % [v1, v2])
+  val l  = rect(center(p), v1, v2, r)
+  val res = PolyLine3f $ [close-loop(l), [l[0] l[2]], [l[1] l[3]]]
+  println(res)
+  res
+

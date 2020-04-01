@@ -11,6 +11,9 @@ defpackage geom/polyline :
   import geom/assembly
   import geom/shape
 
+public defn rect (c:V3f, v1:V3f, v2:V3f, r:Float) -> Tuple<V3f> :
+  for p in [((- r) * v1 + (- r) * v2), (r * v1 + (- r) * v2), (r * v1 + r * v2), ((- r) * v1 + r * v2)] map : c + p
+
 val @doc-polyline = "POLYLINE -- lists of open paths called strokes"
 
 #for (Prim in [Float Float]

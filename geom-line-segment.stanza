@@ -33,6 +33,11 @@ val @doc-linesegment = "LINESEGMENT -- line between two points"
   public defn magnitude (l:LineSegment) -> Prim :
     magnitude(vector(l))
 
+  public defn shorten (l:LineSegment, amount:Float) -> LineSegment :
+    val v = normalize(vector(l))
+    val r = 0.5f * (magnitude(l) - amount)
+    LineSegment(center(l) - r * v, center(l) + r * v)
+
   defmethod print (o:OutputStream, l:LineSegment) :
     print(o, "%_(%_ %_)" % [LineSegmentName start(l) end(l)])
 
