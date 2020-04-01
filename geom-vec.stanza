@@ -355,6 +355,14 @@ public defn bisection-normal (a:V3f, b:V3f) -> V3f :
       (a + b) % (a % b)
   normalize(n)
 
+public defn normal (a:V3f, b:V3f) -> V3f :
+  val n = 
+    if magnitude(a + b) < EPS :
+      a
+    else :
+      (a % b)
+  normalize(n)
+
 ;;; V4f
 
 ;; public defstruct V4f <: Array<Float> :
