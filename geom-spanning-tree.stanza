@@ -2,7 +2,8 @@ defpackage geom/spanning-tree :
   import core
   import collections
   import math
-  import union-find
+  import utils/union-find
+  import utils/edits
   import geom/vec
   import geom/line-segment
   import geom/delaunay with :

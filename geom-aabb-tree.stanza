@@ -4,7 +4,7 @@ defpackage geom/aabb-tree :
   import core
   import math
   import collections
-  import utils
+  ; import utils
   import geom/vec
   import geom/box
 
