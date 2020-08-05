@@ -85,5 +85,8 @@ public defn visualize (s:BufferedSocket, g:Geom) :
   serialize(s, g)
 
 public defn visualize (geom:Geom) :
-  visualize(ReplClient("localhost", 51717), geom)
+  val s = ReplClient("localhost", 51717)
+  val r = visualize(s, geom)
+  ; close(s)
+  r
 

@@ -1,6 +1,7 @@
 defpackage geom/quat :
   import core
   import math
+  import geom/angle
   import geom/vec
   import geom/mat
 
@@ -15,11 +16,6 @@ public defn quat-from-axis (axis:V3f, rads:Float) -> Quat :
   val sin-angle = sin(angle)
   val n = normalize(axis)
   Quat(cos(angle), sin-angle * n)
-
-public defn sin-cos (a:Float) : V2f(sin(a) cos(a))
-public defn cos-sin (a:Float) : V2f(cos(a) sin(a))
-
-public defn sin-cos-tup (a:Float) : [ sin(a) cos(a) ]
 
 public defn quat-from-euler (radz:V3f) -> Quat :
   val [sr cr] = sin-cos-tup(0.5f * x(radz))

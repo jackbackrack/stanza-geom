@@ -1,11 +1,15 @@
 defpackage geom/circle :
   import core
+  import math
+  import utils/math
+  import geom/geom
+  import geom/angle
   import geom/vec
   import geom/line-segment
 
 val @doc-circle = "CIRCLE -- a circle"
 
-public defstruct Circle <: Equalable :
+public defstruct Circle <: Equalable & Geom :
   center : V2f
   radius : Float
 

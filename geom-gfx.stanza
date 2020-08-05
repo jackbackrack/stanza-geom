@@ -7,6 +7,7 @@ defpackage geom/gfx:
   import geom/vec
   import geom/mat
   import geom/box
+  import geom/circle
   import geom/polyline
   import geom/polygon
   import geom/mesh
@@ -101,6 +102,12 @@ defmethod render (tri:Triangle) -> False :
   gl-begin(GL-LINE-LOOP)
   for p in vertices(tri) do :
     gl-vertex2(p)
+  gl-end()
+
+defmethod render (c:Circle) -> False :
+  gl-begin(GL-LINE-LOOP)
+  gl-translate(center(c))
+  draw-circle(radius(c))
   gl-end()
 
 defmethod render (contour:Contour) -> False :

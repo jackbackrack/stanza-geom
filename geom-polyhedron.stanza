@@ -1,0 +1,177 @@
+defpackage geom/polyhedron :
+  import core
+  import collections
+  import math
+  import utils/seqable
+  import geom/vec
+  import geom/box
+  import geom/line-segment
+  import geom/line-loop
+  import geom/polyline
+  import geom/plane
+  import geom/mesh
+  import geom/mat
+  import geom/poseable
+  import geom/bounded
+  import geom/shape
+
+public defstruct Polyhedron <: AnyShape&Equalable :
+  state:          AnyShapeState with: (as-method => true)
+  vertices:       Tuple<V3f>
+  faces:          Tuple<Tuple<Int>>
+  dihedral-angle: Float
+  face-angle :    Float
+  face-vertex-edge-angle : Float
+
+defmethod print (o:OutputStream, m:Polyhedron) :
+  print-all(o, ["Polyhedron(" vertices(m) "," faces(m) ")"])
+
+public defn to-polyline (p:Polyhedron) -> PolyLine3f :
+  PolyLine3f $ for f in faces(p) map : close-loop $ for v in f map : vertices(p)[v]
+
+public defn to-polyline (p:Mesh) -> PolyLine3f :
+  PolyLine3f $ for f in faces(p) map : close-loop $ for v in [x(f), y(f), z(f)] map : vertices(p)[v]
+
+defmethod equal? (a:Polyhedron, b:Polyhedron) -> True|False :
+  vertices(a) == vertices(b) and faces(a) == faces(b)
+
+public defn Polyhedron (vertices:Tuple<V3f>, faces:Tuple<Tuple<Int>>, dihedral-angle:Float, face-angle:Float, face-vertex-edge-angle:Float) :
+  Polyhedron(default-anyshape-state(), vertices, faces, dihedral-angle, face-angle, face-vertex-edge-angle)
+
+defmethod clone (mesh:Polyhedron, state:AnyShapeState) -> Polyhedron :
+  Polyhedron(state, vertices(mesh), faces(mesh), dihedral-angle(mesh), face-angle(mesh), face-vertex-edge-angle(mesh))
+
+defmethod xyz (mat:Mat44f, mesh:Polyhedron) -> Polyhedron :
+  Polyhedron(state(mesh), for v in vertices(mesh) map : mat * v, faces(mesh),
+             dihedral-angle(mesh), face-angle(mesh), face-vertex-edge-angle(mesh))
+
+defmethod bounds (p:Polyhedron) -> Box3f :
+  reduce(union, neg-inf-box3f(), seq(Box3f, vertices(p)))
+
+public defn to-mesh (p:Polyhedron) -> Mesh :
+  val faces = for f in faces(p) map : V3i(f[0], f[1], f[2])
+  Mesh(state(p), vertices(p), faces)
+
+public defn edge-faces (p:Polyhedron, e:Tuple<Int>) -> Seq<Tuple<Int>> :
+  generate<Tuple<Int>> :
+    for f in faces(p) do :
+      for [v0,v1] in successive-pairs-wrapped(f) do :
+        if (v0 == e[0] and v1 == e[1]) or (v0 == e[1] and v1 == e[0]) :
+          yield(f)
+
+public defn edges (p:Polyhedron) -> List<[Int,Int]> :
+  unique $ for f in faces(p) seq-cat :
+    for [s,e] in successive-pairs-wrapped(f) seq :
+      [min(s, e), max(s, e)]
+
+public defn edges (p:Polyhedron, v:Int) -> Seq<[Int,Int]> :
+  for e in edges(p) filter : contains?(e, v)
+
+public defn edge-normal (p:Polyhedron, e:Tuple<Int>) -> V3f :
+  val faces = to-tuple $ edge-faces(p, e)
+  val n0  = line-normal(mesh-face-outline(p, faces[0]))
+  val n1  = line-normal(mesh-face-outline(p, faces[1]))
+  val v-z = normalize(normalize(n0) + normalize(n1))
+  v-z
+
+public defn dihedral-angle (p:Polyhedron, e:Tuple<Int>) -> Float :
+  val faces = to-tuple $ edge-faces(p, e)
+  val n0  = line-normal(mesh-face-outline(p, faces[0]))
+  val n1  = line-normal(mesh-face-outline(p, faces[1]))
+  PI-F - angle(n0, n1)
+
+public defn edge-center (p:Polyhedron, e:Tuple<Int>) -> V3f :
+  center(LineSegment3f(vertices(p)[e[0]], vertices(p)[e[1]]))
+
+public defn edge-plane (p:Polyhedron, e:Tuple<Int>) -> Plane :
+  Plane(edge-center(p, e), edge-normal(p, e))
+
+public defn edge-shape (p:Polyhedron, e:Tuple<Int>, dl:Float, f:LineLoop -> [Shape, Mat44f]) -> Shape :
+  val ls    = shorten(LineSegment3f(vertices(p)[e[0]], vertices(p)[e[1]]), dl)
+  val n     = edge-normal(p, e)
+  val cmat  = center-transform(n, center(ls))
+  val l     = xyz(cmat, to-lineloop $ ls)
+  val [part, fmat] = f(l)
+  val imat  = fmat * inverse(cmat) 
+  xyz(imat, part)
+
+public defn simple-edge-shape (p:Polyhedron, e:Tuple<Int>) -> LineLoop :
+  val ls    = LineSegment3f(vertices(p)[e[0]], vertices(p)[e[1]])
+  val n     = edge-normal(p, e)
+  val mat   = center-transform(n, center(ls))
+  val l     = xyz(mat, to-lineloop $ ls)
+  l
+
+public defn shared-vertex (e0:[Int, Int], e1:[Int, Int]) -> False|Int :
+  if      e0[0] == e1[0] or e0[0] == e1[1] : e0[0]
+  else if e0[1] == e1[1] or e0[1] == e1[0] : e0[1]
+
+public defn edge-vector (p:Polyhedron, e:[Int, Int], svi:Int) -> V3f :
+  val v0 = vertices(p)[e[0]]
+  val v1 = vertices(p)[e[1]]
+  (v1 - v0) when e[0] == svi else (v0 - v1)
+
+public defn end-id (e:[Int, Int], svi:Int) -> Int :
+  e[1] when (e[0] == svi) else e[0]
+
+public defn mesh-face-outline (m:Polyhedron, face:Tuple<Int>) -> LineLoop :
+  LineLoop(for vi in face map : vertices(m)[vi])
+
+public defn center-transform (normal:V3f, center:V3f) -> Mat44f :
+  mov-mat44f(-1.0f * center) * rot-mat44f(normal, z3f(1.0f))
+
+public defn center-transform (line:LineLoop) -> Mat44f :
+  center-transform(line-normal(line), line-center(line))
+
+public defn corner-center-loop (m:Polyhedron, vi:Int, radius:Float) -> LineLoop :
+  val vp = vertices(m)[vi]
+  LineLoop $ for e in edges(m, vi) seq : vp + radius * normalize(edge-vector(m, e, vi))
+
+public defn corner-center-radius (m:Polyhedron, vi:Int, radius:Float) -> Float :
+  distance(line-center(corner-center-loop(m, vi, radius)), vertices(m)[vi])
+
+public defn corner-center-plane (m:Polyhedron, vi:Int, radius:Float) -> Plane :
+  val vp = vertices(m)[vi]
+  val plane = mesh-corner-plane(m, vp)
+  offset(plane, -1.0f * distance(line-center(corner-center-loop(m, vi, radius)), vertices(m)[vi]))
+
+public defn mesh-outer-radius (m:Polyhedron) -> Float :
+  maximum $ for v in vertices(m) seq : magnitude(v)
+
+public defn mesh-inner-radius (m:Polyhedron) -> Float :
+  maximum $ for f in faces(m) seq : magnitude(line-center $ mesh-face-outline(m, f))
+
+public defn mesh-planes (m:Polyhedron) -> Seq<Plane> :
+  for f in faces(m) seq : plane(mesh-face-outline(m, f))
+
+public defn mesh-corner-plane (m:Polyhedron, v:V3f) -> Plane :
+  Plane(v, normalize(v))
+
+public defn mesh-corner-planes (m:Polyhedron) -> Seq<Plane> :
+  for v in vertices(m) seq : mesh-corner-plane(m, v)
+
+public defn edge-planes (p:Polyhedron) -> Seq<Plane> :
+  for e in edges(p) seq : edge-plane(p, e)
+
+public defstruct DirectedEdge <: Equalable & Hashable :
+  start : Int
+  end : Int
+
+defmethod equal? (e0:DirectedEdge, e1:DirectedEdge) -> True|False :
+  (start(e0) == start(e1) and end(e0) == end(e1)) or
+  (start(e0) == end(e1) and end(e0) == start(e1))
+
+defmethod hash (e:DirectedEdge) -> Int :
+  hash(min(start(e), end(e))) + 7 * hash(max(start(e), end(e)))
+
+defmethod print (o:OutputStream, e:DirectedEdge) :
+  print(o, "DirectedEdge(%_, %_)" % [start(e), end(e)])
+
+public defn directed-edges (p:Polyhedron) -> Seq<DirectedEdge> :
+  for f in faces(p) seq-cat :
+    for [s,e] in successive-pairs-wrapped(f) seq :
+      DirectedEdge(s, e)
+
+public defn directed-edges-from (p:Polyhedron, v:Int) -> Seq<DirectedEdge> :
+  for e in directed-edges(p) filter : start(e) == v
+

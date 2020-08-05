@@ -2,6 +2,7 @@ defpackage geom/plane :
   import core
   import math
   import geom/vec
+  import geom/line
   import geom/polyline
 
 public defstruct Plane :
@@ -34,3 +35,13 @@ public defn to-polyline (p:Plane, r:Float) -> PolyLine3f :
   println(res)
   res
 
+public defn distance (p:Plane) -> Float :
+  dot(normal(p), center(p))
+
+public defn intersect (p:Plane, l:Line3f) -> False|V3f :
+  val d = dot(normal(p), dir(l))
+  if d == 0.0f :
+    false
+  else :
+    val t = (dot(normal(p), pos(l)) - distance(p)) / d
+    eval(l, t)

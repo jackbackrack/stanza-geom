@@ -1,0 +1,114 @@
+defpackage geom/polyhedra :
+  import core
+  import collections
+  import math
+  import geom/vec
+  import geom/polyhedron
+
+;; TETRAHEDRON
+
+; 1
+;   3 0
+; 2
+
+public val tet-mesh =
+  Polyhedron([V3f( 1.0f * sqrt(8.0f / 9.0f),                      0.0f, -1.0f / 3.0f),
+              V3f(-1.0f * sqrt(2.0f / 9.0f),  1.0f * sqrt(2.0f / 3.0f), -1.0f / 3.0f),
+              V3f(-1.0f * sqrt(2.0f / 9.0f), -1.0f * sqrt(2.0f / 3.0f), -1.0f / 3.0f),
+              V3f(                     0.0f,                      0.0f,         1.0f)]
+             [[0, 1, 2], [1, 0, 3], [1, 3, 2], [2, 3, 0]],
+             acos(1.0f / 3.0f),
+             PI-F / 3.0f
+             atan(sqrt(2.0f)))
+
+public defn fab-dodecahedron () :
+  val p  = (1.0f + sqrt(5.0f)) / 2.0f
+  val ip = 1.0f / p
+  val np = -1.0f * p
+  val nip = -1.0f * ip
+  println("PHI %_ IPHI %_" % [p, ip])
+  Polyhedron([;orange
+              V3f(-1.0f, -1.0f, -1.0f),
+              V3f( 1.0f, -1.0f, -1.0f),
+              V3f(-1.0f,  1.0f, -1.0f),
+              V3f( 1.0f,  1.0f, -1.0f),
+              V3f(-1.0f, -1.0f,  1.0f),
+              V3f( 1.0f, -1.0f,  1.0f),
+              V3f(-1.0f,  1.0f,  1.0f),
+              V3f( 1.0f,  1.0f,  1.0f),
+              ;green
+              V3f( 0.0f,    np,   nip),
+              V3f( 0.0f,     p,   nip),
+              V3f( 0.0f,    np,    ip),
+              V3f( 0.0f,     p,    ip),
+              ;blue
+              V3f(  nip,  0.0f,    np),
+              V3f(   ip,  0.0f,    np),
+              V3f(  nip,  0.0f,     p),
+              V3f(   ip,  0.0f,     p),
+              ;green
+              V3f(   np,   nip,  0.0f),
+              V3f(    p,   nip,  0.0f),
+              V3f(   np,    ip,  0.0f),
+              V3f(    p,    ip,  0.0f)],
+             [;[13 12 2 9 3]  ;A
+              [3 9 2 12 13]  ;A
+              [12 0 8 1 13]  ;B
+              [13 1 17 19 3] ;C
+              [19 7 11 9 3]  ;D
+              ;[11 9 2 18 6]  ;E
+              [6 18 2 9 11]  ;E
+              ;[18 2 12 0 16] ;F
+              [16 0 12 2 18] ;F
+              [17 1 8 10 5]  ;G
+              [19 17 5 15 7] ;H
+              [15 14 6 11 7] ;I
+              ;[14 6 18 16 4] ;J
+              [4 16 18 6 14] ;J
+              ;[15 14 4 10 5] ;K
+              [5 10 4 14 15] ;K
+              ;[10 4 16 0 8]  ;L
+              [8 0 16 4 10]  ;L
+             ]
+             acos(-1.0f / sqrt(5.0f)),
+             PI-F / 3.0f,
+             acos(-1.0f / sqrt(5.0f))) ;TODO: APPROX
+
+public val dodecahedron = fab-dodecahedron()
+
+public defn fab-rhombic-dodecahedron () :
+  val faces =
+    [[3 4 5 10],
+     [3 13 11 4],
+     [3 0 2 13],
+     [3 10 1 0],
+     [6 7 2 8],
+     [6 8 1 9],
+     [6 9 5 12],
+     [6 12 11 7],
+     [2 7 11 13],
+     [11 12 5 4],
+     [5 9 1 10],
+     [1 8 2 0]]
+
+  Polyhedron([V3f(-1.0f, -1.0f, 1.0f),  ; 0
+              V3f(-2.0f, 0.0f, -0.0f),  ; 1
+              V3f(0.0f, -2.0f, 0.0f),   ; 2 
+              V3f(0.0f, 0.0f, 2.0f),    ; 3 
+              V3f(1.0f, 1.0f, 1.0f),    ; 4
+              V3f(0.0f, 2.0f, 0.0f),    ; 5
+              V3f(0.0f, 0.0f, -2.0f),   ; 6
+              V3f(1.0f, -1.0f, -1.0f),  ; 7
+              V3f(-1.0f, -1.0f, -1.0f), ; 8
+              V3f(-1.0f, 1.0f, -1.0f),  ; 9
+              V3f(-1.0f, 1.0f, 1.0f),   ; 10
+              V3f(2.0f, 0.0f, 0.0f),    ; 11
+              V3f(1.0f, 1.0f, -1.0f),   ; 12
+              V3f(1.0f, -1.0f, 1.0f)]   ; 13
+             to-tuple $ for face in faces seq :
+               to-tuple $ reverse $ to-list $ face
+             120.0f / 180.0f * PI-F,
+             PI-F / 3.0f,
+             120.0f / 180.0f * PI-F)
+
+public val rhombic-dodecahedron = fab-rhombic-dodecahedron()

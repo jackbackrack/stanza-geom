@@ -5,6 +5,11 @@ defpackage geom/angle :
   import geom/mat
   import geom/quat
 
+public defn sin-cos (a:Float) : V2f(sin(a) cos(a))
+public defn cos-sin (a:Float) : V2f(cos(a) sin(a))
+
+public defn sin-cos-tup (a:Float) : [ sin(a) cos(a) ]
+
 public defn degrees-to-radians (d:Float) -> Float :
   d * to-float(PI-F) / 180.0f
 

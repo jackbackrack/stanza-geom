@@ -1,0 +1,75 @@
+ defpackage geom/line-loop :
+  import core
+  import collections
+  import math
+  import utils/seqable
+  import geom/vec
+  import geom/box
+  import geom/line-segment
+  import geom/polyline
+  import geom/plane
+  import geom/mat
+  import geom/poseable
+  import geom/shape
+
+public defstruct LineLoop <: AnyShape&Equalable :
+  state : AnyShapeState with: (as-method => true, default => default-anyshape-state())
+  vertices : Tuple<V3f>
+with:
+  constructor => #LineLoop
+
+public defn LineLoop (vs:Seqable<V3f>) : #LineLoop $ to-tuple $ vs
+
+defmethod equal? (a:LineLoop, b:LineLoop) -> True|False :
+  vertices(a) == vertices(b)
+
+public defn bounds (c:LineLoop) -> Box3f :
+  reduce(union, neg-inf-box3f(), seq(Box3f{xyz(_)}, vertices(c)))
+
+public defn plus (v:V3f, line:LineLoop) -> LineLoop :
+  LineLoop(for e in vertices(line) map : v + e)
+
+public defn line-normal (line:LineLoop) -> V3f :
+  val pts = vertices(line)
+  normalize(normalize(pts[0] - pts[1]) % normalize(pts[2] - pts[1]))
+
+public defn line-center (line:LineLoop) -> V3f :
+  reduce(fn (a:V3f, b:V3f) : a + b, vertices(line)) / to-float(length(vertices(line)))
+
+public defn segments (line:LineLoop) -> Seq<LineSegment3f> :
+  for [s, e] in successive-pairs-wrapped(vertices(line)) seq :
+    LineSegment3f(s, e)
+
+public defn segments2f (line:LineLoop) -> Seq<LineSegment2f> :
+  for seg in segments(line) seq :
+    LineSegment2f(xy(start(seg)), xy(end(seg)))
+
+public defn line-inner-radius (line:LineLoop) -> Float :
+  val center = xy $ line-center(line)
+  maximum $ for seg in segments2f(line) seq : distance(closest-point-to(seg, center), center)
+
+public defn line-outer-radius (line:LineLoop) -> Float :
+  val center = line-center(line)
+  maximum $ for v in vertices(line) seq : distance(v, center)
+
+public defn plane (line:LineLoop) -> Plane :
+  Plane(line-center(line), line-normal(line))
+
+public defn to-polyline (l:LineLoop) -> PolyLine3f :
+  PolyLine3f(state(l), [vertices(l)])
+
+public defn to-lineloop (l:LineSegment3f) -> LineLoop :
+  LineLoop([start(l), end(l)])
+
+public defn to-polyline2f (l:LineLoop) -> PolyLine2f :
+  PolyLine2f(state(l), [for v in vertices(l) map : V2f(x(v), y(v))])
+
+defmethod clone (l:LineLoop, state:AnyShapeState) -> LineLoop :
+  #LineLoop(state, vertices(l))
+
+defmethod xyz (mat:Mat44f, l:LineLoop) -> LineLoop :
+  #LineLoop(state(l), to-tuple $ for v in vertices(l) map : mat * v)
+
+defmethod print (o:OutputStream, c:LineLoop) :
+  val pv = to-tuple(vertices(c)[0 to 100]) when length(vertices(c)) > 100 else vertices(c)
+  print(o, "LineLoop([%,])" % [pv])
