@@ -1,9 +1,14 @@
-defpackage delaunay :
+defpackage geom/delaunay :
   import core
   import collections
-  import geom
-  import utils
-  import edits
+  import utils/seqable
+  import geom/utils
+  import geom/vec
+  import geom/box
+  import geom/polygon
+  import geom/poseable
+  import geom/implicit-line
+  import utils/edits
 
 val vertex-ids = to-seq(0 to false)
 
