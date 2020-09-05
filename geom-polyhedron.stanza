@@ -80,6 +80,12 @@ public defn dihedral-angle (p:Polyhedron, e:Tuple<Int>) -> Float :
   val n1  = line-normal(mesh-face-outline(p, faces[1]))
   PI-F - angle(n0, n1)
 
+public defn vertex-edge-angle (p:Polyhedron, v:Int, e:Tuple<Int>) -> Float :
+  val ev = edge-vector(p, [e[0], e[1]], v)
+  val vv = reduce(fn (a:V3f, b:V3f) : a + b, for ee in edges(p, v) seq: normalize(edge-vector(p, ee, v)))
+  ; val vv = -1.0f * vertices(p)[v]
+  angle(normalize(vv), normalize(ev))
+
 public defn edge-center (p:Polyhedron, e:Tuple<Int>) -> V3f :
   center(LineSegment3f(vertices(p)[e[0]], vertices(p)[e[1]]))
 

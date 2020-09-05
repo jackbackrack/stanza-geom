@@ -38,6 +38,9 @@ public defn to-polyline (p:Plane, r:Float) -> PolyLine3f :
 public defn distance (p:Plane) -> Float :
   dot(normal(p), center(p))
 
+public defn distance (p:Plane, v:V3f) -> Float :
+  dot(normal(p), v) - distance(p)
+
 public defn intersect (p:Plane, l:Line3f) -> False|V3f :
   val d = dot(normal(p), dir(l))
   if d == 0.0f :
