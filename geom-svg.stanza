@@ -13,8 +13,6 @@ defpackage geom/svg :
   import geom/poseable
   import geom/assembly
 
-val @doc-write-svg = "## SVG -- WRITING SVG FILES"
-
 defn do-print-svg (s:OutputStream, assembly:Assembly) :
   for elt in children(assembly) do :
     match(elt) :
@@ -47,9 +45,9 @@ defn do-print-svg (s:OutputStream, polyline:PolyLine2f) :
     do-print-svg(s, color(polyline), line, false)
 
 defn svg (s:OutputStream, g:Assembly|PolyLine2f|Polygon, bbox:Box2f) :
-  do-print-svg-header(s, bbox, {
+  do-print-svg-header(s, bbox, { (
     val mg = mov(xyz(-1.0f * lo(bbox)), g)
-    do-print-svg(s, mg) })
+    do-print-svg(s, mg) ) } )
 
 public defn svg (g:Assembly|PolyLine2f|Polygon, filename:String, bbox:Box2f) :
   val s = FileOutputStream(filename)
@@ -58,8 +56,6 @@ public defn svg (g:Assembly|PolyLine2f|Polygon, filename:String, bbox:Box2f) :
 
 public defn svg (g:Assembly|PolyLine2f|Polygon, filename:String, margin:V2f) :
   svg(g, filename, fatten(xy(bounds(g)), margin))
-
-val @doc-read-svg = "## SVG -- READING SVG FILES"
 
 lostanza deftype svg_path :
   pts : ptr<float>

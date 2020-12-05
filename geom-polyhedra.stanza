@@ -26,7 +26,7 @@ public defn fab-dodecahedron () :
   val ip = 1.0f / p
   val np = -1.0f * p
   val nip = -1.0f * ip
-  println("PHI %_ IPHI %_" % [p, ip])
+  ; println("PHI %_ IPHI %_" % [p, ip])
   Polyhedron([;orange
               V3f(-1.0f, -1.0f, -1.0f),
               V3f( 1.0f, -1.0f, -1.0f),
