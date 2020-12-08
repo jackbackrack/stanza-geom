@@ -177,6 +177,9 @@ defmethod render (cells:Pixels) :
   gl-pop-matrix()
   gl-pop-attrib()
 
+defmethod render (g:GeomGroup) :
+  do(render, elts(g))
+
 public lostanza defn gl-load-matrix (m:ref<Mat44f>) -> ref<False> :
   call-c glLoadMatrixf(addr!(m.m00))
   return false
@@ -212,4 +215,5 @@ public defn render-end (t:Transformation) :
   gl-matrix-mode(GL-PROJECTION)
   gl-pop-matrix()
   gl-matrix-mode(GL-MODELVIEW)
+
 

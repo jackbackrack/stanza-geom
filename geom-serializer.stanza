@@ -30,6 +30,7 @@ public defserializer (out:OutputStream, in:InputStream) :
     Mesh: (state:anyshapestate, vertices:tuple(v3f), faces:tuple(v3i))
     Assembly: (mat:mat44f, name:opt<Symbol>(symbol), color:v4f, children:tuple(geom as Geom&Poseable))
     Msg: (value:string)
+    GeomGroup: (elts:tuple(geom))
     
   defunion v2f (V2f) : 
     V2f: (x:float, y:float)

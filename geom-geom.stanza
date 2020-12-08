@@ -12,3 +12,6 @@ public deftype Geom
 public defstruct Msg <: Geom :
   value : String
 
+public defstruct GeomGroup <: Geom :
+  elts : Tuple<Geom>
+
