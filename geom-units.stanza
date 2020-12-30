@@ -4,6 +4,8 @@ defpackage geom/units :
 
 public defn cm-to-in (c:Float) : c / 2.54f
 
+public defn mm-to-in (c:Float) : c / 25.4f
+
 public defn in-to-mm (c:Float) : c * 25.4f
 
 public defn in-to-mm (v:V2f) -> V2f :
