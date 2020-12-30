@@ -298,7 +298,6 @@ public defn Subdivision (ivertices:Seqable<Vertex>, boundary-verts:Tuple<Vertex>
   val sub = Subdivision(boundary-verts[0], boundary-verts[1], boundary-verts[2])
   ;; dump(sub)
   for vertex in verts do :
-    ;; println("INSERTING %_" % [vertex])
     constrained-insert-site(sub, vertex, 0.0f)
   sub
 
@@ -421,6 +420,12 @@ defn left-of (x:V2f, e:Edge) -> True|False :
 ;;       val line = Line(org(e), dest(e))
 ;;       abs(eval(line, x)) < EPS
 
+public defn on-edge-value (p:V2f, e:Edge) -> Float :
+  val op = magnitude(p - value(org(e)))
+  val pd = magnitude(p - value(dest(e)))
+  val od = magnitude(value(org(e)) - value(dest(e)))
+  abs(od - (op + pd))
+
 public defn on-edge (p:V2f, e:Edge) -> True|False :
   val op = magnitude(p - value(org(e)))
   if op < EPS :
@@ -431,7 +436,8 @@ public defn on-edge (p:V2f, e:Edge) -> True|False :
       true
     else :
       val od = magnitude(value(org(e)) - value(dest(e)))
-      abs(od - (op + pd)) < EPS
+      val my-eps = 0.1f * EPS * max(max(op, pd), od)
+      abs(od - (op + pd)) < my-eps
 
 public defn locate (s:Subdivision, x:V2f) -> Edge :
   ;; println("LOCATE %_" % [x])
@@ -711,7 +717,8 @@ public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> Fa
                        left-of(x, oprev(e)) and left-of(x, dnext(e))
 
     if not inside-left and not inside-right :
-      warning("insert-site: point not in a face adjacent to edge")
+      warning(string-join $ ["insert-site: point " vx " not in a face adjacent to edge " e " dest " dest(e)])
+      warning(string-join $ ["  IS-ON-EDGE " is-on-edge " ON-EDGE-VALUE " on-edge-value(x, e) " HAS-LEFT " has-left " HAS-RIGHT " has-right])
       return(false)
     
     if inside-left and coincide(x, value(dest(onext(e))), dist) :
