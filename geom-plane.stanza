@@ -41,6 +41,9 @@ public defn distance (p:Plane) -> Float :
 public defn distance (p:Plane, v:V3f) -> Float :
   dot(normal(p), v) - distance(p)
 
+public defn project (p:Plane, v:V3f) -> V3f :
+  v - distance(p, v) * normal(p)
+
 public defn intersect (p:Plane, l:Line3f) -> False|V3f :
   val d = dot(normal(p), dir(l))
   if d == 0.0f :

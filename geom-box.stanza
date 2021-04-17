@@ -71,6 +71,9 @@ val @doc-box = "BOXES -- tracking bounds"
   public defn minus (b:Box, off:BoxElt) -> Box :
     Box(lo(b) - off, hi(b) - off)
 
+  public defn times (f:Prim, b:Box) -> Box :
+    Box(f * lo(b), f * hi(b))
+
   defmethod equal? (b1:Box, b2:Box) :
     lo(b1) == lo(b2) and hi(b1) == hi(b2)
 

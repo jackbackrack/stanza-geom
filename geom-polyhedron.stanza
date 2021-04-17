@@ -123,12 +123,6 @@ public defn end-id (e:[Int, Int], svi:Int) -> Int :
 public defn mesh-face-outline (m:Polyhedron, face:Tuple<Int>) -> LineLoop :
   LineLoop(for vi in face map : vertices(m)[vi])
 
-public defn center-transform (normal:V3f, center:V3f) -> Mat44f :
-  mov-mat44f(-1.0f * center) * rot-mat44f(normal, z3f(1.0f))
-
-public defn center-transform (line:LineLoop) -> Mat44f :
-  center-transform(line-normal(line), line-center(line))
-
 public defn corner-center-loop (m:Polyhedron, vi:Int, radius:Float) -> LineLoop :
   val vp = vertices(m)[vi]
   LineLoop $ for e in edges(m, vi) seq : vp + radius * normalize(edge-vector(m, e, vi))

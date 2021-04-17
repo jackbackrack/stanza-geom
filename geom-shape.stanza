@@ -85,7 +85,7 @@ public defn shapes (any-shapes:Seqable<AnyShape>) -> Seqable<Shape> :
 
 public defn shapes (p:Poseable) : shapes(any-shapes(p))
 
-public var *resolution* = 8.0f
+public var *resolution*:Float = 8.0f
 public defn set-resolution (r:Float) : *resolution* = r
 
 ;; public defmulti slice (z:Float, s:Shape3) -> Shape2

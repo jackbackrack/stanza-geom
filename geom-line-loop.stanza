@@ -73,3 +73,10 @@ defmethod xyz (mat:Mat44f, l:LineLoop) -> LineLoop :
 defmethod print (o:OutputStream, c:LineLoop) :
   val pv = to-tuple(vertices(c)[0 to 100]) when length(vertices(c)) > 100 else vertices(c)
   print(o, "LineLoop([%,])" % [pv])
+
+public defn center-transform (normal:V3f, center:V3f) -> Mat44f :
+  mov-mat44f(-1.0f * center) * rot-mat44f(normal, z3f(1.0f))
+
+public defn center-transform (line:LineLoop) -> Mat44f :
+  center-transform(line-normal(line), line-center(line))
+
