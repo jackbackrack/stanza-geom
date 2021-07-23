@@ -1,5 +1,6 @@
 defpackage geom/box :
   import core
+  import utils/rnd
   import geom/geom
   import geom/vec
   import geom/mat
@@ -115,6 +116,9 @@ public defn indices (bounds:Box2i) -> Seq<V2i> :
   public defn intersects? (b0:Box, b1:Box) -> True|False :
     not (hi(b0) < lo(b1) or lo(b0) > hi(b1))
 
+  public defn rnd (b:Box) -> BoxElt :
+    rnd(lo(b), hi(b))
+
 #for (BoxElt in [V2i V2f V2d]
       Box in [Box2i Box2f Box2d]
       Box3 in [Box3i Box3f Box3d]
@@ -139,6 +143,9 @@ public defn indices (bounds:Box2i) -> Seq<V2i> :
   public defn intersects? (b0:Box, b1:Box) -> True|False :
     not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
          (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))))
+
+  public defn rnd (b:Box) -> BoxElt :
+    rnd(lo(b), hi(b))
 
 #for (BoxElt in [V3i V3f V3d]
       Box in [Box3i Box3f Box3d]
@@ -170,6 +177,9 @@ public defn indices (bounds:Box2i) -> Seq<V2i> :
     not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
          (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))) or
          (z(hi(b0)) < z(lo(b1)) or z(lo(b0)) > z(hi(b1))))
+
+  public defn rnd (b:Box) -> BoxElt :
+    rnd(lo(b), hi(b))
 
 public defn times (mat:Mat44f, b:Box3f) -> Box3f :
   reduce(union, map(Box3f{ mat * _ }, corners(b)))
