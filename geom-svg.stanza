@@ -21,10 +21,11 @@ defn do-print-svg (s:OutputStream, assembly:Assembly) :
 
 defn do-print-svg (s:OutputStream, color:V4f, points:Seqable<V2f>, close?:True|False) :
   print(s, "<path d=\"")
+  defn to-int-channel (c:Float) : to-int $ round(c * 255.0f)
   for (p in points, i in 0 to false) do :  
     print-all(s, [" " ("M" when i == 0 else "L") " " x(p) " " y(p)])
-  print(s, " %_\" fill=\"none\" stroke=\"rgb(%_%%, %_%%, %_%%)\" stroke-width=\"%_\"/>" %
-           [("Z " when close? else "") 100.0f * x(color), 100.0f * y(color), 100.0f * z(color), *line-width*])
+  print(s, " %_\" fill=\"none\" stroke=\"rgb(%_, %_, %_)\" stroke-width=\"%_\"/>" %
+           [("Z " when close? else "") to-int-channel(x(color)), to-int-channel(y(color)), to-int-channel(z(color)), *line-width*])
 
 defn do-print-svg (s:OutputStream, color:V4f, contour:Contour) :
   do-print-svg(s, color, vertices(contour), true)

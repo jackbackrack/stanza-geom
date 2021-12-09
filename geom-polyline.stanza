@@ -106,7 +106,7 @@ public defn cubic-interpolate2 (l:Tuple<V2f>, n:Int) -> Seqable<V2f> :
 
 public defn cubic-interpolate2-wrapped (l:Tuple<V2f>, n:Int) -> Seqable<V2f> :
   val len = length(l)
-  val pts = to-tuple $ for i in 0 to len seq-cat :
+  val pts = to-tuple $ for i in 0 to (len - 1) seq-cat :
     val p0 = l[(i - 1 + len) % len]
     val p3 = l[(i + 2)       % len]
     for j in 0 to n seq :

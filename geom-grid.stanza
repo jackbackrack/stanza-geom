@@ -17,6 +17,9 @@ defpackage geom/grid :
 
 public val trace? = false
 
+protected extern malloc: long -> ptr<?>
+protected extern free: ptr<?> -> int
+
 extern todos_fab: () -> ptr<?>
 extern todos_del: (ptr<?>) -> int
 extern todos_clear: (ptr<?>) -> int
@@ -63,6 +66,8 @@ extern grid_convolve: (int, int, int, ptr<byte>, int, int, int, ptr<byte>, int, 
 extern grid_convolve_around: (int, int, int, ptr<byte>, int, int, int, ptr<byte>, int, int, int, ptr<byte>) -> int
 extern grid_dilate: (int, int, int, ptr<byte>, ptr<byte>) -> int
 extern grid_find_ones: (int, int, int, ptr<byte>, ptr<?>) -> int
+extern grid_ones_box: (int, int, int, ptr<byte>, ptr<int>, ptr<int>) -> int
+extern grid_count_ones: (int, int, int, ptr<byte>) -> int
 extern grid_hash: (int, int, int, ptr<byte>) -> int
 
 public lostanza defn fill (dst:ref<Grid>, v:ref<Byte>) -> ref<False> :
@@ -227,16 +232,27 @@ public defn get-value (g:Grid, i:Int, j:Int, k:Int) -> Byte :
 public defn get-value (g:Grid, pos:V3i) -> Byte :
   get-value(g, x(pos), y(pos), z(pos))
 
+public defn legal? (dims:V3i, i:Int, j:Int, k:Int) -> True|False :
+  i >= 0 and i < x(dims) and
+  j >= 0 and j < y(dims) and
+  k >= 0 and k < z(dims)
+
 public defn legal? (g:Grid, i:Int, j:Int, k:Int) -> True|False :
-  i >= 0 and i < x(idims(g)) and
-  j >= 0 and j < y(idims(g)) and
-  k >= 0 and k < z(idims(g))
+  legal?(idims(g), i, j, k)
 
 public defn legal? (g:Grid, pos:V3i) -> True|False :
   legal?(g, x(pos), y(pos), z(pos))
 
 public defn legal? (g:Grid, new-bbox:Box3i) -> True|False :
   legal?(g, lo(new-bbox)) and legal?(g, hi(new-bbox))
+
+public defn fits? (dims:V3i, i:Int, j:Int, k:Int) -> True|False :
+  i >= 0 and i <= x(dims) and
+  j >= 0 and j <= y(dims) and
+  k >= 0 and k <= z(dims)
+
+public defn fits? (outside:V3i, inside:V3i) -> True|False :
+  fits?(outside, x(inside), y(inside), z(inside))
 
 public defn get-value (g:Grid, pos:V3i, default:Byte) -> Byte :
   get-value(g, x(pos), y(pos), z(pos)) when legal?(g, pos) else default
@@ -441,6 +457,22 @@ public defn convolve-around (d:Grid, a:Grid, a-default:Byte, b:Grid) :
 ;;     for off in indices(legal) do :
 ;;       yield(off) when get-value(legal, off) == to-byte(1)
   
+defn default-box3i () : Box3i(V3i(0, 0, 0), V3i(0, 0, 0))
+
+public lostanza defn find-ones-box (g:ref<Grid>) -> ref<Box3i> :
+  val lo:ptr<int> = call-c malloc(3 * sizeof(int))
+  val hi:ptr<int> = call-c malloc(3 * sizeof(int))
+  call-c grid_ones_box(n-cols(g).value, n-rows(g).value, n-lays(g).value, addr!(data(g).data), lo, hi)
+  val res = Box3i(V3i(new Int{lo[0]}, new Int{lo[1]}, new Int{lo[2]}),
+                  V3i(new Int{hi[0]}, new Int{hi[1]}, new Int{hi[2]}))
+  call-c free(lo)
+  call-c free(hi)
+  return res
+
+public lostanza defn count-ones (g:ref<Grid>) -> ref<Int> :
+  val res = call-c grid_count_ones(n-cols(g).value, n-rows(g).value, n-lays(g).value, addr!(data(g).data))
+  return new Int{res}
+
 public defn true-indices (legal:Grid, trues:Todos) -> Seq<V3i> :
   find-ones(legal, trues)
   generate<V3i> :

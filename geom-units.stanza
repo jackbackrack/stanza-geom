@@ -13,3 +13,5 @@ public defn in-to-mm (v:V2f) -> V2f :
 
 public defn in-to-pt (i:Float) : i * 72.0f
 
+public defn in-to-px (i:Float) : i * 96.0f
+

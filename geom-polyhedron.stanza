@@ -3,6 +3,7 @@ defpackage geom/polyhedron :
   import collections
   import math
   import utils/seqable
+  import geom/angle
   import geom/vec
   import geom/box
   import geom/line-segment
@@ -83,7 +84,8 @@ public defn dihedral-angle (p:Polyhedron, e:Tuple<Int>) -> Float :
 public defn vertex-edge-angle (p:Polyhedron, v:Int, e:Tuple<Int>) -> Float :
   val ev = edge-vector(p, [e[0], e[1]], v)
   val vv = reduce(fn (a:V3f, b:V3f) : a + b, for ee in edges(p, v) seq: normalize(edge-vector(p, ee, v)))
-  ; val vv = -1.0f * vertices(p)[v]
+  ; val ovv = -1.0f * vertices(p)[v]
+  ; println("V %_ E %_ EV %_ VV %_ OVV %_" % [v, e, normalize(ev), normalize(vv), normalize(ovv)])
   angle(normalize(vv), normalize(ev))
 
 public defn edge-center (p:Polyhedron, e:Tuple<Int>) -> V3f :
@@ -174,4 +176,33 @@ public defn directed-edges (p:Polyhedron) -> Seq<DirectedEdge> :
 
 public defn directed-edges-from (p:Polyhedron, v:Int) -> Seq<DirectedEdge> :
   for e in directed-edges(p) filter : start(e) == v
+
+;Projected angles (in degrees) of connectors into xy plane
+public defn angles (p:Polyhedron, vid:Int) -> Seq<KeyValue<Int, Float>> :
+  ; println("ANGLES %_" % [id(node)])
+  val vec  = -1.0f * normalize(vertices(p)[vid])
+  ; println("VEC %_" % [vec])
+  val edges = to-tuple $ edges(p, vid)
+  val end-ids = to-tuple $ seq(end-id{_, vid}, edges)
+  ; println("EDGES %_" % [edges])
+  val vecs = to-tuple $ seq({ edge-vector(p, _, vid) }, edges)
+  ; println("VECS %_" % [vecs])
+  defn xform (b:V3f) :
+    val a = z3f(1.0f)
+    val ang = angle(a, b)
+    val cross = a % b
+    if magnitude(cross) <= 1.0e-06f :
+      if abs(ang) <= 1.0e-06f :
+        mag-mat44f(1.0f)
+      else :
+        mag-mat44f(V3f(-1.0f, 1.0f, 1.0f))
+    else :
+      rot-mat44f(cross, ang)
+  val norm-vecs = to-tuple $ for v in vecs seq : xform(vec) * v
+  ; println("NORM-VECS %_" % [norm-vecs])
+  val norm-vec2s = to-tuple $ seq(xy, norm-vecs)
+  ; println("NORM-VEC2S %_" % [norm-vec2s])
+  val angles = to-tuple $ for v in norm-vecs seq : radians-to-degrees(atan2(y(v), x(v)))
+  ; println("ANGLES %_" % [angles])
+  for (e in edges, a in angles) seq : end-id(e, vid) => a
 

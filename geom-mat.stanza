@@ -269,6 +269,10 @@ public defn rot-mat44f (src:V2f, dst:V2f) -> Mat44f :
           0.0f 0.0f 1.0f 0.0f
           0.0f 0.0f 0.0f 1.0f)
 
+public defn rot-mat44f (end:Tuple<V3f>) -> Mat44f :
+  val world = [x3f(1.0f), y3f(1.0f), z3f(1.0f)]
+  rot-mat44f(world, end)
+
 public defn rot-mat44f (m:Mat44f) -> Mat44f :
   Mat44f(m[ 0], m[ 1], m[ 2], 0.0f,
          m[ 4], m[ 5], m[ 6], 0.0f,

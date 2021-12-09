@@ -198,9 +198,9 @@ extern "C" void grid_convolve_around
   for (int dk = 0; dk < dd; dk++) {
     int edk = dk;
     for (int dj = 0; dj < (dh - mh); dj++) { 
-      int edj = dj - mh;
+      int edj = dj - mh;   // J OFFSET FOR PLACING MASK
       for (int di = 0; di < (dw - mw); di++) {
-        int edi = di - mw;
+        int edi = di - mw; // I OFFSET FOR PLACING MASK
         uint8_t pix = 0;
         // TODO: FIX THIS FOR 3D
         for (int mk = 0; mk < md; mk++) {
@@ -210,6 +210,7 @@ extern "C" void grid_convolve_around
               uint8_t a = get(src, sw, sh, sd, edmi, edmj, edmk); 
               uint8_t b = get(msk, mw, mh, md, edmi - edi, edmj - edj, mk);
               if ((a & b) != 0) { pix = 1; goto done; }
+              // pix = pix | (a & b);
             }
           }
         }
@@ -310,6 +311,49 @@ extern "C" void grid_convolve (int dw, int dh, int dd, uint8_t* dst, int sw, int
   }
 }
 */
+
+extern "C" void grid_ones_box (int w, int h, int d, uint8_t* src, v3i_t *lo, v3i_t *hi) {
+  int lo_x = 10000000;
+  int lo_y = 10000000;
+  int lo_z = 10000000;
+  int hi_x = -1;
+  int hi_y = -1;
+  int hi_z = -1;
+  for (int k = 0; k < d; k++) {
+    for (int j = 0; j < h; j++) {
+      for (int i = 0; i < w; i++) {
+        if (get(src, w, h, d, i, j, k) == 1) {
+          lo_x = min(lo_x, i);
+          lo_y = min(lo_y, j);
+          lo_z = min(lo_z, k);
+          hi_x = max(hi_x, i);
+          hi_y = max(hi_y, j);
+          hi_z = max(hi_z, k);
+        }
+      }
+    }
+  }
+  lo->x = lo_x;
+  lo->y = lo_y;
+  lo->z = lo_z;
+  hi->x = hi_x;
+  hi->y = hi_y;
+  hi->z = hi_z;
+}
+
+extern "C" int grid_count_ones (int w, int h, int d, uint8_t* src, v3i_t *lo, v3i_t *hi) {
+  int tot = 0;
+  for (int k = 0; k < d; k++) {
+    for (int j = 0; j < h; j++) {
+      for (int i = 0; i < w; i++) {
+        if (get(src, w, h, d, i, j, k) == 1) {
+          tot += 1;
+        }
+      }
+    }
+  }
+  return tot;
+}
 
 extern "C" std::vector<v3i_t> *todos_fab () {
   std::vector<v3i_t> *res = new std::vector<v3i_t>();
