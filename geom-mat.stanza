@@ -39,6 +39,12 @@ public defn Mat44f (m:Mat44f) -> Mat44f :
          m[2, 0], m[2, 1], m[2, 2], m[2, 3], 
          m[3, 0], m[3, 1], m[3, 2], m[3, 3])
 
+public defn Mat44f (m:Tuple<Float>) -> Mat44f :
+  Mat44f(m[ 0], m[ 1], m[ 2], m[ 3],
+         m[ 4], m[ 5], m[ 6], m[ 7],
+         m[ 8], m[ 9], m[10], m[11],
+         m[12], m[13], m[14], m[15])
+         
 lostanza defn mat44f-get (m:ref<Mat44f>, i:ref<Int>) -> ref<Float> :
   #if-not-defined(OPTIMIZE) :
      ensure-index-in-bounds(i, new Int{16})

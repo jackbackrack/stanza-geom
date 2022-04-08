@@ -11,12 +11,6 @@ public defstruct Quat <: Equalable :
   w: Float
   v: V3f
 
-public defn quat-from-axis (axis:V3f, rads:Float) -> Quat :
-  val angle = rads / 2.0f
-  val sin-angle = sin(angle)
-  val n = normalize(axis)
-  Quat(cos(angle), sin-angle * n)
-
 public defn quat-from-euler (radz:V3f) -> Quat :
   val [sr cr] = sin-cos-tup(0.5f * x(radz))
   val [sp cp] = sin-cos-tup(0.5f * y(radz))
@@ -25,6 +19,10 @@ public defn quat-from-euler (radz:V3f) -> Quat :
        V3f(cy * sr * cp - sy * cr * sp,
            cy * cr * sp + sy * sr * cp,
            sy * cr * cp - cy * sr * sp))
+
+public defn quat-from-axis (axis:V3f, rads:Float) -> Quat :
+  val angle = rads / 2.0f
+  Quat(cos(angle), sin(angle) * normalize(axis))
 
 val zero-quat = quat-from-axis(V3f(1.0f, 0.0f, 0.0f), 0.0f)
 
