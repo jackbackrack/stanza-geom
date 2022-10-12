@@ -333,13 +333,13 @@ public defn to-v3d (v:V3f) -> V3d :
   V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
 
 public defn to-v3i (v:V3f) -> V3i :
-  V3i(to-int(x(v)), to-int(y(v)), to-int(z(v)))
+  V3i(to-int(round(x(v))), to-int(round(y(v))), to-int(round(z(v))))
 
 public defn to-v3f (v:V3i) -> V3f :
   V3f(to-float(x(v)), to-float(y(v)), to-float(z(v)))
 
 public defn to-v2i (v:V2f) -> V2i :
-  V2i(to-int(x(v)), to-int(y(v)))
+  V2i(to-int(round(x(v))), to-int(round(y(v))))
 
 public defn to-v2f (v:V2i) -> V2f :
   V2f(to-float(x(v)), to-float(y(v)))
