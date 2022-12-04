@@ -1,5 +1,6 @@
 foreign-package-params(conan) :
   conan-build-dir: "{WORKDIR}/build"
+  conan-cache-dir: "{WORKDIR}/build"
   conan-install-extra-args: ["--build" "missing"]
 
 package geom/aabb-tree defined-in "geom-aabb-tree.stanza"
