@@ -43,7 +43,7 @@ package geom/grid requires :
     "{WORKDIR}/build/geom-grid.o"
   ccflags:
     on-platform:
-      os-x  : "-lc++"
+      os-x  : ("-lc++" "-mmacosx-version-min=13.0")
       linux : "-lstdc++"
 compile file "{WORKDIR}/build/geom-grid.o" from "geom-grid.cpp" :
   "g++ -c -O3 {.}/geom-grid.cpp -o {WORKDIR}/build/geom-grid.o"
