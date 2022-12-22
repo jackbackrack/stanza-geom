@@ -1,3 +1,8 @@
+foreign-package-params(conan) :
+  conan-build-dir: "{WORKDIR}/build"
+  conan-cache-dir: "{WORKDIR}/build"
+  conan-install-extra-args: ["--build" "missing"]
+
 package geom/aabb-tree defined-in "geom-aabb-tree.stanza"
 package geom/angle defined-in "geom-angle.stanza"
 package geom/assembly defined-in "geom-assembly.stanza"
@@ -38,7 +43,7 @@ package geom/grid requires :
     "{WORKDIR}/build/geom-grid.o"
   ccflags:
     on-platform:
-      os-x  : "-lc++"
+      os-x  : ("-lc++" "-mmacosx-version-min=13.0")
       linux : "-lstdc++"
 compile file "{WORKDIR}/build/geom-grid.o" from "geom-grid.cpp" :
   "g++ -c -O3 {.}/geom-grid.cpp -o {WORKDIR}/build/geom-grid.o"
@@ -48,10 +53,14 @@ package geom/clipper requires :
     "{WORKDIR}/build/geom-clipper.o"
   ccflags:
     on-platform:
-      os-x  : ("-lpolyclipping" "-lc++")
-      linux : ("-lpolyclipping" "-lstdc++")
+      os-x  : ("{CONAN-INCLUDES}" "-lc++")
+      linux : ("{CONAN-INCLUDES}" "-lstdc++")
+  foreign-packages(conan) :
+    "clipper/6.4.2"
 compile file "{WORKDIR}/build/geom-clipper.o" from "geom-clipper.cpp" :
-  "g++ -c -O3 {.}/geom-clipper.cpp -o {WORKDIR}/build/geom-clipper.o"
+  "g++ -c -O3 {.}/geom-clipper.cpp -o {WORKDIR}/build/geom-clipper.o {CONAN-INCLUDES}"
+
+package geom/dxf defined-in "geom-dxf.stanza"
 package geom/svg defined-in "geom-svg.stanza"
 package geom/svg requires :
   ccfiles:
@@ -69,5 +78,3 @@ package geom/serializer defined-in "geom-serializer.stanza"
 package geom/visualizer defined-in "geom-visualizer.stanza"
 package geom/shapes defined-in "geom-shapes.stanza"
 package repl-geom-eval defined-in "repl-geom-eval.stanza"
-
- 
