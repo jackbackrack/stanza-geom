@@ -32,9 +32,11 @@ val @doc-box = "BOXES -- tracking bounds"
   public defn contains? (b:Box, p:BoxElt) -> True|False :
     not empty?(b & Box(p))
 
+  ; WARNING: Integer overflow can cause this to be wrong if boxes are very large
   public defn center (b:Box) -> BoxElt :
     (lo(b) + hi(b)) / x2
 
+  ; WARNING: Integer overflow can cause this to be wrong if boxes are very large
   public defn dims (b:Box) -> BoxElt :
     hi(b) - lo(b)
 
@@ -63,8 +65,9 @@ val @doc-box = "BOXES -- tracking bounds"
   public defn fatten (b:Box, amount:BoxElt) -> Box :
     Box(lo(b) - amount, hi(b) + amount)
 
-  ;; public defn fatten (b:Box, dims:Prim) -> Box :
-  ;;   fatten(b, BoxElt-fill(dims))
+  ; Ideally this would just be an overload of `fatten`, but Prim and BoxElt are the same type for Box1
+  public defn thicken (b:Box, dims:Prim) -> Box :
+    fatten(b, BoxElt-fill(dims))
 
   public defn plus (b:Box, off:BoxElt) -> Box :
     Box(lo(b) + off, hi(b) + off)
@@ -83,6 +86,12 @@ val @doc-box = "BOXES -- tracking bounds"
 
   public defn clamp (b:Box, v:BoxElt) -> BoxElt :
     max(lo(b), min(hi(b), v))
+
+  public defn bounding-box (bs:Seqable<Box>) :
+    var result = neg-inf-box()
+    for b in bs do:
+      result = union(result, b)
+    result
 
 public defn indices (bounds:Box3i) -> Seq<V3i> :
   generate<V3i> :
@@ -103,6 +112,13 @@ public defn indices (bounds:Box2i) -> Seq<V2i> :
       Box3 in [Box3i Box3f Box3d]
       x0 in [0 0.0f 0.0]) :
 
+  public defn x (b:Box2): Box(x(lo(b)), x(hi(b)))
+  public defn y (b:Box2): Box(y(lo(b)), y(hi(b)))
+  
+  public defn x (b:Box3): Box(x(lo(b)), x(hi(b)))
+  public defn y (b:Box3): Box(y(lo(b)), y(hi(b)))
+  public defn z (b:Box3): Box(z(lo(b)), z(hi(b)))
+
   public defn xy (b:Box) : Box2(xy(lo(b)), xy(hi(b)))
 
   public defn xyz (b:Box) : Box3(xyz(lo(b)), xyz(hi(b)))
@@ -115,6 +131,21 @@ public defn indices (bounds:Box2i) -> Seq<V2i> :
 
   public defn intersects? (b0:Box, b1:Box) -> True|False :
     not (hi(b0) < lo(b1) or lo(b0) > hi(b1))
+
+  public defn closest-points (b0:Box, b1:Box) -> [BoxElt, BoxElt] :
+    ; +----+    +-----+
+    if hi(b0) <= lo(b1):
+      ; Don't intersect, b0 strictly less than b1
+      [hi(b0), lo(b1)]
+    else if hi(b1) <= lo(b0):
+      ; Don't intersect, b1 strictly less than b0
+      [hi(b1), lo(b0)]
+    else:
+      ; Nonempty intersection
+      ; Choose a point from the overlap
+      val intersection = (b0 & b1)
+      val c = center(intersection)
+      [c, c]
 
   public defn rnd (b:Box) -> BoxElt :
     rnd(lo(b), hi(b))
@@ -143,6 +174,11 @@ public defn indices (bounds:Box2i) -> Seq<V2i> :
   public defn intersects? (b0:Box, b1:Box) -> True|False :
     not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
          (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))))
+
+  public defn closest-points (b0:Box, b1:Box) -> [BoxElt, BoxElt] :
+    val [cx0, cx1] = closest-points(x(b0), x(b1))
+    val [cy0, cy1] = closest-points(y(b0), y(b1))
+    [BoxElt(cx0, cy0), BoxElt(cx1, cy1)]
 
   public defn rnd (b:Box) -> BoxElt :
     rnd(lo(b), hi(b))
@@ -178,21 +214,15 @@ public defn indices (bounds:Box2i) -> Seq<V2i> :
          (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))) or
          (z(hi(b0)) < z(lo(b1)) or z(lo(b0)) > z(hi(b1))))
 
-  public defn rnd (b:Box) -> BoxElt :
-    rnd(lo(b), hi(b))
-
 public defn times (mat:Mat44f, b:Box3f) -> Box3f :
   reduce(union, map(Box3f{ mat * _ }, corners(b)))
 
 public defn times (mat:Mat44f, b:Box2f) -> Box2f :
   reduce(union, map(Box2f{ xy(mat * xyz(_)) }, corners(b)))
 
-public val pos-inf-f =  1.0e6f
-public val neg-inf-f = -1.0e6f
-public val pos-inf-d =  1.0e6
-public val neg-inf-d = -1.0e6
-public val pos-inf-i =  (1 << 30)
-public val neg-inf-i = (-(1 << 30))
-
-
-
+public val pos-inf-f = FLOAT-POSITIVE-INFINITY
+public val neg-inf-f = FLOAT-NEGATIVE-INFINITY
+public val pos-inf-d = DOUBLE-POSITIVE-INFINITY
+public val neg-inf-d = DOUBLE-NEGATIVE-INFINITY
+public val pos-inf-i = INT-MAX
+public val neg-inf-i = INT-MIN
