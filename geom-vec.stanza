@@ -308,6 +308,9 @@ public defn indices (dims:V3i) -> Seq<V3i> :
   public defn map (f:Prim -> Prim, v:PrimVec) -> PrimVec :
     PrimVec(f(x(v)), f(y(v)))
 
+  public defn zip (f:(Prim, Prim) -> Prim, v0:PrimVec, v1:PrimVec):
+    PrimVec(f(x(v0), x(v1)), f(y(v0), y(v1)))
+
   public defn round (p:PrimVec) -> PrimVec :
     PrimVec(round(x(p)), round(y(p)))
 
@@ -333,16 +336,22 @@ public defn to-v3d (v:V3f) -> V3d :
   V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
 
 public defn to-v3i (v:V3f) -> V3i :
-  V3i(to-int(round(x(v))), to-int(round(y(v))), to-int(round(z(v))))
+  V3i(to-int(x(v)), to-int(y(v)), to-int(z(v)))
 
 public defn to-v3f (v:V3i) -> V3f :
   V3f(to-float(x(v)), to-float(y(v)), to-float(z(v)))
 
+public defn to-v3d (v:V3i) -> V3d :
+  V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
+
 public defn to-v2i (v:V2f) -> V2i :
-  V2i(to-int(round(x(v))), to-int(round(y(v))))
+  V2i(to-int(x(v)), to-int(y(v)))
 
 public defn to-v2f (v:V2i) -> V2f :
   V2f(to-float(x(v)), to-float(y(v)))
+
+public defn to-v2d (v:V2i) -> V2d :
+  V2d(to-double(x(v)), to-double(y(v)))
 
 public defn V2f (x:Double, y:Double) -> V2f :
   V2f(to-float(x), to-float(y))

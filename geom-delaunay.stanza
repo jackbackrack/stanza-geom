@@ -439,10 +439,17 @@ public defn on-edge (p:V2f, e:Edge) -> True|False :
       val my-eps = 0.1f * EPS * max(max(op, pd), od)
       abs(od - (op + pd)) < my-eps
 
+public defstruct AlreadyVisitedException <: Exception
+defmethod print (o:OutputStream, e:AlreadyVisitedException) :
+  print(o, "Edge already visited. Preventing infinite loop.")
+
 public defn locate (s:Subdivision, x:V2f) -> Edge :
   ;; println("LOCATE %_" % [x])
+  val visited = HashSet<Edge>()
   let loop (e:Edge = starting-edge(s)) :
     ;; println("LOOP %_" % [e])
+    if not add(visited, e) :
+      throw(AlreadyVisitedException())
     if x == value(org(e)) or x == value(dest(e)) :
       e
     else if right-of(x, e) :

@@ -18,7 +18,7 @@ public defmulti set-node (a:AABB, n:False|Node) -> False
 val gen-ids = to-seq $ 0 to false
 
 public deftype Node <: Equalable
-defmulti id (n:Node) -> Int
+public defmulti id (n:Node) -> Int
 defmulti parent (n:Node) -> False|Node
 defmulti set-parent (n:Node, p:False|Node) -> False
 public defmulti aabb (n:Node) -> Box2f
