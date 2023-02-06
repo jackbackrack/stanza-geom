@@ -1,0 +1,81 @@
+;; See license.txt for details about licensing.
+
+defpackage geom/dxf :
+  import core
+  import collections
+  import math
+  import utils/seqable
+  import geom/vec
+  import geom/box
+  import geom/polygon
+  import geom/line-segment
+  import geom/polyline
+  import geom/bounded
+  import geom/poseable
+  import geom/assembly
+
+defn do-print-dxf (s:OutputStream, assembly:Assembly) :
+  for elt in children(assembly) do :
+    match(elt) :
+      (c:PolyLine2f|Polygon|Assembly) : do-print-dxf(s, xyz(mat(assembly), c))
+      (c) : false
+
+defn do-print-dxf (s:OutputStream, x:Float, code:Int) :
+  println(s, code)
+  println(s, x)
+
+defn do-print-dxf (s:OutputStream, pt:V2f, offset:Int) :
+  do-print-dxf(s, x(pt), 10 + offset)
+  do-print-dxf(s, y(pt), 20 + offset)
+  do-print-dxf(s, 0.0f,  30 + offset)
+
+defn do-print-dxf (s:OutputStream, color:V4f, start:V2f, end:V2f) :
+  println(s, "0")
+  println(s, "LINE")
+  println(s, "8")
+  println(s, "0")
+  do-print-dxf(s, start, 0)
+  do-print-dxf(s, end,   1)
+
+
+defn do-print-dxf (s:OutputStream, color:V4f, points:Seqable<V2f>, close?:True|False) :
+  val pts = to-tuple $ points
+  if close? :
+    for [b,e] in successive-pairs-wrapped(pts) do : do-print-dxf(s, color, b, e)
+  else :
+    for [b,e] in successive-pairs(pts) do : do-print-dxf(s, color, b, e)
+
+defn do-print-dxf (s:OutputStream, color:V4f, contour:Contour) :
+  do-print-dxf(s, color, vertices(contour), true)
+
+defn do-print-dxf-header (s:OutputStream, bounds:Box2f, f:OutputStream -> False) :
+  println(s, "0")
+  println(s, "SECTION")
+  println(s, "2")
+  println(s, "ENTITIES")
+  f(s)
+  println(s, "0")
+  println(s, "ENDSEC")
+  println(s, "0")
+  println(s, "EOF")
+
+defn do-print-dxf (s:OutputStream, polygon:Polygon) :
+  for c in contours(polygon) do :
+    do-print-dxf(s, color(polygon), c)
+
+defn do-print-dxf (s:OutputStream, polyline:PolyLine2f) :
+  for line in strokes(polyline) do :
+    do-print-dxf(s, color(polyline), line, false)
+
+defn dxf (s:OutputStream, g:Assembly|PolyLine2f|Polygon, bbox:Box2f) :
+  do-print-dxf-header(s, bbox, { (
+    val mg = mov(xyz(-1.0f * lo(bbox)), g)
+    do-print-dxf(s, mg) ) } )
+
+public defn dxf (g:Assembly|PolyLine2f|Polygon, filename:String, bbox:Box2f) :
+  val s = FileOutputStream(filename)
+  try : dxf(s, g, bbox)
+  finally : close(s)
+
+public defn dxf (g:Assembly|PolyLine2f|Polygon, filename:String, margin:V2f) :
+  dxf(g, filename, fatten(xy(bounds(g)), margin))

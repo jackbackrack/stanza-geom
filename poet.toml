@@ -1,4 +1,4 @@
 name = "stanza-geom"
-version = "0.1.6"
+version = "0.1.7"
 [dependencies]
 stanza-utils = "jackbackrack/stanza-utils|0.1.1"
