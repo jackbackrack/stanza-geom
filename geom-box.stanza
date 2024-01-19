@@ -167,9 +167,9 @@ public defn indices (bounds:Box2i) -> Seq<V2i> :
   public defn corners (b:Box) -> Tuple<BoxElt> :
     val [l, h] = [lo(b), hi(b)]
     [BoxElt(x(l), y(l)),
-     BoxElt(x(l), y(h)), 
+     BoxElt(x(h), y(l)), 
      BoxElt(x(h), y(h)),
-     BoxElt(x(h), y(l))] 
+     BoxElt(x(l), y(h))] 
 
   public defn intersects? (b0:Box, b1:Box) -> True|False :
     not ((x(hi(b0)) < x(lo(b1)) or x(lo(b0)) > x(hi(b1))) or
@@ -214,15 +214,19 @@ public defn indices (bounds:Box2i) -> Seq<V2i> :
          (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))) or
          (z(hi(b0)) < z(lo(b1)) or z(lo(b0)) > z(hi(b1))))
 
-public defn times (mat:Mat44f, b:Box3f) -> Box3f :
-  reduce(union, map(Box3f{ mat * _ }, corners(b)))
+public defn times (mat:Mat44d, b:Box3d) -> Box3d :
+  reduce(union, map(Box3d{ mat * _ }, corners(b)))
 
-public defn times (mat:Mat44f, b:Box2f) -> Box2f :
-  reduce(union, map(Box2f{ xy(mat * xyz(_)) }, corners(b)))
+public defn times (mat:Mat44d, b:Box2d) -> Box2d :
+  reduce(union, map(Box2d{ xy(mat * xyz(_)) }, corners(b)))
 
-public val pos-inf-f = FLOAT-POSITIVE-INFINITY
-public val neg-inf-f = FLOAT-NEGATIVE-INFINITY
-public val pos-inf-d = DOUBLE-POSITIVE-INFINITY
-public val neg-inf-d = DOUBLE-NEGATIVE-INFINITY
+public val pos-inf-f = FLOAT-MAX
+public val neg-inf-f = -1.0f * FLOAT-MAX
+public val pos-inf-d = DOUBLE-MAX
+public val neg-inf-d = -1.0 * DOUBLE-MAX
+; public val pos-inf-f = FLOAT-POSITIVE-INFINITY
+; public val neg-inf-f = FLOAT-NEGATIVE-INFINITY
+; public val pos-inf-d = DOUBLE-POSITIVE-INFINITY
+; public val neg-inf-d = DOUBLE-NEGATIVE-INFINITY
 public val pos-inf-i = INT-MAX
 public val neg-inf-i = INT-MIN

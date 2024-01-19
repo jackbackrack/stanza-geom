@@ -51,14 +51,16 @@ package geom/clipper defined-in "geom-clipper.stanza"
 package geom/clipper requires :
   ccfiles:
     "{WORKDIR}/build/geom-clipper.o"
+    ; ("{WORKDIR}/build/geom-clipper.o" "/Users/jrb/cons.new/.poet/build/.conan/data/clipper2/1.3.0/_/_/package/79371f921b4f8a102c89fbe539d748e098bfac47/lib/libClipper2.a")
   ccflags:
     on-platform:
       os-x  : ("{CONAN-INCLUDES}" "-lc++")
       linux : ("{CONAN-INCLUDES}" "-lstdc++")
   foreign-packages(conan) :
-    "clipper/6.4.2"
+    "clipper2/1.3.0"
 compile file "{WORKDIR}/build/geom-clipper.o" from "geom-clipper.cpp" :
-  "g++ -c -O3 {.}/geom-clipper.cpp -o {WORKDIR}/build/geom-clipper.o {CONAN-INCLUDES}"
+  ; "g++ -c -O3 -std=c++17 {.}/geom-clipper.cpp -o {WORKDIR}/build/geom-clipper.o {CONAN-INCLUDES}"
+  "g++ -c -O3 -std=c++17 {.}/geom-clipper.cpp -o {WORKDIR}/build/geom-clipper.o -I/Users/jrb/cons.new/.poet/build/.conan/data/clipper2/1.3.0/_/_/package/79371f921b4f8a102c89fbe539d748e098bfac47/include"
 
 package geom/dxf defined-in "geom-dxf.stanza"
 package geom/svg defined-in "geom-svg.stanza"

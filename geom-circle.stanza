@@ -10,8 +10,8 @@ defpackage geom/circle :
 val @doc-circle = "CIRCLE -- a circle"
 
 public defstruct Circle <: Equalable & Geom :
-  center : V2f
-  radius : Float
+  center : V2d
+  radius : Double
 
 defmethod equal? (a:Circle, b:Circle) -> True|False :
   center(a) == center(b) and radius(a) == radius(b)
@@ -19,86 +19,86 @@ defmethod equal? (a:Circle, b:Circle) -> True|False :
 defmethod print (o:OutputStream, c:Circle) :
   print(o, "Circle(%_, %_)" % [center(c), radius(c)])
 
-public defn distance (c:Circle, p:V2f) -> Float :
+public defn distance (c:Circle, p:V2d) -> Double :
   distance(center(c), p)
 
-public defn inside? (c:Circle, p:V2f) -> True|False :
+public defn inside? (c:Circle, p:V2d) -> True|False :
   distance(c, p) < radius(c)
 
-public defn outer-tangent (c0:Circle, c1:Circle) -> LineSegment2f :
-  val gamma = -1.0f * atan2(center(c1) - center(c0))
+public defn outer-tangent (c0:Circle, c1:Circle) -> LineSegment2 :
+  val gamma = -1.0 * atan2(center(c1) - center(c0))
   val beta = asin((radius(c1) - radius(c0)) / distance(center(c0), center(c1)))
   val alpha = gamma - beta
-  val sc = cos-sin(0.5f * PI-F - alpha)
+  val sc = cos-sin(0.5 * PI - alpha)
   val t0 = center(c0) + radius(c0) * sc
   val t1 = center(c1) + radius(c1) * sc
-  LineSegment2f(t0, t1)
+  LineSegment2(t0, t1)
 
-public defn reflect-point (l:LineSegment2f, p:V2f, dir:Float) -> V2f :
+public defn reflect-point (l:LineSegment2, p:V2d, dir:Double) -> V2d :
   val pv = p - start(l)
   val lv = end(l) - start(l)
   val a = angle(pv, lv)
   start(l) + rot2(pv, dir * a)
 
-public defn reflect-tangent (c0:Circle, c1:Circle, t:LineSegment2f, dir:Float) -> LineSegment2f :
-  val rp0 = reflect-point(LineSegment2f(center(c0), center(c1)), start(t), dir * 2.0f)
-  val rp1 = reflect-point(LineSegment2f(center(c1), center(c0)), end(t),   2.0f)
-  LineSegment2f(rp0, rp1)
+public defn reflect-tangent (c0:Circle, c1:Circle, t:LineSegment2, dir:Double) -> LineSegment2 :
+  val rp0 = reflect-point(LineSegment2(center(c0), center(c1)), start(t), dir * 2.0)
+  val rp1 = reflect-point(LineSegment2(center(c1), center(c0)), end(t),   2.0)
+  LineSegment2(rp0, rp1)
 
-public defn reflect-outer-tangent (c0:Circle, c1:Circle, t:LineSegment2f) -> LineSegment2f :
-  reflect-tangent(c0, c1, t, -1.0f)
+public defn reflect-outer-tangent (c0:Circle, c1:Circle, t:LineSegment2) -> LineSegment2 :
+  reflect-tangent(c0, c1, t, -1.0)
 
-public defn outer-tangents (c0:Circle, c1:Circle) -> [LineSegment2f, LineSegment2f] :
+public defn outer-tangents (c0:Circle, c1:Circle) -> [LineSegment2, LineSegment2] :
   val t0 = outer-tangent(c0, c1)
   [t0, reflect-outer-tangent(c0, c1, t0)]
 
-public defn homothetic-center (c0:Circle, c1:Circle) -> V2f :
+public defn homothetic-center (c0:Circle, c1:Circle) -> V2d :
   (radius(c1) / (radius(c0) + radius(c1))) * center(c0) + (radius(c0) / (radius(c0) + radius(c1))) * center(c1)
 
-public defn tangent-point (c:Circle, p:V2f) -> V2f :
+public defn tangent-point (c:Circle, p:V2d) -> V2d :
   val del = center(c) - p
   val dist = magnitude(del)
   val side = sqrt(sqr(dist) - sqr(radius(c)))
   val theta = asin(radius(c) / dist)
   p + side * rot2(normalize(del), theta)
 
-public defn inner-tangent (c0:Circle, c1:Circle) -> LineSegment2f :
+public defn inner-tangent (c0:Circle, c1:Circle) -> LineSegment2 :
   val c = homothetic-center(c0, c1)
   val t0 = tangent-point(c0, c)
   val t1 = tangent-point(c1, c)
-  LineSegment2f(t0, t1)
+  LineSegment2(t0, t1)
 
-public defn reflect-inner-tangent (c0:Circle, c1:Circle, t:LineSegment2f) -> LineSegment2f :
-  reflect-tangent(c0, c1, t, 1.0f)
+public defn reflect-inner-tangent (c0:Circle, c1:Circle, t:LineSegment2) -> LineSegment2 :
+  reflect-tangent(c0, c1, t, 1.0)
 
-public defn inner-tangents (c0, c1) -> [LineSegment2f, LineSegment2f] :
+public defn inner-tangents (c0, c1) -> [LineSegment2, LineSegment2] :
   val t0 = inner-tangent(c0, c1)
   [t0, reflect-inner-tangent(c0, c1, t0)]
 
-public defn normalize-half-angle (a:Float) -> Float :
-  (a + PI-F) % (2.0f * PI-F) - PI-F
+public defn normalize-half-angle (a:Double) -> Double :
+  (a + PI) % (2.0 * PI) - PI
 
-public defn angle-delta (a0:Float, a1:Float) -> Float :
+public defn angle-delta (a0:Double, a1:Double) -> Double :
   val a = normalize-half-angle(a0 - a1)
-  a when abs(a) <= PI-F else ((2.0f * PI-F - abs(a)) * -1.0f * sign(a))
+  a when abs(a) <= PI else ((2.0 * PI - abs(a)) * -1.0 * sign(a))
 
-public defn angle (c:Circle, p:V2f) -> Float :
+public defn angle (c:Circle, p:V2d) -> Double :
   atan2(p - center(c))
 
-public defn point-delta (p0:V2f, p1:V2f, c:Circle, trace?:True|False) -> Float :
+public defn point-delta (p0:V2d, p1:V2d, c:Circle, trace?:True|False) -> Double :
   angle-delta(angle(c, p0), angle(c, p1))
 
-public defn point-delta (tangent:LineSegment2f, ls:LineSegment2f, c0:Circle, c1:Circle) -> Float :
+public defn point-delta (tangent:LineSegment2, ls:LineSegment2, c0:Circle, c1:Circle) -> Double :
   val sd = abs(point-delta(start(tangent), start(ls), c0, false))
   val ed = abs(point-delta(end(tangent),   end(ls),   c1, false))
   sd + ed
 
-public defn tangents (c0:Circle, c1:Circle) -> Seq<LineSegment2f> :
+public defn tangents (c0:Circle, c1:Circle) -> Seq<LineSegment2> :
   cat(outer-tangents(c0, c1), inner-tangents(c0, c1))
 
-public defn closest-tangent (c0:Circle, c1:Circle, ls:LineSegment2f) -> LineSegment2f :
-  var best-tangent:LineSegment2f
-  var min-delta:Float = 1.0e3f
+public defn closest-tangent (c0:Circle, c1:Circle, ls:LineSegment2) -> LineSegment2 :
+  var best-tangent:LineSegment2
+  var min-delta:Double = 1.0e3
   var best-index:Int = -1
   for (tangent in tangents(c0, c1), i in 0 to false) do :
     val delta = point-delta(tangent, ls, c0, c1)
@@ -108,29 +108,29 @@ public defn closest-tangent (c0:Circle, c1:Circle, ls:LineSegment2f) -> LineSegm
       best-index = i
   best-tangent
 
-public defn arc (c:Circle, sp:V2f, ep:V2f, iinc:Float) -> Seqable<V2f> :
+public defn arc (c:Circle, sp:V2d, ep:V2d, iinc:Double) -> Seqable<V2d> :
   val delta = point-delta(ep, sp, c, true)
   val n = abs(ceil(delta / iinc))
-  val inc = 0.0f when n == 0.0f else (delta / n)
+  val inc = 0.0 when n == 0.0 else (delta / n)
   val sv = sp - center(c)
   for i in 0 through to-int(n) seq :
-    center(c) + rot2(sv, inc * to-float(i))
+    center(c) + rot2(sv, inc * to-double(i))
 
-public defn intersection? (c:Circle, ls:LineSegment2f) -> True|False :
+public defn intersection? (c:Circle, ls:LineSegment2) -> True|False :
   val d = end(ls) - start(ls)
   val f = start(ls) - center(c)
   val a = dot(d, d)
-  val b = 2.0f * dot(f, d)
+  val b = 2.0 * dot(f, d)
   val e = dot(f, f) - sqr(radius(c))
-  val sqr-discriminant = sqr(b) - 4.0f * a * e
+  val sqr-discriminant = sqr(b) - 4.0 * a * e
   val res =
-    if sqr-discriminant < 0.0f :
+    if sqr-discriminant < 0.0 :
       false
     else :
       val discriminant = sqrt(sqr-discriminant)
-      val t1 = ((- b) - discriminant) / (2.0f * a)
-      val t2 = ((- b) + discriminant) / (2.0f * a)
-      (t1 >= 0.0f and t1 <= 1.0f) or (t2 >= 0.0f and t2 <= 1.0f)
+      val t1 = ((- b) - discriminant) / (2.0 * a)
+      val t2 = ((- b) + discriminant) / (2.0 * a)
+      (t1 >= 0.0 and t1 <= 1.0) or (t2 >= 0.0 and t2 <= 1.0)
   ;; println("C %_ LS %_ SQR-DISCRIMINANT %_ RES %_" % [c, ls, sqr-discriminant, res])
   res
 

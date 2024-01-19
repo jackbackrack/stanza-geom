@@ -23,20 +23,8 @@ defpackage geom/gfx:
   import gfx/drawing
   import gfx/font
 
-extern glLoadMatrixf: (ptr<float>) -> int
-extern glMultMatrixf: (ptr<float>) -> int
-
-public defn gl-color3 (v:V3f) : gl-color3f(x(v), y(v), z(v))
-
-public defn gl-color4 (v:V4f) : gl-color4f(x(v), y(v), z(v), a(v))
-
-public defn gl-vertex3 (v:V3f) : gl-vertex3f(x(v), y(v), z(v))
-
-public defn gl-vertex2 (v:V2f) : gl-vertex2f(x(v), y(v))
-
-public defn gl-translate3 (v:V3f) : gl-translatef(x(v), y(v), z(v))
-
-public defn gl-translate2 (v:V2f) : gl-translatef(x(v), y(v), 0.0f)
+extern glLoadMatrixd: (ptr<double>) -> int
+extern glMultMatrixd: (ptr<double>) -> int
 
 public defmulti render (g:Geom) -> False
 
@@ -47,61 +35,61 @@ public defn compile (g:Geom) -> DisplayList :
   gl-end-list(dl)
   dl
 
-defmethod render (p:V3f) -> False :
+defmethod render (p:V3d) -> False :
   gl-begin(GL-POINTS)
-  gl-vertex3(p)
+  gl-vertex(p)
   gl-end()
 
-defmethod render (p:V2f) -> False :
+defmethod render (p:V2d) -> False :
   gl-begin(GL-POINTS)
-  gl-vertex2(p)
+  gl-vertex(p)
   gl-end()
 
-defmethod render (box:Box3f) -> False :
+defmethod render (box:Box3d) -> False :
   gl-begin(GL-LINE-LOOP)
-  gl-vertex3(lo(box))
-  gl-vertex3(hi(box))
+  gl-vertex(lo(box))
+  gl-vertex(hi(box))
   gl-end()
 
 defmethod render (msg:Msg) -> False :
-  draw-text(2.0f, 2.0f, *font*, value(msg))
+  draw-text(2.0, 2.0, *font*, value(msg))
 
-defmethod render (poly:PolyLine3f) -> False :
+defmethod render (poly:PolyLine3) -> False :
   gl-push-attrib(GL-CURRENT-BIT)
   gl-color(color(poly))
   for s in strokes(poly) do :
     gl-begin(GL-LINE-STRIP)
     for p in s do :
-      gl-vertex3(p)
+      gl-vertex(p)
     gl-end()
   gl-pop-attrib()
 
-defmethod render (poly:PolyLine2f) -> False :
+defmethod render (poly:PolyLine2) -> False :
   gl-push-attrib(GL-CURRENT-BIT)
   gl-color(color(poly))
   for s in strokes(poly) do :
     gl-begin(GL-LINE-STRIP)
     for p in s do :
-      gl-vertex2(p)
+      gl-vertex(p)
     gl-end()
   gl-pop-attrib()
 
-defmethod render (seg:LineSegment2f) -> False :
+defmethod render (seg:LineSegment2) -> False :
   gl-begin(GL-LINES)
-  gl-vertex2(start(seg))
-  gl-vertex2(end(seg))
+  gl-vertex(start(seg))
+  gl-vertex(end(seg))
   gl-end()
 
-defmethod render (seg:LineSegment3f) -> False :
+defmethod render (seg:LineSegment3) -> False :
   gl-begin(GL-LINES)
-  gl-vertex3(start(seg))
-  gl-vertex3(end(seg))
+  gl-vertex(start(seg))
+  gl-vertex(end(seg))
   gl-end()
 
 defmethod render (tri:Triangle) -> False :
   gl-begin(GL-LINE-LOOP)
   for p in vertices(tri) do :
-    gl-vertex2(p)
+    gl-vertex(p)
   gl-end()
 
 defmethod render (c:Circle) -> False :
@@ -113,7 +101,7 @@ defmethod render (c:Circle) -> False :
 defmethod render (contour:Contour) -> False :
   gl-begin(GL-LINE-LOOP)
   for p in vertices(contour) do :
-    gl-vertex2(p)
+    gl-vertex(p)
   gl-end()
 
 defmethod render (poly:Polygon) -> False :
@@ -139,17 +127,17 @@ defmethod render (mesh:Mesh) -> False :
   gl-color(color(mesh))
   for t in faces(mesh) do :
     gl-begin(GL-TRIANGLES)
-    gl-vertex3(verts[x(t)])
-    gl-vertex3(verts[y(t)])
-    gl-vertex3(verts[z(t)])
+    gl-vertex(verts[x(t)])
+    gl-vertex(verts[y(t)])
+    gl-vertex(verts[z(t)])
     gl-end()
-  gl-line-width(2.0f)
-  gl-color4f(0.5f, 0.2f, 0.2f, 0.4f)
+  gl-line-width(2.0)
+  gl-color(0.5, 0.2, 0.2, 0.4)
   for t in faces(mesh) do :
     gl-begin(GL-LINE-LOOP)
-    gl-vertex3(verts[x(t)])
-    gl-vertex3(verts[y(t)])
-    gl-vertex3(verts[z(t)])
+    gl-vertex(verts[x(t)])
+    gl-vertex(verts[y(t)])
+    gl-vertex(verts[z(t)])
     gl-end()
   gl-pop-attrib()
 
@@ -158,41 +146,41 @@ defmethod render (cells:Pixels) :
   val dim = dim(cells)
   gl-push-matrix()
   val dims = idims(cells)
-  val ext = 0.5f * dim * to-v3f(dims)
+  val ext = 0.5 * dim * to-v3d(dims)
   gl-push-matrix()
-  val off = -1.0f * ext + xyz(V2f-fill(0.5f * dim))
-  gl-translatef(x(off), y(off), 0.0f)
+  val off = -1.0 * ext + xyz(V2d-fill(0.5 * dim))
+  gl-translate(x(off), y(off), 0.0)
   for pos in indices(dims) do :
     gl-push-matrix()
-    val p = to-v3f(pos)
+    val p = to-v3d(pos)
     val c = cells[pos]
-    gl-translatef(x(p) * dim, y(p) * dim, 0.0f)
-    gl-scalef(0.95f, 0.95f, 0.95f)
-    gl-color4f(to-float $ c, 0.0f, 0.0f, 0.8f)
+    gl-translate(x(p) * dim, y(p) * dim, 0.0)
+    gl-scale(0.95, 0.95, 0.95)
+    gl-color(to-double $ c, 0.0, 0.0, 0.8)
     draw-quad(dim, dim)
     gl-pop-matrix()
   gl-pop-matrix()
-  gl-color4f(1.0f, 1.0f, 1.0f, 1.0f)
-  draw-rect(to-float(x(dims)) * dim, to-float(y(dims)) * dim)
+  gl-color(1.0, 1.0, 1.0, 1.0)
+  draw-rect(to-double(x(dims)) * dim, to-double(y(dims)) * dim)
   gl-pop-matrix()
   gl-pop-attrib()
 
 defmethod render (g:GeomGroup) :
   do(render, elts(g))
 
-public lostanza defn gl-load-matrix (m:ref<Mat44f>) -> ref<False> :
-  call-c glLoadMatrixf(addr!(m.m00))
+public lostanza defn gl-load-matrix (m:ref<Mat44d>) -> ref<False> :
+  call-c glLoadMatrixd(addr!(m.m00))
   return false
 
-public lostanza defn gl-mult-matrix (m:ref<Mat44f>) -> ref<False> :
-  call-c glMultMatrixf(addr!(m.m00))
+public lostanza defn gl-mult-matrix (m:ref<Mat44d>) -> ref<False> :
+  call-c glMultMatrixd(addr!(m.m00))
   return false
 
 public defn render-begin (t:Transformation) :
   gl-matrix-mode(GL-PROJECTION)
   gl-push-matrix()
-  gl-translate2(mov(t))
-  gl-scalef(mag(t), mag(t), mag(t))
+  gl-translate(mov(t))
+  gl-scale(mag(t), mag(t), mag(t))
   gl-matrix-mode(GL-MODELVIEW)
   gl-push-matrix()
   gl-mult-matrix(rot(ball(t)))
@@ -202,12 +190,12 @@ public defn render-model-begin (t:Transformation) :
   gl-push-matrix()
   gl-matrix-mode(GL-MODELVIEW)
   gl-push-matrix()
-  ;; gl-translate2(mov(t))
-  ;; gl-scalef(mag(t), mag(t), mag(t))
-  val imov = -1.0f * mov(t) / mag(t)
-  val imag = 1.0f / mag(t)
-  gl-translate2(imov)
-  gl-scalef(imag, imag, imag)
+  ;; gl-translate(mov(t))
+  ;; gl-scale(mag(t), mag(t), mag(t))
+  val imov = -1.0 * mov(t) / mag(t)
+  val imag =  1.0 / mag(t)
+  gl-translate(imov)
+  gl-scale(imag, imag, imag)
   gl-mult-matrix(rot(ball(t)))
 
 public defn render-end (t:Transformation) :

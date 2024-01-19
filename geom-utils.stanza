@@ -1,7 +1,7 @@
 defpackage geom/utils :
   import core
 
-public val EPS = 1.0e-5f
+public val EPS = 1.0e-5
 
 public defn ensure-index-in-bounds (i:Int, n:Int) :
   #if-defined(OPTIMIZE) :

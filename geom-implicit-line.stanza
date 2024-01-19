@@ -4,43 +4,43 @@ defpackage geom/implicit-line :
   import geom/utils
 
 public defstruct ImplicitLine :
-  a : Float
-  b : Float
-  c : Float
+  a : Double
+  b : Double
+  c : Double
 
-public defn ImplicitLine (p:V2f, q:V2f) :
+public defn ImplicitLine (p:V2d, q:V2d) :
   ImplicitLine(y(q) - y(p), x(p) - x(q), x(q) * y(p) - y(q) * x(p))
 
-public defn inside? (l:ImplicitLine, p:V2f) -> True|False :
-  (a(l) * x(p) + b(l) * y(p) + c(l)) <= 0.0f
+public defn inside? (l:ImplicitLine, p:V2d) -> True|False :
+  (a(l) * x(p) + b(l) * y(p) + c(l)) <= 0.0
 
-public defn ImplicitLine2 (p:V2f, q:V2f) :
+public defn ImplicitLine2 (p:V2d, q:V2d) :
   val t = q - p
   val len = magnitude(t)
   val a = y(t) / len
   val b = (- x(t)) / len
-  val c = -0.5f * ((a * x(p) + b * y(p)) + (a * x(q) + b * y(q)))
+  val c = -0.5 * ((a * x(p) + b * y(p)) + (a * x(q) + b * y(q)))
   ImplicitLine(a, b, c)
 
-public defn eval (l:ImplicitLine, p:V2f) -> Float :
+public defn eval (l:ImplicitLine, p:V2d) -> Double :
   a(l) * x(p) + b(l) * y(p) + c(l)
   
-public defn intersect (l:ImplicitLine, p1:V2f, p2:V2f) -> V2f :
+public defn intersect (l:ImplicitLine, p1:V2d, p2:V2d) -> V2d :
   ;; assumes that segment (p1, p2) crosses the line
   val d = p2 - p1
   val t = (- eval(l, p1)) / (a(l) * x(d) + b(l) * y(d))
   p1 + t * d
 
-public defn classify (l:ImplicitLine, p:V2f) -> Int :
+public defn classify (l:ImplicitLine, p:V2d) -> Int :
   val d = eval(l, p)
   -1 when (d < (- EPS)) else (1 when (d > EPS) else 0)
 
-public defn on? (l:ImplicitLine, p:V2f) -> True|False :
+public defn on? (l:ImplicitLine, p:V2d) -> True|False :
   val tmp = eval(l, p)
   val res = abs(tmp) <= EPS
   ;; println("ON? %_ P %_ RES %_ TMP %_" % [l, p, res, tmp])
   res
 
-public defn left? (l:ImplicitLine, p:V2f) -> True|False :
+public defn left? (l:ImplicitLine, p:V2d) -> True|False :
   eval(l, p) < (- EPS)
 

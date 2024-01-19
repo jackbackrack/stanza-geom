@@ -11,9 +11,9 @@ val @doc-assembly = "ASSEMBLY -- grouping poseables"
 
 public deftype Assembly<T> <: Poseable
 public defmulti children (a:Assembly) -> Tuple<Poseable>
-public defmulti mat (l:Assembly) -> Mat44f
+public defmulti mat (l:Assembly) -> Mat44d
 
-public defn Assembly<?T> (mat:Mat44f, name:False|Symbol, color:V4f, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
+public defn Assembly<?T> (mat:Mat44d, name:False|Symbol, color:V4d, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
   val children = to-tuple $ poseables
   ;; if length(children) == 0 : fatal("EMPTY CHILDREN")
   new Assembly<T> :
@@ -29,14 +29,14 @@ public defn Assembly<?T> (mat:Mat44f, name:False|Symbol, color:V4f, poseables:Se
 public defn ungroup (a:Assembly) -> Seqable<Poseable> :
   seq(rgb{color(a), _}, seq(xyz{mat(a), _}, children(a)))
 
-defmethod clone (p:Assembly, name:False|Symbol, color:V4f, poses:Tuple<KeyValue<Symbol,Mat44f>>, tags:Tuple<Symbol>) -> Assembly :
+defmethod clone (p:Assembly, name:False|Symbol, color:V4d, poses:Tuple<KeyValue<Symbol,Mat44d>>, tags:Tuple<Symbol>) -> Assembly :
   Assembly(mat(p), name, color, children(p))
 
-public defn Assembly<?T> (mat:Mat44f, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
+public defn Assembly<?T> (mat:Mat44d, poseables:Seqable<?T&Poseable>) -> Assembly<T> :
   Assembly(mat, false, WHITE, poseables)
   
 public defn Assembly<?T> (poseables:Seqable<?T&Poseable>) -> Assembly<T> :
-  Assembly(id-mat44f(), poseables)
+  Assembly(id-mat44d(), poseables)
   
 public defmethod get (s:AnyShape, iname:Symbol) -> False|AnyShape :
   s when iname == name(s)
@@ -67,6 +67,6 @@ public defn group (poseables:Seqable<Poseable>) : Assembly(poseables)
 defmethod print (s:OutputStream, a:Assembly) :
   print(s, "Assembly(%_ %,)" % [name(a), children(a)])
 
-public defmethod xyz (xf:Mat44f, a:Assembly) :
+public defmethod xyz (xf:Mat44d, a:Assembly) :
   Assembly(mat(a) * xf, name(a), color(a), children(a))
 

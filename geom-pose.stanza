@@ -10,20 +10,20 @@ defpackage geom/pose :
 val @doc-pose = "POSE -- representing translation and rotation"
 
 public defstruct Pose :
-  mov: V3f
-  rot: V3f
+  mov: V3d
+  rot: V3d
 
-public defn Pose (mov:V3f) : Pose(mov, V3f(0.0f, 0.0f))
-public defn Pose () : Pose(V3f(0.0f, 0.0f))
+public defn Pose (mov:V3d) : Pose(mov, V3d(0.0, 0.0))
+public defn Pose () : Pose(V3d(0.0, 0.0))
 
 val id-Pose = Pose()
 
-public defn to-mat44f (p:Pose) -> Mat44f :
-  (quat-to-mat44f $ quat-from-euler $ degrees-to-radians $ rot(p)) * mov-mat44f(mov(p))
+public defn to-mat44d (p:Pose) -> Mat44d :
+  (quat-to-mat44d $ quat-from-euler $ degrees-to-radians $ rot(p)) * mov-mat44d(mov(p))
 
-public defn pose-mat44f (mov:V3f, rot:V3f) -> Mat44f :
-  to-mat44f $ Pose(mov, rot) 
+public defn pose-mat44d (mov:V3d, rot:V3d) -> Mat44d :
+  to-mat44d $ Pose(mov, rot) 
 
-public defn pose-mat44f (mov:V3f) : pose-mat44f(mov, V3f(0.0f, 0.0f, 0.0f))
+public defn pose-mat44d (mov:V3d) : pose-mat44d(mov, V3d(0.0, 0.0, 0.0))
 
 

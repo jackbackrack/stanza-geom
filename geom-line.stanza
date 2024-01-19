@@ -5,12 +5,9 @@ defpackage geom/line :
 
 val @doc-line = "LINE -- infinite line"
 
-#for (Line in [Line2f Line2d Line3f Line3d]
-      Prim in [Float Double Float Double]
-      PrimVec in [V2f V2d V3f V3d]
-      One in [1.0f 1.0 1.0f 1.0]
-      Zero in [0.0f 0.0 0.0f 0.0]
-      Max in [FLOAT-MAX DOUBLE-MAX FLOAT-MAX DOUBLE-MAX]) :
+#for (Line in [Line2 Line3]
+      Prim in [Double Double]
+      PrimVec in [V2d V3d]) :
 
   public defstruct Line <: Geom :
     pos: PrimVec
@@ -25,8 +22,8 @@ val @doc-line = "LINE -- infinite line"
     val a = dot(dir(l1), dir(l0))
     val f = dot(dir(l1), posLpos)
     val num = c - a * f
-    val denom = a * a - One
-    if abs(denom) < One and abs(num) >= abs(denom) * Max :
+    val denom = a * a - 1.0
+    if abs(denom) < 1.0 and abs(num) >= abs(denom) * DOUBLE-MAX :
       pos(l0)
     else :
       pos(l0) + (num / denom) * dir(l0)

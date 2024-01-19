@@ -6,56 +6,56 @@ defpackage geom/plane :
   import geom/polyline
 
 public defstruct Plane :
-  center : V3f
-  normal : V3f
+  center : V3d
+  normal : V3d
 with :
   printer => true
 
-public defn parallel-vector (p:Plane) -> V3f :
-  val vs = to-tuple $ for v in [x3f(1.0f), y3f(1.0f), z3f(1.0f)] filter : v != normal(p)
+public defn parallel-vector (p:Plane) -> V3d :
+  val vs = to-tuple $ for v in [x3d(1.0), y3d(1.0), z3d(1.0)] filter : v != normal(p)
   normalize(vs[0] % normal(p))
 
-public defn offset (p:Plane, o:Float) -> Plane :
+public defn offset (p:Plane, o:Double) -> Plane :
   Plane(center(p) + o * normal(p), normal(p))
 
 public defn invert (p:Plane) -> Plane :
-  Plane(center(p), -1.0f * normal(p))
+  Plane(center(p), -1.0 * normal(p))
 
-public defn close-loop (il:Seqable<V3f>) -> Tuple<V3f> :
+public defn close-loop (il:Seqable<V3d>) -> Tuple<V3d> :
   val l = to-tuple(il)
   to-tuple $ cat(l, [l[0]])
 
-public defn to-polyline (p:Plane, r:Float) -> PolyLine3f :
+public defn to-polyline (p:Plane, r:Double) -> PolyLine3 :
   val v1 = parallel-vector(p)
   val v2 = normalize(normal(p) % v1)
   val l  = rect(center(p), v1, v2, r)
-  val res = PolyLine3f $ [close-loop(l), [l[0] l[2]], [l[1] l[3]]]
+  val res = PolyLine3 $ [close-loop(l), [l[0] l[2]], [l[1] l[3]]]
   res
 
-public defn distance (p:Plane) -> Float :
+public defn distance (p:Plane) -> Double :
   dot(normal(p), center(p))
 
-public defn distance (p:Plane, v:V3f) -> Float :
+public defn distance (p:Plane, v:V3d) -> Double :
   dot(normal(p), v) - distance(p)
 
-public defn project (p:Plane, v:V3f) -> V3f :
+public defn project (p:Plane, v:V3d) -> V3d :
   v - distance(p, v) * normal(p)
 
-public defn intersect (p:Plane, l:Line3f) -> False|V3f :
+public defn intersect (p:Plane, l:Line3) -> False|V3d :
   val d = dot(dir(l), normal(p))
-  if d == 0.0f :
+  if d == 0.0 :
     false
   else :
     ; val t = (dot(normal(p), pos(l)) - distance(p)) / d
     val t = dot(center(p) - pos(l), normal(p)) / d
     eval(l, t)
 
-public defn intersect (p0:Plane, p1:Plane) -> False|Line3f :
+public defn intersect (p0:Plane, p1:Plane) -> False|Line3 :
   if normal(p0) != normal(p1) :
     val n01 = normalize(normal(p0) % normal(p1))
     val d0 = normalize(n01 % normal(p0))
     val d1 = normalize(n01 % normal(p1))
-    val l0 = Line3f(center(p0), d0)
-    val l1 = Line3f(center(p1), d1)
+    val l0 = Line3(center(p0), d0)
+    val l1 = Line3(center(p1), d1)
     val c01 = closest-point-to(l0, l1)
-    Line3f(c01, n01)
+    Line3(c01, n01)

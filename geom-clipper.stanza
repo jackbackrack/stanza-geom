@@ -11,13 +11,21 @@ defpackage geom/clipper :
 
 val @doc-clipper = "## CLIPPER -- polygon offsetting and solid geometry operations"
 
+val RES = 1.0e6
+
 lostanza deftype clipper_vec2 :
-  x : float
-  y : float
+  x : double
+  y : double
+
+lostanza deftype ClipperVec2 :
+  value : ptr<clipper_vec2>
 
 lostanza deftype clipper_path :
   pts : ptr<clipper_vec2>
   count : int
+
+lostanza deftype ClipperPath :
+  value : ptr<clipper_path>
 
 lostanza deftype clipper_paths :
   ps : ptr<clipper_path>
@@ -29,19 +37,26 @@ lostanza deftype ClipperPaths :
 extern memcpy: (ptr<byte>, ptr<byte>, int) -> ptr<byte>
 extern malloc: (int) -> ptr<byte>
 
-extern clipper_offset: (ptr<clipper_paths>, float, float) -> ptr<clipper_paths>
-extern clipper_op: (ptr<clipper_paths>, ptr<clipper_paths>, int, float) -> ptr<clipper_paths>
+extern clipper_offset: (ptr<clipper_paths>, double, double) -> ptr<clipper_paths>
+extern clipper_op: (ptr<clipper_paths>, ptr<clipper_paths>, int, double) -> ptr<clipper_paths>
+extern clipper_minkowski_diff: (ptr<clipper_path>, ptr<clipper_path>, double) -> ptr<clipper_paths>
+extern clipper_point_in_polygon: (ptr<clipper_vec2>, ptr<clipper_path>, double) -> int
+extern clipper_fab_vec2: (double, double) -> ptr<clipper_vec2>
 extern clipper_fab_paths: (int) -> ptr<clipper_paths>
-extern clipper_fab_path: (ptr<clipper_paths>, int, int) -> ptr<clipper_paths>
-extern clipper_paths_set_point: (ptr<clipper_paths>, int, int, float, float) -> int
+extern clipper_fab_paths_path: (ptr<clipper_paths>, int, int) -> ptr<clipper_paths>
+extern clipper_fab_path: (int) -> ptr<clipper_path>
+extern clipper_path_set_point: (ptr<clipper_path>, int, double, double) -> int
+extern clipper_paths_set_point: (ptr<clipper_paths>, int, int, double, double) -> int
 extern clipper_paths_delete: (ptr<clipper_paths>) -> int
+extern clipper_path_delete: (ptr<clipper_path>) -> int
+extern clipper_vec2_delete: (ptr<clipper_vec2>) -> int
 extern printf: (ptr<?>, ? ...) -> int
 extern free: (ptr<?>) -> int
 
-lostanza defn get (paths:ref<ClipperPaths>, p:ref<Int>, i:ref<Int>) -> ref<V2f> :
+lostanza defn get (paths:ref<ClipperPaths>, p:ref<Int>, i:ref<Int>) -> ref<V2d> :
   val path = paths.value.ps[p.value]
   val pt   = path.pts[i.value]
-  return V2f(new Float{pt.x}, new Float{pt.y})
+  return V2d(new Double{pt.x}, new Double{pt.y})
 
 lostanza defn get-path-size (paths:ref<ClipperPaths>, i:ref<Int>) -> ref<Int> :
   val path = paths.value.ps[i.value]
@@ -50,12 +65,16 @@ lostanza defn get-path-size (paths:ref<ClipperPaths>, i:ref<Int>) -> ref<Int> :
 lostanza defn num-paths (ps:ref<ClipperPaths>) -> ref<Int> :
   return new Int{ps.value.count}
 
-defn to-polygon (ps:ClipperPaths, state:AnyShapeState) -> Polygon :
+defn to-polygon (ps:ClipperPaths, state:AnyShapeState = default-anyshape-state()) -> Polygon :
   val contours =
     for pi in 0 to num-paths(ps) seq :
       val points = for j in 0 to get-path-size(ps, pi) seq : ps[pi, j]
       Contour(to-tuple $ points)
   Polygon(state, to-tuple $ contours)
+
+lostanza defn to-vec2 (cs:ref<V2d>) -> ref<ClipperVec2> :
+  val vec2 = call-c clipper_fab_vec2(x(cs).value, y(cs).value)
+  return new ClipperVec2{vec2}
 
 lostanza defn to-paths (cs:ref<Polygon>) -> ref<ClipperPaths> :
   val num-paths = length(contours(cs)).value
@@ -63,17 +82,26 @@ lostanza defn to-paths (cs:ref<Polygon>) -> ref<ClipperPaths> :
   for (var j:int = 0, j < num-paths, j = j + 1) :
     val contour = get(contours(cs), new Int{j})
     val pts = vertices(contour)
-    call-c clipper_fab_path(paths, j, length(pts).value + 1)
+    call-c clipper_fab_paths_path(paths, j, length(pts).value + 1)
     val len = length(pts).value
     for (var i:int = 0, i < (len + 1), i = i + 1) :
       val pt = get(pts, new Int{i % len})
       call-c clipper_paths_set_point(paths, j, i, x(pt).value, y(pt).value)
   return new ClipperPaths{paths}
 
+lostanza defn to-path (contour:ref<Contour>) -> ref<ClipperPath> :
+  val pts = vertices(contour)
+  val len = length(pts).value
+  val path = call-c clipper_fab_path(len + 1)
+  for (var i:int = 0, i < (len + 1), i = i + 1) :
+    val pt = get(pts, new Int{i % len})
+    call-c clipper_path_set_point(path, i, x(pt).value, y(pt).value)
+  return new ClipperPath{path}
+
 ;; TODO: REVERSE ORDER OF ARGS
-public lostanza defn offset (p:ref<Polygon>, amount:ref<Float>) -> ref<Polygon> :
+public lostanza defn offset (p:ref<Polygon>, amount:ref<Double>) -> ref<Polygon> :
   val in = to-paths(p)
-  val out = call-c clipper_offset(in.value, amount.value, 1024.0 as float)
+  val out = call-c clipper_offset(in.value, amount.value, RES.value)
   val ret = new ClipperPaths{out}
   val poly = to-polygon(ret, state(p))
   call-c clipper_paths_delete(in.value)
@@ -83,7 +111,7 @@ public lostanza defn offset (p:ref<Polygon>, amount:ref<Float>) -> ref<Polygon> 
 lostanza defn op (a:ref<Polygon>, b:ref<Polygon>, op:ref<Int>) -> ref<Polygon> :
   val ain = to-paths(a)
   val bin = to-paths(b)
-  val out = call-c clipper_op(ain.value, bin.value, op.value, 1024.0 as float)
+  val out = call-c clipper_op(ain.value, bin.value, op.value, RES.value)
   val ret = new ClipperPaths{out}
   val poly = to-polygon(ret, bit-or(state(a), state(b)))
   call-c clipper_paths_delete(ain.value)
@@ -91,9 +119,39 @@ lostanza defn op (a:ref<Polygon>, b:ref<Polygon>, op:ref<Int>) -> ref<Polygon> :
   call-c clipper_paths_delete(out)
   return poly
 
-val CLIPPER-INTERSECTION = 0
-val CLIPPER-UNION = 1
-val CLIPPER-DIFFERENCE = 2
+public lostanza defn minkowski-diff (a:ref<Contour>, b:ref<Contour>) -> ref<Polygon> :
+  val ain = to-path(a)
+  val bin = to-path(b)
+  val out = call-c clipper_minkowski_diff(ain.value, bin.value, RES.value)
+  val ret = new ClipperPaths{out}
+  val poly = to-polygon(ret)
+  call-c clipper_path_delete(ain.value)
+  call-c clipper_path_delete(bin.value)
+  call-c clipper_paths_delete(out)
+  return poly
+
+public lostanza defn point-in-polygon? (pt:ref<V2d>, contour:ref<Contour>) -> ref<True|False> :
+  val p = to-vec2(pt)
+  val c = to-path(contour)
+  val out = call-c clipper_point_in_polygon(p.value, c.value, RES.value)
+  call-c clipper_vec2_delete(p.value)
+  call-c clipper_path_delete(c.value)
+  if out < 2 :
+    return true
+  else :
+    return false
+
+val CLIPPER-IS-ON = 0
+val CLIPPER-IS-INSIDE = 1
+val CLIPPER-IS-OUTSIDE = 2
+
+; val CLIPPER-INTERSECTION = 0
+; val CLIPPER-UNION = 1
+; val CLIPPER-DIFFERENCE = 2
+
+val CLIPPER-INTERSECTION = 1
+val CLIPPER-UNION = 2
+val CLIPPER-DIFFERENCE = 0
 
 public defmethod bit-or (a:Polygon, b:Polygon) -> Polygon :
   op(a, b, CLIPPER-UNION)
@@ -103,5 +161,3 @@ public defn bit-and (a:Polygon, b:Polygon) -> Polygon :
     
 public defn rem (a:Polygon, b:Polygon) -> Polygon :
   op(a, b, CLIPPER-DIFFERENCE)
-
-    

@@ -338,6 +338,9 @@ public defn to-v3d (v:V3f) -> V3d :
 public defn to-v3i (v:V3f) -> V3i :
   V3i(to-int(x(v)), to-int(y(v)), to-int(z(v)))
 
+public defn to-v3i (v:V3d) -> V3i :
+  V3i(to-int(x(v)), to-int(y(v)), to-int(z(v)))
+
 public defn to-v3f (v:V3i) -> V3f :
   V3f(to-float(x(v)), to-float(y(v)), to-float(z(v)))
 
@@ -345,6 +348,9 @@ public defn to-v3d (v:V3i) -> V3d :
   V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
 
 public defn to-v2i (v:V2f) -> V2i :
+  V2i(to-int(x(v)), to-int(y(v)))
+
+public defn to-v2i (v:V2d) -> V2i :
   V2i(to-int(x(v)), to-int(y(v)))
 
 public defn to-v2f (v:V2i) -> V2f :
@@ -356,7 +362,7 @@ public defn to-v2d (v:V2i) -> V2d :
 public defn V2f (x:Double, y:Double) -> V2f :
   V2f(to-float(x), to-float(y))
 
-public defn bisection-normal (a:V3f, b:V3f) -> V3f :
+public defn bisection-normal (a:V3d, b:V3d) -> V3d :
   val n = 
     if magnitude(a + b) < EPS :
       a
@@ -364,7 +370,7 @@ public defn bisection-normal (a:V3f, b:V3f) -> V3f :
       (a + b) % (a % b)
   normalize(n)
 
-public defn normal (a:V3f, b:V3f) -> V3f :
+public defn normal (a:V3d, b:V3d) -> V3d :
   val n = 
     if magnitude(a + b) < EPS :
       a
@@ -372,9 +378,9 @@ public defn normal (a:V3f, b:V3f) -> V3f :
       (a % b)
   normalize(n)
 
-;;; V4f
+;;; Vec4
 
-;; public defstruct V4f <: Array<Float> :
+;; public defstruct Vec4 <: Array<Float> :
 ;;   x: Float
 ;;   y: Float
 ;;   z: Float
@@ -382,50 +388,51 @@ public defn normal (a:V3f, b:V3f) -> V3f :
 
 val @doc-v4f = "4 DIM VECTORS -- color"
 
-public lostanza deftype V4f <: Array<Float> & Geom & Hashable :
-  x: float
-  y: float
-  z: float
-  a: float
+public lostanza deftype V4d <: Array<Double> & Geom & Hashable :
+  x: double
+  y: double
+  z: double
+  a: double
 
-public lostanza defn V4f (x:ref<Float>, y:ref<Float>, z:ref<Float>, a:ref<Float>) -> ref<V4f> :
-  return new V4f{x.value, y.value, z.value, a.value}
+public lostanza defn V4d (x:ref<Double>, y:ref<Double>, z:ref<Double>, a:ref<Double>) -> ref<V4d> :
+  return new V4d{x.value, y.value, z.value, a.value}
 
-public lostanza defn x (v:ref<V4f>) -> ref<Float> :
-  return new Float{v.x}
+public lostanza defn x (v:ref<V4d>) -> ref<Double> :
+  return new Double{v.x}
 
-public lostanza defn y (v:ref<V4f>) -> ref<Float> :
-  return new Float{v.y}
+public lostanza defn y (v:ref<V4d>) -> ref<Double> :
+  return new Double{v.y}
 
-public lostanza defn z (v:ref<V4f>) -> ref<Float> :
-  return new Float{v.z}
+public lostanza defn z (v:ref<V4d>) -> ref<Double> :
+  return new Double{v.z}
 
-public lostanza defn a (v:ref<V4f>) -> ref<Float> :
-  return new Float{v.a}
+public lostanza defn a (v:ref<V4d>) -> ref<Double> :
+  return new Double{v.a}
 
-public defn V4f (x:Float, y:Float, z:Float) -> V4f :
-  V4f(x, y, z, 0.0f)
+public defn V4d (x:Double, y:Double, z:Double) -> V4d :
+  V4d(x, y, z, 0.0)
 
-public lostanza defmethod get (v:ref<V4f>, i:ref<Int>) -> ref<Float> :
+public lostanza defmethod get (v:ref<V4d>, i:ref<Int>) -> ref<Double> :
   ensure-index-in-bounds(i, new Int{3})
-  return new Float{addr!(v.x)[i.value]}
+  return new Double{addr!(v.x)[i.value]}
 
-public defmethod length (a:V4f) -> Int : 4
+public defmethod length (a:V4d) -> Int : 4
 
-defmethod equal? (v1:V4f, v2:V4f) :
+defmethod equal? (v1:V4d, v2:V4d) :
   x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) and a(v1) == a(v2) 
 
-defmethod hash (v:V4f) :
+defmethod hash (v:V4d) :
   (7 * ((7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v)))) + hash(a(v))
 
-defmethod print (o:OutputStream, v:V4f) :
-  print(o, "V4f(%~, %~, %~, %~)" % [x(v), y(v), z(v), z(v)])
+defmethod print (o:OutputStream, v:V4d) :
+  print(o, "V4d(%~, %~, %~, %~)" % [x(v), y(v), z(v), z(v)])
 
-public val RED   = V4f(1.0f, 0.0f, 0.0f, 1.0f)
-public val GREEN = V4f(0.0f, 1.0f, 0.0f, 1.0f)
-public val BLUE  = V4f(0.0f, 0.0f, 1.0f, 1.0f)
-public val BLACK  = V4f(0.0f, 0.0f, 0.0f, 1.0f)
-public val WHITE  = V4f(1.0f, 1.0f, 1.0f, 1.0f)
+public val RED   = V4d(1.0, 0.0, 0.0, 1.0)
+public val GREEN = V4d(0.0, 1.0, 0.0, 1.0)
+public val BLUE  = V4d(0.0, 0.0, 1.0, 1.0)
+public val BLACK  = V4d(0.0, 0.0, 0.0, 1.0)
+public val WHITE  = V4d(1.0, 1.0, 1.0, 1.0)
 
 public defn area* (dims:V3f) -> Float : dims[max-idx(dims)] * dims[mid-idx(dims)]
+public defn area* (dims:V3d) -> Double : dims[max-idx(dims)] * dims[mid-idx(dims)]
 

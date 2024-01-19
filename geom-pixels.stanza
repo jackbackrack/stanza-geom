@@ -5,7 +5,7 @@ defpackage geom/pixels :
 
 public defstruct Pixels <: Geom :
   idims: V3i
-  dim: Float
+  dim: Double
   data: ByteArray
 
 public defn index (g:Pixels, i:Int, j:Int, k:Int) -> Int :

@@ -11,18 +11,18 @@ defpackage geom/polyline :
   import geom/assembly
   import geom/shape
 
-public defn rect (c:V3f, v1:V3f, v2:V3f, r:Float) -> Tuple<V3f> :
+public defn rect (c:V3d, v1:V3d, v2:V3d, r:Double) -> Tuple<V3d> :
   for p in [((- r) * v1 + (- r) * v2), (r * v1 + (- r) * v2), (r * v1 + r * v2), ((- r) * v1 + r * v2)] map : c + p
 
 val @doc-polyline = "POLYLINE -- lists of open paths called strokes"
 
-#for (Prim in [Float Float]
-      Vec in [V2f V3f]
-      PolyLine in [PolyLine2f PolyLine3f]
-      LineSegment in [LineSegment2f LineSegment3f]
-      Box in [Box2f Box3f]
-      neg-inf-box in [neg-inf-box2f neg-inf-box3f]
-      PolyLineName in ["PolyLine2f" "PolyLine3f"]) :
+#for (Prim in [Double Double]
+      Vec in [V2d V3d]
+      PolyLine in [PolyLine2 PolyLine3]
+      LineSegment in [LineSegment2 LineSegment3]
+      Box in [Box2d Box3d]
+      neg-inf-box in [neg-inf-box2d neg-inf-box3d]
+      PolyLineName in ["PolyLine2" "PolyLine3"]) :
 
   public defstruct PolyLine <: AnyShape&Equalable :
     state: AnyShapeState with: (as-method => true)
@@ -38,13 +38,13 @@ val @doc-polyline = "POLYLINE -- lists of open paths called strokes"
   defmethod clone (poly:PolyLine, state:AnyShapeState) -> PolyLine :
     PolyLine(state, strokes(poly))
 
-  defmethod xyz (mat:Mat44f, poly:PolyLine) -> PolyLine :
+  defmethod xyz (mat:Mat44d, poly:PolyLine) -> PolyLine :
     PolyLine(state(poly), for s in strokes(poly) map : for v in s map : mat * v)
 
   defmethod print (o:OutputStream, c:PolyLine) :
     print(o, "%_(%_)" % [PolyLineName strokes(c)])
 
-  defmethod bounds (p:PolyLine) -> Box3f :
+  defmethod bounds (p:PolyLine) -> Box3d :
     val boxes = seq(reduce{union, neg-inf-box(), seq(Box, _)}, strokes(p))
     xyz(reduce(union, neg-inf-box(), boxes))
 
@@ -60,93 +60,93 @@ val @doc-polyline = "POLYLINE -- lists of open paths called strokes"
         for i in 0 to (length(s) - 1) do :
           yield(LineSegment(s[i], s[i + 1]))
 
-  public defn perimeter (polyline:PolyLine) -> Float :
+  public defn perimeter (polyline:PolyLine) -> Double :
     sum $ seq(magnitude, segments(polyline))
 
-public defn to-polyline2f (g:PolyLine3f) -> PolyLine2f :
+public defn to-polyline2d (g:PolyLine3) -> PolyLine2 :
   val stks = for s in strokes(g) seq : to-tuple(seq(xy, s))
-  PolyLine2f(to-tuple(stks))
+  PolyLine2(to-tuple(stks))
 
-public defn to-polyline2f (g:Polygon) -> PolyLine2f :
+public defn to-polyline2 (g:Polygon) -> PolyLine2 :
   val stks = for c in contours(g) seq : to-tuple(cat(vertices(c), [vertices(c)[0]]))
-  PolyLine2f(to-tuple(stks))
+  PolyLine2(to-tuple(stks))
 
-public defn to-polyline2f (ls:Seqable<LineSegment2f>) -> PolyLine2f :
-  PolyLine2f $ to-tuple $ seq(fn (s) : [start(s), end(s)], ls)
+public defn to-polyline2 (ls:Seqable<LineSegment2>) -> PolyLine2 :
+  PolyLine2 $ to-tuple $ seq(fn (s) : [start(s), end(s)], ls)
 
-public defn to-polygon (g:PolyLine2f) -> Polygon :
+public defn to-polygon (g:PolyLine2) -> Polygon :
   val cts = for s in strokes(g) seq : Contour(to-tuple(s[0 to length(s) - 1]))
   Polygon(to-tuple(cts))
 
-public defn to-polyline3f (g:PolyLine2f) -> PolyLine3f :
+public defn to-polyline3 (g:PolyLine2) -> PolyLine3 :
   val stks = for s in strokes(g) seq : to-tuple(seq(xyz, s))
-  PolyLine3f(to-tuple(stks))
+  PolyLine3(to-tuple(stks))
 
-public defn cubic-interpolate (y0:Float, y1:Float, y2:Float, y3:Float, mu:Float) -> Float :
+public defn cubic-interpolate (y0:Double, y1:Double, y2:Double, y3:Double, mu:Double) -> Double :
   val mu2 = mu * mu
-  val a0 = -0.5f * y0 + 1.5f * y1 - 1.5f * y2 + 0.5f * y3
-  val a1 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3
-  val a2 = -0.5f * y0 + 0.5f * y2
+  val a0 = -0.5 * y0 + 1.5 * y1 - 1.5 * y2 + 0.5 * y3
+  val a1 = y0 - 2.5 * y1 + 2.0 * y2 - 0.5 * y3
+  val a2 = -0.5 * y0 + 0.5 * y2
   val a3 = y1
   a0 * mu * mu2 + a1 * mu2 + a2 * mu + a3
 
-public defn cubic-interpolate2 (p0:V2f, p1:V2f, p2:V2f, p3:V2f, mu:Float) -> V2f :
-  V2f(cubic-interpolate(x(p0), x(p1), x(p2), x(p3), mu),
+public defn cubic-interpolate2 (p0:V2d, p1:V2d, p2:V2d, p3:V2d, mu:Double) -> V2d :
+  V2d(cubic-interpolate(x(p0), x(p1), x(p2), x(p3), mu),
       cubic-interpolate(y(p0), y(p1), y(p2), y(p3), mu))
 
-public defn cubic-interpolate2 (l:Tuple<V2f>, n:Int) -> Seqable<V2f> :
+public defn cubic-interpolate2 (l:Tuple<V2d>, n:Int) -> Seqable<V2d> :
   val len = length(l)
   val pts = for i in 0 to (len - 1) seq-cat :
     val p0 = l[0]     when i ==         0 else l[i - 1]
     val p3 = l[i + 1] when i == (len - 2) else l[i + 2]
     for j in 0 to n seq :
-      val mu = to-float(j) / to-float(n)
+      val mu = to-double(j) / to-double(n)
       cubic-interpolate2(p0, l[i], l[i + 1], p3, mu)
   cat(pts, [last(l)])
 
-public defn cubic-interpolate2-wrapped (l:Tuple<V2f>, n:Int) -> Seqable<V2f> :
+public defn cubic-interpolate2-wrapped (l:Tuple<V2d>, n:Int) -> Seqable<V2d> :
   val len = length(l)
   val pts = to-tuple $ for i in 0 to (len - 1) seq-cat :
     val p0 = l[(i - 1 + len) % len]
     val p3 = l[(i + 2)       % len]
     for j in 0 to n seq :
-      val mu = to-float(j) / to-float(n)
+      val mu = to-double(j) / to-double(n)
       cubic-interpolate2(p0, l[i], l[(i + 1) % len], p3, mu)
   cat(pts, [pts[0]])
 
-public defn cubic-interpolate3 (p0:V3f, p1:V3f, p2:V3f, p3:V3f, mu:Float) -> V3f :
-  V3f(cubic-interpolate(x(p0), x(p1), x(p2), x(p3), mu),
+public defn cubic-interpolate3 (p0:V3d, p1:V3d, p2:V3d, p3:V3d, mu:Double) -> V3d :
+  V3d(cubic-interpolate(x(p0), x(p1), x(p2), x(p3), mu),
       cubic-interpolate(y(p0), y(p1), y(p2), y(p3), mu),
       cubic-interpolate(z(p0), z(p1), z(p2), z(p3), mu))
 
-public defn cubic-interpolate3 (l:Tuple<V3f>, n:Int) -> Seqable<V3f> :
+public defn cubic-interpolate3 (l:Tuple<V3d>, n:Int) -> Seqable<V3d> :
   val len = length(l)
   val pts = for i in 0 to (len - 1) seq-cat :
     val p0 = l[0]     when i ==         0 else l[i - 1]
     val p3 = l[i + 1] when i == (len - 2) else l[i + 2]
     for j in 0 to n seq :
-      val mu = to-float(j) / to-float(n)
+      val mu = to-double(j) / to-double(n)
       cubic-interpolate3(p0, l[i], l[i + 1], p3, mu)
   cat(pts, [last(l)])
 
-public defn cubic-interpolate3-wrapped (l:Tuple<V3f>, n:Int) -> Seqable<V3f> :
+public defn cubic-interpolate3-wrapped (l:Tuple<V3d>, n:Int) -> Seqable<V3d> :
   val len = length(l)
   val pts = to-tuple $ for i in 0 to len seq-cat :
     val p0 = l[(i - 1 + len) % len]
     val p3 = l[(i + 2)       % len]
     for j in 0 to n seq :
-      val mu = to-float(j) / to-float(n)
+      val mu = to-double(j) / to-double(n)
       cubic-interpolate3(p0, l[i], l[(i + 1) % len], p3, mu)
   cat(pts, [pts[0]])
 
-public defn cubic-interpolate (p:PolyLine2f, n:Int) -> PolyLine2f :
-  PolyLine2f $ seq({ cubic-interpolate2(_, n) }, strokes(p))
+public defn cubic-interpolate (p:PolyLine2, n:Int) -> PolyLine2 :
+  PolyLine2 $ seq({ cubic-interpolate2(_, n) }, strokes(p))
 
-public defn cubic-interpolate-wrapped (p:PolyLine2f, n:Int) -> PolyLine2f :
-  PolyLine2f $ seq({ cubic-interpolate2-wrapped(_, n) }, strokes(p))
+public defn cubic-interpolate-wrapped (p:PolyLine2, n:Int) -> PolyLine2 :
+  PolyLine2 $ seq({ cubic-interpolate2-wrapped(_, n) }, strokes(p))
 
-public defn cubic-interpolate (p:PolyLine3f, n:Int) -> PolyLine3f :
-  PolyLine3f $ seq({ cubic-interpolate3(_, n) }, strokes(p))
+public defn cubic-interpolate (p:PolyLine3, n:Int) -> PolyLine3 :
+  PolyLine3 $ seq({ cubic-interpolate3(_, n) }, strokes(p))
 
-public defn cubic-interpolate-wrapped (p:PolyLine3f, n:Int) -> PolyLine3f :
-  PolyLine3f $ seq({ cubic-interpolate3-wrapped(_, n) }, strokes(p))
+public defn cubic-interpolate-wrapped (p:PolyLine3, n:Int) -> PolyLine3 :
+  PolyLine3 $ seq({ cubic-interpolate3-wrapped(_, n) }, strokes(p))

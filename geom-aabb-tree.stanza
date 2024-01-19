@@ -11,7 +11,7 @@ defpackage geom/aabb-tree :
 ;;; TODO: LIMITATION OF DATA ONLY BEING USED IN ONE TREE
 
 public deftype AABB <: Equalable
-public defmulti box (a:AABB) -> Box2f
+public defmulti box (a:AABB) -> Box2d
 public defmulti node (a:AABB) -> False|Node
 public defmulti set-node (a:AABB, n:False|Node) -> False
 
@@ -21,19 +21,19 @@ public deftype Node <: Equalable
 public defmulti id (n:Node) -> Int
 defmulti parent (n:Node) -> False|Node
 defmulti set-parent (n:Node, p:False|Node) -> False
-public defmulti aabb (n:Node) -> Box2f
-defmulti set-aabb (n:Node, b:Box2f) -> False
+public defmulti aabb (n:Node) -> Box2d
+defmulti set-aabb (n:Node, b:Box2d) -> False
 
 public defstruct LeafNode <: Node :
   id : Int with: (as-method => true)
   parent : False|Node with : (as-method => true, setter => set-parent)
-  aabb : Box2f with: (as-method => true, setter => set-aabb)
+  aabb : Box2d with: (as-method => true, setter => set-aabb)
   data : False|AABB with: (setter => set-data)
 
 public defstruct BranchNode <: Node :
   id : Int with: (as-method => true)
   parent : False|Node with : (as-method => true, setter => set-parent)
-  aabb : Box2f with: (as-method => true, setter => set-aabb)
+  aabb : Box2d with: (as-method => true, setter => set-aabb)
   children : Tuple<Node> with: (setter => set-children)
   children-crossed? : True|False with : (setter => set-children-crossed?)
 
@@ -49,13 +49,13 @@ defmethod print (o:OutputStream, node:BranchNode) :
 public defn LeafNode (data:AABB) :
   LeafNode(next(gen-ids), false, box(data), data)
 
-defn update-aabb (node:Node, margin:Float) :
+defn update-aabb (node:Node, margin:Double) :
   set-aabb(node, 
            match(node) :
              (node:LeafNode) : fatten(box(data(node) as AABB), xy(margin))
              (node:BranchNode) : union(aabb(children(node)[0]), aabb(children(node)[1])))
    
-public defn LeafNode (data:AABB, margin:Float) :
+public defn LeafNode (data:AABB, margin:Double) :
   val node = LeafNode(data)
   update-aabb(node, margin)
   node
@@ -66,7 +66,7 @@ defn sibling (node:Node) :
 
 public defstruct AABBTree :
   root : False|Node with: ( setter => set-root, init => false )
-  margin : Float
+  margin : Double
   invalid-nodes : Vector<Node> with: ( init => Vector<Node>() )
 
 defmethod print (o:OutputStream, t:AABBTree) :
@@ -114,7 +114,7 @@ public defn check (t:AABBTree) :
             check(children(node)[0])
             check(children(node)[1])
 
-public defn query (t:AABBTree, target:Box2f, same?:AABB -> True|False) -> Seqable<AABB> :
+public defn query (t:AABBTree, target:Box2d, same?:AABB -> True|False) -> Seqable<AABB> :
   match(root(t)) :
     (r:False) :
       to-seq $ []
@@ -133,7 +133,7 @@ public defn query (t:AABBTree, target:Box2f, same?:AABB -> True|False) -> Seqabl
               query(children(node)[1])
       res
 
-public defn query (t:AABBTree, target:Box2f) -> Seqable<AABB> :
+public defn query (t:AABBTree, target:Box2d) -> Seqable<AABB> :
   query(t, target, { false })
 
 public defn query (t:AABBTree, target:AABB) -> Seqable<AABB> :
@@ -149,12 +149,12 @@ public defn add (t:AABBTree, aabb:AABB) :
     (r:False) : set-root(t, new-leaf)
     (r:Node) :  insert-node(t, new-leaf, { root(t) as Node }, set-root{t, _})
 
-defn area (box:Box2f) : area(dims(box))
+defn area (box:Box2d) : area(dims(box))
 
 defn insert-node (t:AABBTree, node:Node, dad:() -> Node, set-dad:BranchNode -> False) :
   match(dad()) :
     (p:LeafNode) :
-      val new-parent = BranchNode(next(gen-ids), false, neg-inf-box2f(), [node, p], false)
+      val new-parent = BranchNode(next(gen-ids), false, neg-inf-box2d(), [node, p], false)
       set-parent(new-parent, parent(p))
       set-parent(node, new-parent)
       set-parent(p, new-parent)

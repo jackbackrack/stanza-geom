@@ -16,21 +16,21 @@ defpackage geom/svg :
 defn do-print-svg (s:OutputStream, assembly:Assembly) :
   for elt in children(assembly) do :
     match(elt) :
-      (c:PolyLine2f|Polygon|Assembly) : do-print-svg(s, xyz(mat(assembly), c))
+      (c:PolyLine2|Polygon|Assembly) : do-print-svg(s, xyz(mat(assembly), c))
       (c) : false
 
-defn do-print-svg (s:OutputStream, color:V4f, points:Seqable<V2f>, close?:True|False) :
+defn do-print-svg (s:OutputStream, color:V4d, points:Seqable<V2d>, close?:True|False) :
   print(s, "<path d=\"")
-  defn to-int-channel (c:Float) : to-int $ round(c * 255.0f)
+  defn to-int-channel (c:Double) : to-int $ round(c * 255.0)
   for (p in points, i in 0 to false) do :  
     print-all(s, [" " ("M" when i == 0 else "L") " " x(p) " " y(p)])
   print(s, " %_\" fill=\"none\" stroke=\"rgb(%_, %_, %_)\" stroke-width=\"%_\"/>" %
            [("Z " when close? else "") to-int-channel(x(color)), to-int-channel(y(color)), to-int-channel(z(color)), *line-width*])
 
-defn do-print-svg (s:OutputStream, color:V4f, contour:Contour) :
+defn do-print-svg (s:OutputStream, color:V4d, contour:Contour) :
   do-print-svg(s, color, vertices(contour), true)
 
-defn do-print-svg-header (s:OutputStream, bounds:Box2f, f:OutputStream -> False) :
+defn do-print-svg-header (s:OutputStream, bounds:Box2d, f:OutputStream -> False) :
   println-all(s, ["<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"])
   println-all(s, ["<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\""])
   println-all(s, [" width=\"" x(dims(bounds)) "\" height=\"" y(dims(bounds)) "\" id=\"cons\">"])
@@ -41,28 +41,28 @@ defn do-print-svg (s:OutputStream, polygon:Polygon) :
   for c in contours(polygon) do :
     do-print-svg(s, color(polygon), c)
 
-defn do-print-svg (s:OutputStream, polyline:PolyLine2f) :
+defn do-print-svg (s:OutputStream, polyline:PolyLine2) :
   for line in strokes(polyline) do :
     do-print-svg(s, color(polyline), line, false)
 
-defn svg (s:OutputStream, g:Assembly|PolyLine2f|Polygon, bbox:Box2f) :
+defn svg (s:OutputStream, g:Assembly|PolyLine2|Polygon, bbox:Box2d) :
   do-print-svg-header(s, bbox, { (
-    val mg = mov(xyz(-1.0f * lo(bbox)), g)
+    val mg = mov(xyz(-1.0 * lo(bbox)), g)
     do-print-svg(s, mg) ) } )
 
-public defn svg (g:Assembly|PolyLine2f|Polygon, filename:String, bbox:Box2f) :
+public defn svg (g:Assembly|PolyLine2|Polygon, filename:String, bbox:Box2d) :
   val s = FileOutputStream(filename)
   try : svg(s, g, bbox)
   finally : close(s)
 
-public defn svg (g:Assembly|PolyLine2f|Polygon, filename:String, margin:V2f) :
+public defn svg (g:Assembly|PolyLine2|Polygon, filename:String, margin:V2d) :
   svg(g, filename, fatten(xy(bounds(g)), margin))
 
 lostanza deftype svg_path :
-  pts : ptr<float>
+  pts : ptr<double>
   npts : int
   closed : byte
-  bounds : ptr<float>
+  bounds : ptr<double>
 
 public lostanza deftype SVGpath :
   value : ptr<svg_path>
@@ -74,10 +74,10 @@ lostanza deftype svg_image :
 extern memcpy: (ptr<byte>, ptr<byte>, int) -> ptr<byte>
 extern malloc: (int) -> ptr<byte>
 
-extern svg_read: (ptr<byte>, ptr<byte>, float) -> ptr<svg_image>
+extern svg_read: (ptr<byte>, ptr<byte>, double) -> ptr<svg_image>
 extern svg_image_delete: (ptr<svg_image>) -> int
 
-public lostanza defn read-svg (filename:ref<String>, format:ref<String>, resolution:ref<Float>) -> ref<Tuple<SVGpath>> :
+public lostanza defn read-svg (filename:ref<String>, format:ref<String>, resolution:ref<Double>) -> ref<Tuple<SVGpath>> :
   val image = call-c svg_read(addr!(filename.chars), addr!(format.chars), resolution.value)
   val paths = Vector<SVGpath>()
   for (var i:int = 0, i < image.npaths, i = i + 1) :
@@ -94,30 +94,30 @@ public lostanza defn closed? (path:ref<SVGpath>) -> ref<True|False> :
   else :
     return false
 
-public lostanza defn bounds (path:ref<SVGpath>) -> ref<Box2f> :
-  return Box2f(V2f(new Float{path.value.bounds[0]}, new Float{path.value.bounds[1]}),
-               V2f(new Float{path.value.bounds[2]}, new Float{path.value.bounds[3]}))
+public lostanza defn bounds (path:ref<SVGpath>) -> ref<Box2d> :
+  return Box2d(V2d(new Double{path.value.bounds[0]}, new Double{path.value.bounds[1]}),
+               V2d(new Double{path.value.bounds[2]}, new Double{path.value.bounds[3]}))
 
-public lostanza defn get (path:ref<SVGpath>, i:ref<Int>) -> ref<V2f> :
-  return V2f(new Float{path.value.pts[i.value * 2]}, new Float{path.value.pts[i.value * 2 + 1]})
+public lostanza defn get (path:ref<SVGpath>, i:ref<Int>) -> ref<V2d> :
+  return V2d(new Double{path.value.pts[i.value * 2]}, new Double{path.value.pts[i.value * 2 + 1]})
 
-public defn cubic-bezier (ip1:V2f, ip2:V2f, ip3:V2f, ip4:V2f, tol:Float, level:Int) -> Seq<V2f> :
-  generate<V2f> :
-    let loop (p1:V2f = ip1, p2:V2f = ip2, p3:V2f = ip3, p4:V2f = ip4, level:Int = level) :
+public defn cubic-bezier (ip1:V2d, ip2:V2d, ip3:V2d, ip4:V2d, tol:Double, level:Int) -> Seq<V2d> :
+  generate<V2d> :
+    let loop (p1:V2d = ip1, p2:V2d = ip2, p3:V2d = ip3, p4:V2d = ip4, level:Int = level) :
       if level <= 12 :
-        val p12 = 0.5f * (p1 + p2)
-        val p23 = 0.5f * (p2 + p3)
-        val p34 = 0.5f * (p3 + p4)
-        val p123 = 0.5f * (p12 + p23)
-        val p234 = 0.5f * (p23 + p34)
-        val p1234 = 0.5f * (p123 + p234)
-        if distance(LineSegment2f(p1, p4), p1234) > (tol * tol) :
+        val p12 = 0.5 * (p1 + p2)
+        val p23 = 0.5 * (p2 + p3)
+        val p34 = 0.5 * (p3 + p4)
+        val p123 = 0.5 * (p12 + p23)
+        val p234 = 0.5 * (p23 + p34)
+        val p1234 = 0.5 * (p123 + p234)
+        if distance(LineSegment2(p1, p4), p1234) > (tol * tol) :
           loop(p1, p12, p123, p1234, level + 1)
           loop(p1234, p234, p34, p4, level + 1)
         else :
           yield(p4)
 
-public defn sample (path:SVGpath, tol:Float) -> Seq<V2f> :
+public defn sample (path:SVGpath, tol:Double) -> Seq<V2d> :
   val guts = for i in 0 to (num-points(path) - 1) by 3 seq-cat :
     cubic-bezier(path[i], path[i + 1], path[i + 2], path[i + 3], tol, 0)
   if closed?(path) :
