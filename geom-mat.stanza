@@ -6,9 +6,9 @@ defpackage geom/mat :
   import geom/quat
   import geom/utils
 
-val @doc-mat44f = "MAT44f -- 4D affine transformation matrix"
+val @doc-mat4 = "MAT4 -- 4D affine transformation matrix"
 
-public lostanza deftype Mat44d <: Array<Double> & Equalable :
+public lostanza deftype Mat4 <: Array<Double> & Equalable :
   m00: double
   m01: double
   m02: double
@@ -26,64 +26,64 @@ public lostanza deftype Mat44d <: Array<Double> & Equalable :
   m32: double
   m33: double
 
-public lostanza defn Mat44d (m00:ref<Double>,m01:ref<Double>,m02:ref<Double>,m03:ref<Double>,
+public lostanza defn Mat4 (m00:ref<Double>,m01:ref<Double>,m02:ref<Double>,m03:ref<Double>,
                              m10:ref<Double>,m11:ref<Double>,m12:ref<Double>,m13:ref<Double>,
                              m20:ref<Double>,m21:ref<Double>,m22:ref<Double>,m23:ref<Double>,
-                             m30:ref<Double>,m31:ref<Double>,m32:ref<Double>,m33:ref<Double>) -> ref<Mat44d> :
-  return new Mat44d{m00.value,m01.value,m02.value,m03.value,m10.value,m11.value,m12.value,m13.value,
+                             m30:ref<Double>,m31:ref<Double>,m32:ref<Double>,m33:ref<Double>) -> ref<Mat4> :
+  return new Mat4{m00.value,m01.value,m02.value,m03.value,m10.value,m11.value,m12.value,m13.value,
                     m20.value,m21.value,m22.value,m23.value,m30.value,m31.value,m32.value,m33.value}
 
-public defn Mat44d (m:Mat44d) -> Mat44d :
-  Mat44d(m[0, 0], m[0, 1], m[0, 2], m[0, 3],
+public defn Mat4 (m:Mat4) -> Mat4 :
+  Mat4(m[0, 0], m[0, 1], m[0, 2], m[0, 3],
          m[1, 0], m[1, 1], m[1, 2], m[1, 3], 
          m[2, 0], m[2, 1], m[2, 2], m[2, 3], 
          m[3, 0], m[3, 1], m[3, 2], m[3, 3])
 
-public defn Mat44d (m:Tuple<Double>) -> Mat44d :
-  Mat44d(m[ 0], m[ 1], m[ 2], m[ 3],
+public defn Mat4 (m:Tuple<Double>) -> Mat4 :
+  Mat4(m[ 0], m[ 1], m[ 2], m[ 3],
          m[ 4], m[ 5], m[ 6], m[ 7],
          m[ 8], m[ 9], m[10], m[11],
          m[12], m[13], m[14], m[15])
          
-lostanza defn mat44f-get (m:ref<Mat44d>, i:ref<Int>) -> ref<Double> :
+lostanza defn mat4-get (m:ref<Mat4>, i:ref<Int>) -> ref<Double> :
   #if-not-defined(OPTIMIZE) :
      ensure-index-in-bounds(i, new Int{16})
   return new Double{addr!(m.m00)[i.value]}
 
-lostanza defn mat44f-set (m:ref<Mat44d>, i:ref<Int>, x:ref<Double>) -> ref<False> :
+lostanza defn mat4-set (m:ref<Mat4>, i:ref<Int>, x:ref<Double>) -> ref<False> :
   #if-not-defined(OPTIMIZE) :
      ensure-index-in-bounds(i, new Int{16})
   addr!(m.m00)[i.value] = x.value
   return false
 
-defmethod equal? (m1:Mat44d, m2:Mat44d) :
+defmethod equal? (m1:Mat4, m2:Mat4) :
   label<True|False> return:
     for i in 0 to 4 do :
       for j in 0 to 4 do :
         if m1[i, j] != m2[i, j] : return(false)
     true
 
-defmethod get (a:Mat44d, i:Int) -> Double : mat44f-get(a, i)
-defmethod set (a:Mat44d, i:Int, c:Double) -> False : mat44f-set(a, i, c)
-defmethod length (a:Mat44d) -> Int : 16
+defmethod get (a:Mat4, i:Int) -> Double : mat4-get(a, i)
+defmethod set (a:Mat4, i:Int, c:Double) -> False : mat4-set(a, i, c)
+defmethod length (a:Mat4) -> Int : 16
 
-public defn get (m:Mat44d, x:Int, y:Int) -> Double :
+public defn get (m:Mat4, x:Int, y:Int) -> Double :
   m[x * 4 + y]
 
-public defn set (m:Mat44d, x:Int, y:Int, v:Double) -> False :
+public defn set (m:Mat4, x:Int, y:Int, v:Double) -> False :
   m[x * 4 + y] = v
 
-defmethod print (o:OutputStream, m:Mat44d) :
+defmethod print (o:OutputStream, m:Mat4) :
   print(o, "MAT(")
   for (i in 0 to 16) do :
      if i > 0 : print(o, ",")
      print(o, m[i])
   print-all(o, ")")
 
-public defn gj-inverse (m:Mat44d) -> Mat44d :
-  label<Mat44d> return :
-    val s = id-mat44d()
-    val t = Mat44d(m)
+public defn gj-inverse (m:Mat4) -> Mat4 :
+  label<Mat4> return :
+    val s = id-mat4()
+    val t = Mat4(m)
     for i in 0 to 3 do :
       var pivot = i
       var pivot-size:Double = t[i, i]
@@ -99,7 +99,7 @@ public defn gj-inverse (m:Mat44d) -> Mat44d :
         if pivot-size == 0.0 :
           println(["SINGULAR"])
           ;; if singExc : throw SingMatrixExc ("Cannot invert singular matrix.")
-          return(id-mat44d())
+          return(id-mat4())
         if pivot != i :
           for j in 0 to 4 do :
             var tmp = t[i, j]
@@ -122,7 +122,7 @@ public defn gj-inverse (m:Mat44d) -> Mat44d :
       if f == 0.0 :
         println-all(["SINGULAR"])
         ;; if singExc : throw(SingMatrixExc ("Cannot invert singular matrix."))
-        return(id-mat44d())
+        return(id-mat4())
       for j in 0 to 4 do :
         t[i, j] = t[i, j] / f
         s[i, j] = s[i, j] / f
@@ -133,11 +133,11 @@ public defn gj-inverse (m:Mat44d) -> Mat44d :
           s[j, k] = s[j, k] - g * s[i, k]
     s
 
-public defn inverse (m:Mat44d) -> Mat44d :
-  label<Mat44d> return :
+public defn inverse (m:Mat4) -> Mat4 :
+  label<Mat4> return :
     if m[0, 3] != 0.0 or m[1, 3] != 0.0 or m[2, 3] != 0.0 or m[3, 3] != 1.0 :
       return(gj-inverse(m))
-    val s = Mat44d(m[1, 1] * m[2, 2] - m[2, 1] * m[1, 2],
+    val s = Mat4(m[1, 1] * m[2, 2] - m[2, 1] * m[1, 2],
                    m[2, 1] * m[0, 2] - m[0, 1] * m[2, 2],
                    m[0, 1] * m[1, 2] - m[1, 1] * m[0, 2],
                    0.0,
@@ -170,7 +170,7 @@ public defn inverse (m:Mat44d) -> Mat44d :
            else :
              println-all(["SINGULAR " m])
              ;; if singExc : throw(SingMatrixExc ("Cannot invert singular matrix."))
-             return(id-mat44d())
+             return(id-mat4())
              
     s[3, 0] = (- m[3, 0]) * s[0, 0] - m[3, 1] * s[1, 0] - m[3, 2] * s[2, 0]
     s[3, 1] = (- m[3, 0]) * s[0, 1] - m[3, 1] * s[1, 1] - m[3, 2] * s[2, 1]
@@ -178,49 +178,49 @@ public defn inverse (m:Mat44d) -> Mat44d :
 
     s
 
-public defn reflect-xy-mat44d () -> Mat44d :
-  Mat44d( 0.0,  1.0,  0.0,  0.0,
+public defn reflect-xy-mat4 () -> Mat4 :
+  Mat4( 0.0,  1.0,  0.0,  0.0,
           1.0,  0.0,  0.0,  0.0,
           0.0,  0.0,  1.0,  0.0,
           0.0,  0.0,  0.0,  1.0)
  
-public defn reflect-xz-mat44d () -> Mat44d :
-  Mat44d( 0.0,  0.0,  1.0,  0.0,
+public defn reflect-xz-mat4 () -> Mat4 :
+  Mat4( 0.0,  0.0,  1.0,  0.0,
           0.0,  1.0,  0.0,  0.0,
           1.0,  0.0,  0.0,  0.0,
           0.0,  0.0,  0.0,  1.0)
  
-public defn reflect-yz-mat44d () -> Mat44d :
-  Mat44d( 1.0,  0.0,  0.0,  0.0,
+public defn reflect-yz-mat4 () -> Mat4 :
+  Mat4( 1.0,  0.0,  0.0,  0.0,
           0.0,  0.0,  1.0,  0.0,
           0.0,  1.0,  0.0,  0.0,
           0.0,  0.0,  0.0,  1.0)
  
-public defn shear-x-y-mat44d (ymin:Double, ymax:Double, dx0:Double, dx1:Double) -> Mat44d :
+public defn shear-x-y-mat4 (ymin:Double, ymax:Double, dx0:Double, dx1:Double) -> Mat4 :
   ;; TODO
-  id-mat44d()
+  id-mat4()
  
-public defn id-mat44d () -> Mat44d : mag-mat44d(1.0)
+public defn id-mat4 () -> Mat4 : mag-mat4(1.0)
 
-public defn mag-mat44d (s:Double) -> Mat44d :
-  Mat44d(   s, 0.0, 0.0, 0.0,
+public defn mag-mat4 (s:Double) -> Mat4 :
+  Mat4(   s, 0.0, 0.0, 0.0,
          0.0,    s, 0.0, 0.0,
          0.0, 0.0,    s, 0.0,
          0.0, 0.0, 0.0, 1.0)
  
-public defn mag-mat44d (s:V3d) -> Mat44d :
-  Mat44d(x(s), 0.0, 0.0, 0.0,
+public defn mag-mat4 (s:Vec3) -> Mat4 :
+  Mat4(x(s), 0.0, 0.0, 0.0,
          0.0, y(s), 0.0, 0.0,
          0.0, 0.0, z(s), 0.0,
          0.0, 0.0, 0.0, 1.0)
 
-public defn mov-mat44d (t:V3d) -> Mat44d :
-  Mat44d( 1.0, 0.0, 0.0, 0.0,
+public defn mov-mat4 (t:Vec3) -> Mat4 :
+  Mat4( 1.0, 0.0, 0.0, 0.0,
           0.0, 1.0, 0.0, 0.0,
           0.0, 0.0, 1.0, 0.0,
           t[0], t[1], t[2], 1.0)
 
-public defn rot-mat44d (r:V3d) -> Mat44d :
+public defn rot-mat4 (r:Vec3) -> Mat4 :
   val cos_rz = cos(r[2])
   val cos_ry = cos(r[1])
   val cos_rx = cos(r[0])
@@ -239,67 +239,67 @@ public defn rot-mat44d (r:V3d) -> Mat44d :
   val m21 = cos_rz * (- sin_rx) + sin_rz * sin_ry * cos_rx
   val m22 = cos_ry * cos_rx
 
-  Mat44d( m00,  m01,  m02, 0.0,
+  Mat4( m00,  m01,  m02, 0.0,
           m10,  m11,  m12, 0.0,
           m20,  m21,  m22, 0.0,
           0.0,  0.0,  0.0, 1.0)
 
-public defn rot-mat44d (axis:V3d, angle:Double) -> Mat44d :
+public defn rot-mat4 (axis:Vec3, angle:Double) -> Mat4 :
   if abs(sin(angle)) < 1.0e-06 :
-    id-mat44d()
+    id-mat4()
   else :
-    quat-to-mat44d(quat-from-axis(normalize(axis), angle))
+    quat-to-mat4(quat-from-axis(normalize(axis), angle))
 
-public defn rot-mat44d (b:V3d, a:V3d) -> Mat44d :
+public defn rot-mat4 (b:Vec3, a:Vec3) -> Mat4 :
   val ang = angle(a, b)
   val cross = a % b
   if magnitude(cross) <= 1.0e-06 :
-    mag-mat44d(1.0 when abs(ang) <= 1.0e-06 else -1.0)
-    ;; val e = V3d-unit(min-idx(abs(a)))
+    mag-mat4(1.0 when abs(ang) <= 1.0e-06 else -1.0)
+    ;; val e = Vec3-unit(min-idx(abs(a)))
     ;; e - dot(e, a) * a
   else :
-    rot-mat44d(cross, ang)
+    rot-mat4(cross, ang)
 
-public defn rot-mat44d (start:Tuple<V3d>, end:Tuple<V3d>) -> Mat44d :
-  ;; val world = [x3f(1.0), y3f(1.0), z3f(1.0)]
-  Mat44d(  dot(end[0], start[0]), dot(end[0], start[1]), dot(end[0], start[2]), 0.0, 
-           dot(end[1], start[0]), dot(end[1], start[1]), dot(end[1], start[2]), 0.0, 
-           dot(end[2], start[0]), dot(end[2], start[1]), dot(end[2], start[2]), 0.0, 
-                             0.0,                   0.0,                   0.0, 1.0)
+public defn rot-mat4 (start:Tuple<Vec3>, end:Tuple<Vec3>) -> Mat4 :
+  ;; val world = [x3(1.0), y3(1.0), z3(1.0)]
+  Mat4(  dot(end[0], start[0]), dot(end[0], start[1]), dot(end[0], start[2]), 0.0, 
+         dot(end[1], start[0]), dot(end[1], start[1]), dot(end[1], start[2]), 0.0, 
+         dot(end[2], start[0]), dot(end[2], start[1]), dot(end[2], start[2]), 0.0, 
+                           0.0,                   0.0,                   0.0, 1.0)
 
-public defn rot-mat44d (src:V2d, dst:V2d) -> Mat44d :
+public defn rot-mat4 (src:Vec2, dst:Vec2) -> Mat4 :
   val a = atan2(y(dst), x(dst)) - atan2(y(src), x(src))
   val [c, s] = [cos(a), sin(a)]
-  Mat44d(    c    s 0.0 0.0
+  Mat4(    c    s 0.0 0.0
          (- s)    c 0.0 0.0
           0.0 0.0 1.0 0.0
           0.0 0.0 0.0 1.0)
 
-public defn rot-mat44d (end:Tuple<V3d>) -> Mat44d :
-  val world = [x3d(1.0), y3d(1.0), z3d(1.0)]
-  rot-mat44d(world, end)
+public defn rot-mat4 (end:Tuple<Vec3>) -> Mat4 :
+  val world = [x3(1.0), y3(1.0), z3(1.0)]
+  rot-mat4(world, end)
 
-public defn rot-mat44d (m:Mat44d) -> Mat44d :
-  Mat44d(m[ 0], m[ 1], m[ 2], 0.0,
+public defn rot-mat4 (m:Mat4) -> Mat4 :
+  Mat4(m[ 0], m[ 1], m[ 2], 0.0,
          m[ 4], m[ 5], m[ 6], 0.0,
          m[ 8], m[ 9], m[10], 0.0,
           0.0,  0.0,  0.0, 1.0)
           
-public defn times (m:Mat44d, v:V3d) -> V3d :
+public defn times (m:Mat4, v:Vec3) -> Vec3 :
   val px = x(v) * m[0,0] + y(v) * m[1,0] + z(v) * m[2,0] + m[3,0]
   val py = x(v) * m[0,1] + y(v) * m[1,1] + z(v) * m[2,1] + m[3,1]
   val pz = x(v) * m[0,2] + y(v) * m[1,2] + z(v) * m[2,2] + m[3,2]
   val pw = x(v) * m[0,3] + y(v) * m[1,3] + z(v) * m[2,3] + m[3,3]
-  V3d(px / pw, py / pw, pz / pw)
+  Vec3(px / pw, py / pw, pz / pw)
 
-public defn times (m:Mat44d, v:V2d) -> V2d :
+public defn times (m:Mat4, v:Vec2) -> Vec2 :
   val px = x(v) * m[0,0] + y(v) * m[1,0] + m[3,0]
   val py = x(v) * m[0,1] + y(v) * m[1,1] + m[3,1]
   val pw = x(v) * m[0,3] + y(v) * m[1,3] + m[3,3]
-  V2d(px / pw, py / pw)
+  Vec2(px / pw, py / pw)
 
-public defn times (a:Mat44d, b:Mat44d) -> Mat44d :
-  val res = id-mat44d()
+public defn times (a:Mat4, b:Mat4) -> Mat4 :
+  val res = id-mat4()
   for i in 0 to 4 do :
     for j in 0 to 4 do :
       var sum: Double = 0.0

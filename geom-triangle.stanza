@@ -6,27 +6,27 @@ defpackage geom/triangle :
   import geom/geom
 
 public defstruct Triangle <: Geom :
-  vertices : Tuple<V2d>
+  vertices : Tuple<Vec2>
   lines : Tuple<ImplicitLine>
 
 defmethod print (o:OutputStream, t:Triangle) :
   print(o, "Triangle(%_)" % [vertices(t)])
 
-public defn Triangle (ipts:Tuple<V2d>) :
+public defn Triangle (ipts:Tuple<Vec2>) :
   val order = xyz(ipts[1] - ipts[0]) % xyz(ipts[2] - ipts[0])
   val pts = ipts when z(order) >= 0.0 else [ ipts[0] ipts[2] ipts[1] ]
   val lines = for i in 0 to 3 seq : ImplicitLine(pts[i], pts[(i + 1) % 3])
   Triangle(pts, to-tuple $ lines)
 
-public defn inside? (l:Triangle, p:V2d) -> True|False :
+public defn inside? (l:Triangle, p:Vec2) -> True|False :
   inside?(lines(l)[0], p) and inside?(lines(l)[1], p) and inside?(lines(l)[2], p)
 
-public defn bounds (t:Triangle) : reduce(union, seq(Box2d, vertices(t)))
+public defn bounds (t:Triangle) : reduce(union, seq(Box2, vertices(t)))
 
 public defstruct Triangle2i :
-  a:V2i
-  b:V2i
-  c:V2i
+  a:Vec2i
+  b:Vec2i
+  c:Vec2i
 
 public defmethod print (o:OutputStream, t:Triangle2i) :
   print(o, "Triangle2i(%_ %_ %_)" % [a(t) b(t) c(t)])

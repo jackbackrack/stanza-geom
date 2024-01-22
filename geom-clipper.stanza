@@ -53,10 +53,10 @@ extern clipper_vec2_delete: (ptr<clipper_vec2>) -> int
 extern printf: (ptr<?>, ? ...) -> int
 extern free: (ptr<?>) -> int
 
-lostanza defn get (paths:ref<ClipperPaths>, p:ref<Int>, i:ref<Int>) -> ref<V2d> :
+lostanza defn get (paths:ref<ClipperPaths>, p:ref<Int>, i:ref<Int>) -> ref<Vec2> :
   val path = paths.value.ps[p.value]
   val pt   = path.pts[i.value]
-  return V2d(new Double{pt.x}, new Double{pt.y})
+  return Vec2(new Double{pt.x}, new Double{pt.y})
 
 lostanza defn get-path-size (paths:ref<ClipperPaths>, i:ref<Int>) -> ref<Int> :
   val path = paths.value.ps[i.value]
@@ -72,7 +72,7 @@ defn to-polygon (ps:ClipperPaths, state:AnyShapeState = default-anyshape-state()
       Contour(to-tuple $ points)
   Polygon(state, to-tuple $ contours)
 
-lostanza defn to-vec2 (cs:ref<V2d>) -> ref<ClipperVec2> :
+lostanza defn to-vec2 (cs:ref<Vec2>) -> ref<ClipperVec2> :
   val vec2 = call-c clipper_fab_vec2(x(cs).value, y(cs).value)
   return new ClipperVec2{vec2}
 
@@ -130,7 +130,7 @@ public lostanza defn minkowski-diff (a:ref<Contour>, b:ref<Contour>) -> ref<Poly
   call-c clipper_paths_delete(out)
   return poly
 
-public lostanza defn point-in-polygon? (pt:ref<V2d>, contour:ref<Contour>) -> ref<True|False> :
+public lostanza defn point-in-polygon? (pt:ref<Vec2>, contour:ref<Contour>) -> ref<True|False> :
   val p = to-vec2(pt)
   val c = to-path(contour)
   val out = call-c clipper_point_in_polygon(p.value, c.value, RES.value)

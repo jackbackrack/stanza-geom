@@ -9,22 +9,22 @@ val @doc-quat = "QUAT -- quaternions for interpolatable rotations"
 
 public defstruct Quat <: Equalable :
   w: Double
-  v: V3d
+  v: Vec3
 
-public defn quat-from-euler (radz:V3d) -> Quat :
+public defn quat-from-euler (radz:Vec3) -> Quat :
   val [sr cr] = sin-cos-tup(0.5 * x(radz))
   val [sp cp] = sin-cos-tup(0.5 * y(radz))
   val [sy cy] = sin-cos-tup(0.5 * z(radz))
   Quat(    cy * cr * cp + sy * sr * sp,
-       V3d(cy * sr * cp - sy * cr * sp,
+       Vec3(cy * sr * cp - sy * cr * sp,
            cy * cr * sp + sy * sr * cp,
            sy * cr * cp - cy * sr * sp))
 
-public defn quat-from-axis (axis:V3d, rads:Double) -> Quat :
+public defn quat-from-axis (axis:Vec3, rads:Double) -> Quat :
   val angle = rads / 2.0
   Quat(cos(angle), sin(angle) * normalize(axis))
 
-val zero-quat = quat-from-axis(V3d(1.0, 0.0, 0.0), 0.0)
+val zero-quat = quat-from-axis(Vec3(1.0, 0.0, 0.0), 0.0)
 
 public defn zero? (q:Quat) : q == zero-quat
 
@@ -82,15 +82,15 @@ public defn slerp (src:Quat, dst0:Quat, t:Double) -> Quat :
       [1.0 - t, t]
   Quat(s0 * w(src) + s1 * w(dst), s0 * v(src) + s1 * v(dst))
 
-public defn quat-to-mat44d (q:Quat) -> Mat44d :
+public defn quat-to-mat4 (q:Quat) -> Mat4 :
   val [ wx,  wy,  wz] = [w(q) * x(q), w(q) * y(q), w(q) * z(q)]
   val [ xx,  xy,  xz] = [x(q) * x(q), x(q) * y(q), x(q) * z(q)]
   val [ yy,  yz,  zz] = [y(q) * y(q), y(q) * z(q), z(q) * z(q)]
   val [m00, m01, m02] = [1.0 - 2.0 * (yy + zz),        2.0 * (xy - wz),        2.0 * (xz + wy)]
   val [m10, m11, m12] = [       2.0 * (xy + wz), 1.0 - 2.0 * (xx + zz),        2.0 * (yz - wx)]
   val [m20, m21, m22] = [       2.0 * (xz - wy),       2.0 * (yz + wx), 1.0  - 2.0 * (xx + yy)]
-  Mat44d( m00,  m01,  m02, 0.0,
-          m10,  m11,  m12, 0.0,
-          m20,  m21,  m22, 0.0,
-          0.0,  0.0,  0.0, 1.0)
+  Mat4( m00,  m01,  m02, 0.0,
+        m10,  m11,  m12, 0.0,
+        m20,  m21,  m22, 0.0,
+        0.0,  0.0,  0.0, 1.0)
 

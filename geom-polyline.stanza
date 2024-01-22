@@ -11,17 +11,17 @@ defpackage geom/polyline :
   import geom/assembly
   import geom/shape
 
-public defn rect (c:V3d, v1:V3d, v2:V3d, r:Double) -> Tuple<V3d> :
+public defn rect (c:Vec3, v1:Vec3, v2:Vec3, r:Double) -> Tuple<Vec3> :
   for p in [((- r) * v1 + (- r) * v2), (r * v1 + (- r) * v2), (r * v1 + r * v2), ((- r) * v1 + r * v2)] map : c + p
 
 val @doc-polyline = "POLYLINE -- lists of open paths called strokes"
 
 #for (Prim in [Double Double]
-      Vec in [V2d V3d]
+      Vec in [Vec2 Vec3]
       PolyLine in [PolyLine2 PolyLine3]
       LineSegment in [LineSegment2 LineSegment3]
-      Box in [Box2d Box3d]
-      neg-inf-box in [neg-inf-box2d neg-inf-box3d]
+      Box in [Box2 Box3]
+      neg-inf-box in [neg-inf-box2 neg-inf-box3]
       PolyLineName in ["PolyLine2" "PolyLine3"]) :
 
   public defstruct PolyLine <: AnyShape&Equalable :
@@ -38,13 +38,13 @@ val @doc-polyline = "POLYLINE -- lists of open paths called strokes"
   defmethod clone (poly:PolyLine, state:AnyShapeState) -> PolyLine :
     PolyLine(state, strokes(poly))
 
-  defmethod xyz (mat:Mat44d, poly:PolyLine) -> PolyLine :
+  defmethod xyz (mat:Mat4, poly:PolyLine) -> PolyLine :
     PolyLine(state(poly), for s in strokes(poly) map : for v in s map : mat * v)
 
   defmethod print (o:OutputStream, c:PolyLine) :
     print(o, "%_(%_)" % [PolyLineName strokes(c)])
 
-  defmethod bounds (p:PolyLine) -> Box3d :
+  defmethod bounds (p:PolyLine) -> Box3 :
     val boxes = seq(reduce{union, neg-inf-box(), seq(Box, _)}, strokes(p))
     xyz(reduce(union, neg-inf-box(), boxes))
 
@@ -90,11 +90,11 @@ public defn cubic-interpolate (y0:Double, y1:Double, y2:Double, y3:Double, mu:Do
   val a3 = y1
   a0 * mu * mu2 + a1 * mu2 + a2 * mu + a3
 
-public defn cubic-interpolate2 (p0:V2d, p1:V2d, p2:V2d, p3:V2d, mu:Double) -> V2d :
-  V2d(cubic-interpolate(x(p0), x(p1), x(p2), x(p3), mu),
+public defn cubic-interpolate2 (p0:Vec2, p1:Vec2, p2:Vec2, p3:Vec2, mu:Double) -> Vec2 :
+  Vec2(cubic-interpolate(x(p0), x(p1), x(p2), x(p3), mu),
       cubic-interpolate(y(p0), y(p1), y(p2), y(p3), mu))
 
-public defn cubic-interpolate2 (l:Tuple<V2d>, n:Int) -> Seqable<V2d> :
+public defn cubic-interpolate2 (l:Tuple<Vec2>, n:Int) -> Seqable<Vec2> :
   val len = length(l)
   val pts = for i in 0 to (len - 1) seq-cat :
     val p0 = l[0]     when i ==         0 else l[i - 1]
@@ -104,7 +104,7 @@ public defn cubic-interpolate2 (l:Tuple<V2d>, n:Int) -> Seqable<V2d> :
       cubic-interpolate2(p0, l[i], l[i + 1], p3, mu)
   cat(pts, [last(l)])
 
-public defn cubic-interpolate2-wrapped (l:Tuple<V2d>, n:Int) -> Seqable<V2d> :
+public defn cubic-interpolate2-wrapped (l:Tuple<Vec2>, n:Int) -> Seqable<Vec2> :
   val len = length(l)
   val pts = to-tuple $ for i in 0 to (len - 1) seq-cat :
     val p0 = l[(i - 1 + len) % len]
@@ -114,12 +114,12 @@ public defn cubic-interpolate2-wrapped (l:Tuple<V2d>, n:Int) -> Seqable<V2d> :
       cubic-interpolate2(p0, l[i], l[(i + 1) % len], p3, mu)
   cat(pts, [pts[0]])
 
-public defn cubic-interpolate3 (p0:V3d, p1:V3d, p2:V3d, p3:V3d, mu:Double) -> V3d :
-  V3d(cubic-interpolate(x(p0), x(p1), x(p2), x(p3), mu),
-      cubic-interpolate(y(p0), y(p1), y(p2), y(p3), mu),
-      cubic-interpolate(z(p0), z(p1), z(p2), z(p3), mu))
+public defn cubic-interpolate3 (p0:Vec3, p1:Vec3, p2:Vec3, p3:Vec3, mu:Double) -> Vec3 :
+  Vec3(cubic-interpolate(x(p0), x(p1), x(p2), x(p3), mu),
+       cubic-interpolate(y(p0), y(p1), y(p2), y(p3), mu),
+       cubic-interpolate(z(p0), z(p1), z(p2), z(p3), mu))
 
-public defn cubic-interpolate3 (l:Tuple<V3d>, n:Int) -> Seqable<V3d> :
+public defn cubic-interpolate3 (l:Tuple<Vec3>, n:Int) -> Seqable<Vec3> :
   val len = length(l)
   val pts = for i in 0 to (len - 1) seq-cat :
     val p0 = l[0]     when i ==         0 else l[i - 1]
@@ -129,7 +129,7 @@ public defn cubic-interpolate3 (l:Tuple<V3d>, n:Int) -> Seqable<V3d> :
       cubic-interpolate3(p0, l[i], l[i + 1], p3, mu)
   cat(pts, [last(l)])
 
-public defn cubic-interpolate3-wrapped (l:Tuple<V3d>, n:Int) -> Seqable<V3d> :
+public defn cubic-interpolate3-wrapped (l:Tuple<Vec3>, n:Int) -> Seqable<Vec3> :
   val len = length(l)
   val pts = to-tuple $ for i in 0 to len seq-cat :
     val p0 = l[(i - 1 + len) % len]

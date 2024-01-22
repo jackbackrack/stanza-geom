@@ -10,7 +10,7 @@ defpackage geom/circle :
 val @doc-circle = "CIRCLE -- a circle"
 
 public defstruct Circle <: Equalable & Geom :
-  center : V2d
+  center : Vec2
   radius : Double
 
 defmethod equal? (a:Circle, b:Circle) -> True|False :
@@ -19,10 +19,10 @@ defmethod equal? (a:Circle, b:Circle) -> True|False :
 defmethod print (o:OutputStream, c:Circle) :
   print(o, "Circle(%_, %_)" % [center(c), radius(c)])
 
-public defn distance (c:Circle, p:V2d) -> Double :
+public defn distance (c:Circle, p:Vec2) -> Double :
   distance(center(c), p)
 
-public defn inside? (c:Circle, p:V2d) -> True|False :
+public defn inside? (c:Circle, p:Vec2) -> True|False :
   distance(c, p) < radius(c)
 
 public defn outer-tangent (c0:Circle, c1:Circle) -> LineSegment2 :
@@ -34,7 +34,7 @@ public defn outer-tangent (c0:Circle, c1:Circle) -> LineSegment2 :
   val t1 = center(c1) + radius(c1) * sc
   LineSegment2(t0, t1)
 
-public defn reflect-point (l:LineSegment2, p:V2d, dir:Double) -> V2d :
+public defn reflect-point (l:LineSegment2, p:Vec2, dir:Double) -> Vec2 :
   val pv = p - start(l)
   val lv = end(l) - start(l)
   val a = angle(pv, lv)
@@ -52,10 +52,10 @@ public defn outer-tangents (c0:Circle, c1:Circle) -> [LineSegment2, LineSegment2
   val t0 = outer-tangent(c0, c1)
   [t0, reflect-outer-tangent(c0, c1, t0)]
 
-public defn homothetic-center (c0:Circle, c1:Circle) -> V2d :
+public defn homothetic-center (c0:Circle, c1:Circle) -> Vec2 :
   (radius(c1) / (radius(c0) + radius(c1))) * center(c0) + (radius(c0) / (radius(c0) + radius(c1))) * center(c1)
 
-public defn tangent-point (c:Circle, p:V2d) -> V2d :
+public defn tangent-point (c:Circle, p:Vec2) -> Vec2 :
   val del = center(c) - p
   val dist = magnitude(del)
   val side = sqrt(sqr(dist) - sqr(radius(c)))
@@ -82,10 +82,10 @@ public defn angle-delta (a0:Double, a1:Double) -> Double :
   val a = normalize-half-angle(a0 - a1)
   a when abs(a) <= PI else ((2.0 * PI - abs(a)) * -1.0 * sign(a))
 
-public defn angle (c:Circle, p:V2d) -> Double :
+public defn angle (c:Circle, p:Vec2) -> Double :
   atan2(p - center(c))
 
-public defn point-delta (p0:V2d, p1:V2d, c:Circle, trace?:True|False) -> Double :
+public defn point-delta (p0:Vec2, p1:Vec2, c:Circle, trace?:True|False) -> Double :
   angle-delta(angle(c, p0), angle(c, p1))
 
 public defn point-delta (tangent:LineSegment2, ls:LineSegment2, c0:Circle, c1:Circle) -> Double :
@@ -108,7 +108,7 @@ public defn closest-tangent (c0:Circle, c1:Circle, ls:LineSegment2) -> LineSegme
       best-index = i
   best-tangent
 
-public defn arc (c:Circle, sp:V2d, ep:V2d, iinc:Double) -> Seqable<V2d> :
+public defn arc (c:Circle, sp:Vec2, ep:Vec2, iinc:Double) -> Seqable<Vec2> :
   val delta = point-delta(ep, sp, c, true)
   val n = abs(ceil(delta / iinc))
   val inc = 0.0 when n == 0.0 else (delta / n)

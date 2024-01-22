@@ -11,13 +11,13 @@ defpackage geom/shapes :
 public defn bulk-rem (p:Poseable, c:Shape) :
   map(rem{_, c}, p)
 
-public defn lift (t:Float, s2:Shape) -> Shape :
+public defn lift (t:Double, s2:Shape) -> Shape :
   val s = extrude(t, s2)
   ;; val c = center(bounds(s))
-  ;; set-points(s, [c, c + V3f(0.0f, 0.0f, t)])
+  ;; set-points(s, [c, c + Vec3(0.0, 0.0, t)])
   s
 
-public defn plate (d:V2f, t:Float) :
+public defn plate (d:Vec2, t:Double) :
   lift(t, rect(x(d), y(d)))
 
 public defn x-beam (e:Poseable) :
@@ -29,120 +29,120 @@ public defn t-beam (e:Poseable) :
 public defn l-beam (e:Poseable) :
   group $ align-max-x $ align-min-z $ [e reflect-xz(e)]
 
-public defn frame (d:V3f, t:Float) :
-  val yb = reflect-yz $ plate(V2f(x(d), z(d)), t)
-  val xb = reflect-xz $ plate(V2f(z(d), y(d)), t)
+public defn frame (d:Vec3, t:Double) :
+  val yb = reflect-yz $ plate(Vec2(x(d), z(d)), t)
+  val xb = reflect-xz $ plate(Vec2(z(d), y(d)), t)
   cat-all $ [stack-y(y(d)) $ glue $ [ yb yb ],
              stack-x(x(d)) $ glue $ [ xb xb ]]
 
-public defn flat-frame (d:V2f, o:Float, t:Float) :
-  val yb = plate(V2f(x(d), o), t)
-  val xb = plate(V2f(o, y(d)), t)
+public defn flat-frame (d:Vec2, o:Double, t:Double) :
+  val yb = plate(Vec2(x(d), o), t)
+  val xb = plate(Vec2(o, y(d)), t)
   group $ cat-all $ [stack-y(y(d)) $ glue $ [ yb yb ],
                      stack-x(x(d)) $ glue $ [ xb xb ]]
 
-public defn bloom (d:V2f, t:Float) :
+public defn bloom (d:Vec2, t:Double) :
   val xb  = reflect-yz $ x-beam(plate(d, t))
   val tbx = t-beam(plate(d, t))
   val tby = reflect-xy $ t-beam(plate(d, t))
   shapes $ group $ align-min-z $ [xb tbx tby]
 
-public defn dividers (d:V3f, t:Float, n:V2i) :
-  val wall  = reflect-xz $ plate(V2f(z(d), y(d)), t)
-  val shelf = reflect-yz $ plate(V2f(x(d), z(d)), t)
+public defn dividers (d:Vec3, t:Double, n:V2i) :
+  val wall  = reflect-xz $ plate(Vec2(z(d), y(d)), t)
+  val shelf = reflect-yz $ plate(Vec2(x(d), z(d)), t)
   cat-all $ [stack-x(x(d)) $ glue $ seq({ wall },  0 to x(n)),
              stack-y(y(d)) $ glue $ seq({ shelf }, 0 to y(n))]
 
-public defn bookshelf (d:V3f, t:Float, n:V2i) :
-  cat-all $ [dividers(d, t, n), stack-z(z(d), [plate(xy(d), t), Glue(1.0f)])]
+public defn bookshelf (d:Vec3, t:Double, n:V2i) :
+  cat-all $ [dividers(d, t, n), stack-z(z(d), [plate(xy(d), t), Glue(1.0)])]
 
-public defn mounting-holes (inner:V2f, t:Float, hd:Float) -> Assembly :
-  group $ space-corners(inner - xy(hd), cylinder(hd, t * 2.0f))
+public defn mounting-holes (inner:Vec2, t:Double, hd:Double) -> Assembly :
+  group $ space-corners(inner - xy(hd), cylinder(hd, t * 2.0))
 
-public defn mounting-holes-centers (inner:V2f, t:Float, hd:Float) -> Assembly :
-  group $ space-corners(inner, cylinder(hd, t * 2.0f))
+public defn mounting-holes-centers (inner:Vec2, t:Double, hd:Double) -> Assembly :
+  group $ space-corners(inner, cylinder(hd, t * 2.0))
 
-public defn mounting-plate (outer:V2f, inner:V2f, t:Float, hd:Float) -> Shape :
+public defn mounting-plate (outer:Vec2, inner:Vec2, t:Double, hd:Double) -> Shape :
   rem(plate(outer, t), union $ shapes $ mounting-holes(inner, t, hd))
 
-public defn rounded-mounting-plate (outer:V2f, inner:V2f, d:Float, t:Float, hd:Float) -> Shape :
+public defn rounded-mounting-plate (outer:Vec2, inner:Vec2, d:Double, t:Double, hd:Double) -> Shape :
   rem(extrude(t, rounded-rect(outer, d)), union $ shapes $ mounting-holes(inner, t, hd))
 
-public defn space-corners (d:V2f, s:Poseable) -> Seqable<Poseable> :
+public defn space-corners (d:Vec2, s:Poseable) -> Seqable<Poseable> :
   val x-pair = group $ space-x([x(d)], [s s])
   space-y([y(d)], [x-pair x-pair])
 
-public defn stack-corners (d:V2f, s:Poseable) -> Seqable<Poseable> :
+public defn stack-corners (d:Vec2, s:Poseable) -> Seqable<Poseable> :
   val x-pair = group $ stack-x(x(d), glue $ [s s])
   stack-y(y(d), glue $ [x-pair x-pair])
 
-public defn corners (d:V2f, s:Poseable) -> Seqable<Poseable> :
+public defn corners (d:Vec2, s:Poseable) -> Seqable<Poseable> :
   val x-pair = group $ stack-x(x(d), glue $ [s s])
   stack-y(y(d), glue $ [x-pair x-pair])
 
-public defn rot-corners (d:V2f, s:Poseable) -> Seqable<Poseable> :
+public defn rot-corners (d:Vec2, s:Poseable) -> Seqable<Poseable> :
   val x-pair = group $ stack-x(x(d), glue $ [s reflect-x(s)])
   stack-y(y(d), glue $ [x-pair reflect-y(x-pair)])
 
-public defn rounded-rect (od:V2f, d:Float) :
+public defn rounded-rect (od:Vec2, d:Double) :
   val id = od - xy(d)
   val caps = union $ shapes $ group $ space-corners(id, circle(d))
   val yr = rect(x(id), y(od))
   val xr = rect(x(od), y(id))
   union $ [xr, yr, caps]
 
-public defn corner (d:Float, t:Float) :
-  val c = plate(V2f(d, d), t)
+public defn corner (d:Double, t:Double) :
+  val c = plate(Vec2(d, d), t)
   align-min-z $ align-min-y $ align-min-x $ [c, reflect-xz $ c, reflect-yz $ c]
 
-public defn bin (d:V3f, t:Float, o:Float) :
-  group $ align-min-z $ cat(frame(d, t), [plate(xy(d) + 2.0f * V2f(o, o), t)])
+public defn bin (d:Vec3, t:Double, o:Double) :
+  group $ align-min-z $ cat(frame(d, t), [plate(xy(d) + 2.0 * Vec2(o, o), t)])
 
-public defn drawer (d:V3f, t:Float) :
-  bin(d, t, 0.0f)
+public defn drawer (d:Vec3, t:Double) :
+  bin(d, t, 0.0)
 
-public var *drawer-gap*:Float = 1.0f / 16.0f
+public var *drawer-gap*:Double = 1.0 / 16.0
 
-public defn drawers (d:V3f, t:Float, drawers:Tuple<((V3f, Float) -> Poseable)>) :
+public defn drawers (d:Vec3, t:Double, drawers:Tuple<((Vec3, Double) -> Poseable)>) :
   val st  = t + *drawer-gap*
   val n   = length(drawers)
-  val dzd = (z(d) - (to-float(n + 1) * st)) / to-float(n)
-  val dd  = V3f(x(d) - 2.0f * st, y(d) - 1.0f * st, dzd)
-  group $ stack-z(z(d) - 2.0f * st, glue $ seq(fn (f) : f(dd, t), drawers))
+  val dzd = (z(d) - (to-double(n + 1) * st)) / to-double(n)
+  val dd  = Vec3(x(d) - 2.0 * st, y(d) - 1.0 * st, dzd)
+  group $ stack-z(z(d) - 2.0 * st, glue $ seq(fn (f) : f(dd, t), drawers))
 
-public defn pulls (d:V3f, t:Float, n:Int) :
-  val tab = rem(plate(V2f(x(d), y(d) + t), t), 
-                mov-y(0.5f * t) $ plate(0.25f * V2f(x(d), y(d)), 2.0f * t))
+public defn pulls (d:Vec3, t:Double, n:Int) :
+  val tab = rem(plate(Vec2(x(d), y(d) + t), t), 
+                mov-y(0.5 * t) $ plate(0.25 * Vec2(x(d), y(d)), 2.0 * t))
   group $ stack-z(z(d) - t) $ glue-evenly $ repeatedly({ tab }, n)
 
-public defn face-plate (d:V2f, o:Float, bolt-d:Float, t:Float) :
-  val board = lift(t, rounded-rect(d, 2.0f * o))
-  val hole  = cylinder(bolt-d, 2.0f * t)
+public defn face-plate (d:Vec2, o:Double, bolt-d:Double, t:Double) :
+  val board = lift(t, rounded-rect(d, 2.0 * o))
+  val hole  = cylinder(bolt-d, 2.0 * t)
   val holes = shapes $ group $ space-corners(d, hole)
   [ rem(board, union $ holes) ]
 
-public defn chest (d:V3f, t:Float, gen-drawers:Seqable<((V3f, Float) -> Poseable)>) :
+public defn chest (d:Vec3, t:Double, gen-drawers:Seqable<((Vec3, Double) -> Poseable)>) :
   val ds = to-tuple $ gen-drawers
-  val bs = group $ bookshelf(V3f(x(d), z(d), y(d)), t, V2i(2, length(ds) + 1))
+  val bs = group $ bookshelf(Vec3(x(d), z(d), y(d)), t, V2i(2, length(ds) + 1))
   group $ align-max-y $ [reflect-yz $ bs, drawers(d, t, ds)]
 
-public defn chest-pulls (d:V3f, t:Float, gen-drawers:Seqable<((V3f, Float) -> Poseable)>) :
+public defn chest-pulls (d:Vec3, t:Double, gen-drawers:Seqable<((Vec3, Double) -> Poseable)>) :
   val ds  = to-tuple $ gen-drawers
   val cab = chest(d, t, ds)
-  val tabs = pulls(V3f(2.0f, 1.0f, z(d)), t, length(ds))
-  mov-y(0.5f * (y(dims(bounds(tabs))) - t)) $ group $ stack-meld-y(t) $ [ cab tabs ]
+  val tabs = pulls(Vec3(2.0, 1.0, z(d)), t, length(ds))
+  mov-y(0.5 * (y(dims(bounds(tabs))) - t)) $ group $ stack-meld-y(t) $ [ cab tabs ]
 
-public defn hook (hd:V2f, sd:V2f, t:Float) :
+public defn hook (hd:Vec2, sd:Vec2, t:Double) :
   val h = plate(hd, t)
-  val s = mov-x(-0.5f * t) $ plate(sd, 2.0f * t)
+  val s = mov-x(-0.5 * t) $ plate(sd, 2.0 * t)
   rem $ align-max-y $ [h s]
 
-public defn hook-bar (d:V2f, n:Int, h:Shape, t:Float) :
+public defn hook-bar (d:Vec2, n:Int, h:Shape, t:Double) :
   val b = plate(d, t)
   val hs = stack-x(x(d)) $ glue $ repeatedly({ reflect-xz $ h }, n)
   group $ align-min-z $ cat-all $ [[b], hs]
 
-public defn hook-row (xd:Float, t:Float, n:Int) :
-  val hook  = reflect-xy $ reflect-yz $ hook(V2f(1.0f + t, 1.0f), V2f(0.375f, 0.5f), t)
+public defn hook-row (xd:Double, t:Double, n:Int) :
+  val hook  = reflect-xy $ reflect-yz $ hook(Vec2(1.0 + t, 1.0), Vec2(0.375, 0.5), t)
   group $ stack-x(xd) $ glue-all $ repeatedly({ hook }, n)
 

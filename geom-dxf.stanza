@@ -17,19 +17,19 @@ defpackage geom/dxf :
 defn do-print-dxf (s:OutputStream, assembly:Assembly) :
   for elt in children(assembly) do :
     match(elt) :
-      (c:PolyLine2f|Polygon|Assembly) : do-print-dxf(s, xyz(mat(assembly), c))
+      (c:PolyLine2|Polygon|Assembly) : do-print-dxf(s, xyz(mat(assembly), c))
       (c) : false
 
-defn do-print-dxf (s:OutputStream, x:Float, code:Int) :
+defn do-print-dxf (s:OutputStream, x:Double, code:Int) :
   println(s, code)
   println(s, x)
 
-defn do-print-dxf (s:OutputStream, pt:V2f, offset:Int) :
+defn do-print-dxf (s:OutputStream, pt:Vec2, offset:Int) :
   do-print-dxf(s, x(pt), 10 + offset)
   do-print-dxf(s, y(pt), 20 + offset)
-  do-print-dxf(s, 0.0f,  30 + offset)
+  do-print-dxf(s, 0.0,   30 + offset)
 
-defn do-print-dxf (s:OutputStream, color:V4f, start:V2f, end:V2f) :
+defn do-print-dxf (s:OutputStream, color:Vec4, start:Vec2, end:Vec2) :
   println(s, "0")
   println(s, "LINE")
   println(s, "8")
@@ -38,17 +38,17 @@ defn do-print-dxf (s:OutputStream, color:V4f, start:V2f, end:V2f) :
   do-print-dxf(s, end,   1)
 
 
-defn do-print-dxf (s:OutputStream, color:V4f, points:Seqable<V2f>, close?:True|False) :
+defn do-print-dxf (s:OutputStream, color:Vec4, points:Seqable<Vec2>, close?:True|False) :
   val pts = to-tuple $ points
   if close? :
     for [b,e] in successive-pairs-wrapped(pts) do : do-print-dxf(s, color, b, e)
   else :
     for [b,e] in successive-pairs(pts) do : do-print-dxf(s, color, b, e)
 
-defn do-print-dxf (s:OutputStream, color:V4f, contour:Contour) :
+defn do-print-dxf (s:OutputStream, color:Vec4, contour:Contour) :
   do-print-dxf(s, color, vertices(contour), true)
 
-defn do-print-dxf-header (s:OutputStream, bounds:Box2f, f:OutputStream -> False) :
+defn do-print-dxf-header (s:OutputStream, bounds:Box2, f:OutputStream -> False) :
   println(s, "0")
   println(s, "SECTION")
   println(s, "2")
@@ -63,19 +63,19 @@ defn do-print-dxf (s:OutputStream, polygon:Polygon) :
   for c in contours(polygon) do :
     do-print-dxf(s, color(polygon), c)
 
-defn do-print-dxf (s:OutputStream, polyline:PolyLine2f) :
+defn do-print-dxf (s:OutputStream, polyline:PolyLine2) :
   for line in strokes(polyline) do :
     do-print-dxf(s, color(polyline), line, false)
 
-defn dxf (s:OutputStream, g:Assembly|PolyLine2f|Polygon, bbox:Box2f) :
+defn dxf (s:OutputStream, g:Assembly|PolyLine2|Polygon, bbox:Box2) :
   do-print-dxf-header(s, bbox, { (
-    val mg = mov(xyz(-1.0f * lo(bbox)), g)
+    val mg = mov(xyz(-1.0 * lo(bbox)), g)
     do-print-dxf(s, mg) ) } )
 
-public defn dxf (g:Assembly|PolyLine2f|Polygon, filename:String, bbox:Box2f) :
+public defn dxf (g:Assembly|PolyLine2|Polygon, filename:String, bbox:Box2) :
   val s = FileOutputStream(filename)
   try : dxf(s, g, bbox)
   finally : close(s)
 
-public defn dxf (g:Assembly|PolyLine2f|Polygon, filename:String, margin:V2f) :
+public defn dxf (g:Assembly|PolyLine2|Polygon, filename:String, margin:Vec2) :
   dxf(g, filename, fatten(xy(bounds(g)), margin))

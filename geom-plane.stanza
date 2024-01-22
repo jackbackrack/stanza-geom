@@ -6,13 +6,13 @@ defpackage geom/plane :
   import geom/polyline
 
 public defstruct Plane :
-  center : V3d
-  normal : V3d
+  center : Vec3
+  normal : Vec3
 with :
   printer => true
 
-public defn parallel-vector (p:Plane) -> V3d :
-  val vs = to-tuple $ for v in [x3d(1.0), y3d(1.0), z3d(1.0)] filter : v != normal(p)
+public defn parallel-vector (p:Plane) -> Vec3 :
+  val vs = to-tuple $ for v in [x3(1.0), y3(1.0), z3(1.0)] filter : v != normal(p)
   normalize(vs[0] % normal(p))
 
 public defn offset (p:Plane, o:Double) -> Plane :
@@ -21,7 +21,7 @@ public defn offset (p:Plane, o:Double) -> Plane :
 public defn invert (p:Plane) -> Plane :
   Plane(center(p), -1.0 * normal(p))
 
-public defn close-loop (il:Seqable<V3d>) -> Tuple<V3d> :
+public defn close-loop (il:Seqable<Vec3>) -> Tuple<Vec3> :
   val l = to-tuple(il)
   to-tuple $ cat(l, [l[0]])
 
@@ -35,13 +35,13 @@ public defn to-polyline (p:Plane, r:Double) -> PolyLine3 :
 public defn distance (p:Plane) -> Double :
   dot(normal(p), center(p))
 
-public defn distance (p:Plane, v:V3d) -> Double :
+public defn distance (p:Plane, v:Vec3) -> Double :
   dot(normal(p), v) - distance(p)
 
-public defn project (p:Plane, v:V3d) -> V3d :
+public defn project (p:Plane, v:Vec3) -> Vec3 :
   v - distance(p, v) * normal(p)
 
-public defn intersect (p:Plane, l:Line3) -> False|V3d :
+public defn intersect (p:Plane, l:Line3) -> False|Vec3 :
   val d = dot(dir(l), normal(p))
   if d == 0.0 :
     false

@@ -17,9 +17,9 @@ public defn skip-vertex-ids (id:Int) :
 
 public defstruct Vertex <: Equalable&Hashable :
   id : Int
-  value : V2f
+  value : Vec2
 
-public defn Vertex (v:V2f) : Vertex(next(vertex-ids), v)
+public defn Vertex (v:Vec2) : Vertex(next(vertex-ids), v)
 
 defmethod print (o:OutputStream, v:Vertex) :
   print(o, "VERTEX(ID %_, VALUE %_)" % [id(v), value(v)])
@@ -55,7 +55,7 @@ defmethod print (o:OutputStream, e:Edge) :
 public defn next (e:Edge) : #next(e) as Edge
 public defn data (e:Edge) : #data(e) as Vertex
 
-public defn center (e:Edge) -> V2f :
+public defn center (e:Edge) -> Vec2 :
   0.5f * (value(org(e)) + value(dest(e)))
 
 defn Edge (s:Subdivision) :
@@ -69,7 +69,7 @@ defn Edge (s:Subdivision, a:Vertex, b:Vertex) :
 defmethod equal? (a:Edge, b:Edge) : id(a) == id(b)
 defmethod hash (a:Edge) : hash(id(a))
 
-public defn length (e:Edge) -> Float : magnitude(value(org(e)) - value(dest(e)))
+public defn length (e:Edge) -> Double : magnitude(value(org(e)) - value(dest(e)))
 
 val quad-edge-ids = to-seq(0 to false)
 
@@ -281,16 +281,16 @@ public defn Subdivision (va:Vertex, vb:Vertex, vc:Vertex) :
   set-starting-edge(s, ea)
   s
 
-public defn boundary-points (bounds:Box2f) -> Seqable<V2f> :
+public defn boundary-points (bounds:Box2) -> Seqable<Vec2> :
   val dims = dims(bounds)
   val ctr = center(bounds)
   val radius = magnitude(dims)
   val poly = mov(xyz $ ctr, polygon-n(2.1f * radius, 3))
   vertices $ contours(poly)[0]
 
-public defn boundary-points (verts:Tuple<Vertex>) -> Seqable<V2f> :
+public defn boundary-points (verts:Tuple<Vertex>) -> Seqable<Vec2> :
   val points = to-tuple $ seq(value, verts)
-  boundary-points(reduce(bit-or, seq(Box2f, points)))
+  boundary-points(reduce(bit-or, seq(Box2, points)))
 
 public defn Subdivision (ivertices:Seqable<Vertex>, boundary-verts:Tuple<Vertex>) :
   val verts = to-tuple $ ivertices
@@ -305,7 +305,7 @@ public defn Subdivision (ivertices:Seqable<Vertex>) :
   val verts = to-tuple $ ivertices
   Subdivision(verts, to-tuple $ seq(Vertex, boundary-points(verts)))
 
-public defn Subdivision (ipoints:Seqable<V2f>) :
+public defn Subdivision (ipoints:Seqable<Vec2>) :
   Subdivision(seq(Vertex, ipoints))
 
 defn connect (s:Subdivision, a:Edge, b:Edge) :
@@ -328,7 +328,7 @@ defn swap (s:Subdivision, e:Edge) :
   splice(sym(e), lnext(b))
   set-end-points(s, e, dest(a), dest(b))
 
-defn snap (x:V2f, a:V2f, b:V2f) -> V2f :
+defn snap (x:Vec2, a:Vec2, b:Vec2) -> Vec2 :
   if x == a :
     a
   else if x == b :
@@ -355,23 +355,23 @@ defn split-edge (s:Subdivision, e:Edge, vx:Vertex) -> Vertex :
     set-constrained?(quad(e), true)
   dt
     
-defn split-edge (s:Subdivision, e:Edge, x:V2f) -> Vertex :
+defn split-edge (s:Subdivision, e:Edge, x:Vec2) -> Vertex :
   split-edge(s, e, Vertex(x))
 
 defn warning (m:String) :
   println(m)
   false      
 
-defn tri-area (a:V2f, b:V2f, c:V2f) -> Float :
+defn tri-area (a:Vec2, b:Vec2, c:Vec2) -> Double :
   (x(b) - x(a)) * (y(c) - y(a)) - (y(b) - y(a)) * (x(c) - x(a))
 
-defn in-circle (a:V2f, b:V2f, c:V2f, d:V2f) :
+defn in-circle (a:Vec2, b:Vec2, c:Vec2, d:Vec2) :
   (dot(a, a) * tri-area(b, c, d) -
    dot(b, b) * tri-area(a, c, d) +
    dot(c, c) * tri-area(a, b, d) -
    dot(d, d) * tri-area(a, b, c)) > 0.0f
 
-defn circum-center (a:V2f, b:V2f, c:V2f) :
+defn circum-center (a:Vec2, b:Vec2, c:Vec2) :
   val d1 = dot(b - a, c - a) 
   val d2 = dot(b - c, a - c) 
   val d3 = dot(a - b, c - b)
@@ -389,25 +389,25 @@ defn has-right-face (e:Edge) -> True|False :
 defn intersect (e:Edge, l:ImplicitLine) :
   intersect(l, value(org(e)), value(dest(e)))
 
-defn ccw (a:V2f, b:V2f, c:V2f) -> True|False :
+defn ccw (a:Vec2, b:Vec2, c:Vec2) -> True|False :
   tri-area(a, b, c) > 0.0f
 
-defn cw (a:V2f, b:V2f, c:V2f) -> True|False :
+defn cw (a:Vec2, b:Vec2, c:Vec2) -> True|False :
   tri-area(a, b, c) < 0.0f
 
-defn inline (a:V2f, b:V2f, c:V2f) -> True|False :
+defn inline (a:Vec2, b:Vec2, c:Vec2) -> True|False :
   tri-area(a, b, c) == 0.0f
 
-defn right-of (x:V2f, e:Edge) -> True|False :
+defn right-of (x:Vec2, e:Edge) -> True|False :
   ccw(x, value(dest(e)), value(org(e)))
 
-defn inline-of (x:V2f, e:Edge) -> True|False :
+defn inline-of (x:Vec2, e:Edge) -> True|False :
   inline(x, value(dest(e)), value(org(e)))
 
-defn left-of (x:V2f, e:Edge) -> True|False :
+defn left-of (x:Vec2, e:Edge) -> True|False :
   cw(x, value(dest(e)), value(org(e)))
 
-;; defn on-edge (x:V2f, e:Edge) -> True|False :
+;; defn on-edge (x:Vec2, e:Edge) -> True|False :
 ;;   val t1 = normalize(x - org(e)
 ;;   val t2 = normalize(x - dest(e))
 ;;   if t1 < EPS or t2 < EPS :
@@ -420,13 +420,13 @@ defn left-of (x:V2f, e:Edge) -> True|False :
 ;;       val line = Line(org(e), dest(e))
 ;;       abs(eval(line, x)) < EPS
 
-public defn on-edge-value (p:V2f, e:Edge) -> Float :
+public defn on-edge-value (p:Vec2, e:Edge) -> Double :
   val op = magnitude(p - value(org(e)))
   val pd = magnitude(p - value(dest(e)))
   val od = magnitude(value(org(e)) - value(dest(e)))
   abs(od - (op + pd))
 
-public defn on-edge (p:V2f, e:Edge) -> True|False :
+public defn on-edge (p:Vec2, e:Edge) -> True|False :
   val op = magnitude(p - value(org(e)))
   if op < EPS :
     true
@@ -443,7 +443,7 @@ public defstruct AlreadyVisitedException <: Exception
 defmethod print (o:OutputStream, e:AlreadyVisitedException) :
   print(o, "Edge already visited. Preventing infinite loop.")
 
-public defn locate (s:Subdivision, x:V2f) -> Edge :
+public defn locate (s:Subdivision, x:Vec2) -> Edge :
   ;; println("LOCATE %_" % [x])
   val visited = HashSet<Edge>()
   let loop (e:Edge = starting-edge(s)) :
@@ -567,10 +567,10 @@ defn ear-clipping-triangulate (s:Subdivision, init-first:Edge) :
   defn concave? (e:Edge) -> True|False :
     right-of(value(org(lprev(e))), e) or inline-of(value(org(lprev(e))), e)
 
-  defn sign (p1:V2f, p2:V2f, p3:V2f) -> Float :
+  defn sign (p1:Vec2, p2:Vec2, p3:Vec2) -> Double :
     (x(p1) - x(p3)) * (y(p2) - y(p3)) - (x(p2) - x(p3)) * (y(p1) - y(p3))
 
-  defn inside? (pt:V2f, v1:V2f, v2:V2f, v3:V2f) -> True|False :
+  defn inside? (pt:Vec2, v1:Vec2, v2:Vec2, v3:Vec2) -> True|False :
     val d1 = sign(pt, v1, v2)
     val d2 = sign(pt, v2, v3)
     val d3 = sign(pt, v3, v1)
@@ -585,7 +585,7 @@ defn ear-clipping-triangulate (s:Subdivision, init-first:Edge) :
     ;; println("PT %_ TRI %_ %_ %_ -> %_ (%_, %_, %_)" % [pt, v1, v2, v3, res, d1, d2, d3])
     res
 
-  defn inside? (p:V2f, e:Edge) -> True|False :
+  defn inside? (p:Vec2, e:Edge) -> True|False :
     inside?(p, value(org(lprev(e))), value(org(e)), value(dest(e)))
 
   defn ear? (e:Edge) -> True|False :
@@ -638,14 +638,14 @@ defn ear-clipping-triangulate (s:Subdivision, init-first:Edge) :
   fix-edge(s, b)
   fix-edge(s, last)
 
-public defn coincide (a:V2f, b:V2f, dist:Float) -> True|False :
+public defn coincide (a:Vec2, b:Vec2, dist:Double) -> True|False :
   val d = a - b
   if abs(x(d)) > dist or abs(y(d)) > dist :
     false
   else :
     dot(d, d) <= (dist * dist)
 
-public defn delete-site (s:Subdivision, vx:Vertex, dist:Float) : ;; -> [Tuple<Edge>, Tuple<Edge>] :
+public defn delete-site (s:Subdivision, vx:Vertex, dist:Double) : ;; -> [Tuple<Edge>, Tuple<Edge>] :
   ;; println(">>> DELETE-SITE %_" % [vx])
   val one-e = locate(s, value(vx))
   val e = one-e when org(one-e) == vx else sym(one-e)
@@ -697,7 +697,7 @@ public defn delete-site (s:Subdivision, vx:Vertex, dist:Float) : ;; -> [Tuple<Ed
 
 val trace? = false
 
-public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Float) -> False|Edge :
+public defn constrained-insert-site (s:Subdivision, vx:Vertex, dist:Double) -> False|Edge :
   ;; println(">>> INSERT-SITE %_" % [vx])
   label<False|Edge> return :
     val x = value(vx)
@@ -818,14 +818,14 @@ public defn insert-edge (s:Subdivision, a:Vertex, b:Vertex) -> False|Edge :
   label<False|Edge> return:
     match(constrained-insert-site(s, a, 0.0f), constrained-insert-site(s, b, 0.0f)) :
       (start-ea:Edge, eb:Edge) :
-        var aa:V2f = value(org(start-ea))
-        var bb:V2f = value(org(eb))
+        var aa:Vec2 = value(org(start-ea))
+        var bb:Vec2 = value(org(eb))
         val starting-edge = start-ea
         var ea:Edge = locate(s, aa)
         if aa != value(org(ea)) :
           ea = sym(ea)
         var ab:ImplicitLine = ImplicitLine2(aa, bb)
-        var dd:V2f = bb - aa
+        var dd:Vec2 = bb - aa
         val last = org(eb)
         var res:False|Edge = false
         defn set-res (e:Edge) :

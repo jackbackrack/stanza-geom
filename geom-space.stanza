@@ -10,31 +10,31 @@ defpackage geom/space :
   import geom/assembly
   import geom/shape
 
-public defmulti spacer<?T> (g:?T&Poseable, dims:V3d) -> T
+public defmulti spacer<?T> (g:?T&Poseable, dims:Vec3) -> T
 
 ;; public defn space-x (gdim:Double, shape:AnyShape) : mag1(gdim / x(dims(bounds(shape))), shape)
 ;; public defn space-y (gdim:Double, shape:AnyShape) : mag1(gdim / y(dims(bounds(shape))), shape)
 ;; public defn space-z (gdim:Double, shape:AnyShape) : mag1(gdim / z(dims(bounds(shape))), shape)
 
-public defn spacer-x<?T> (gdim:Double, g:?T&Poseable) : spacer(g, V3d(gdim, 0.0, 0.0))
-public defn spacer-y<?T> (gdim:Double, g:?T&Poseable) : spacer(g, V3d(0.0, gdim, 0.0))
-public defn spacer-z<?T> (gdim:Double, g:?T&Poseable) : spacer(g, V3d(0.0, 0.0, gdim))
+public defn spacer-x<?T> (gdim:Double, g:?T&Poseable) : spacer(g, Vec3(gdim, 0.0, 0.0))
+public defn spacer-y<?T> (gdim:Double, g:?T&Poseable) : spacer(g, Vec3(0.0, gdim, 0.0))
+public defn spacer-z<?T> (gdim:Double, g:?T&Poseable) : spacer(g, Vec3(0.0, 0.0, gdim))
 
 public defn resize-idx<?T> (gdim:Double, idx:Int, shape:?T&AnyShape) -> T :
   mag1(gdim / dims(bounds(shape))[idx], shape)
 
-public defn resize<?T> (gdims:V3d, shape:?T&AnyShape) -> T :
+public defn resize<?T> (gdims:Vec3, shape:?T&AnyShape) -> T :
   mag1(min(gdims / dims(bounds(shape))), shape)
 
-public defn resize<?T> (gdims:V2d, shape:?T&AnyShape) -> T :
+public defn resize<?T> (gdims:Vec2, shape:?T&AnyShape) -> T :
   mag1(min(gdims / xy(dims(bounds(shape)))), shape)
 
 public defn resize-x<?T> (gdim:Double, shape:?T&AnyShape) -> T : resize-idx(gdim, 0, shape)
 public defn resize-y<?T> (gdim:Double, shape:?T&AnyShape) -> T : resize-idx(gdim, 1, shape)
 public defn resize-z<?T> (gdim:Double, shape:?T&AnyShape) -> T : resize-idx(gdim, 2, shape)
 
-public defn resize (gdims:V2d) : resize{gdims, _}
-public defn resize (gdims:V3d) : resize{gdims, _}
+public defn resize (gdims:Vec2) : resize{gdims, _}
+public defn resize (gdims:Vec3) : resize{gdims, _}
 public defn resize-x (gdim:Double) : resize-x{gdim, _}
 public defn resize-y (gdim:Double) : resize-y{gdim, _}
 public defn resize-z (gdim:Double) : resize-z{gdim, _}
@@ -45,7 +45,7 @@ public defn remove-spacers (p:Poseable) -> Poseable :
                             seq(remove-spacers, filter({ area*(dims(bounds(_))) > 0.0 }, children(a))))
     (s) : s
 
-public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<Box3d>, idx:Int, dir:Double) -> Seq<T> :
+public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<Box3>, idx:Int, dir:Double) -> Seq<T> :
   val [shapes, boundz] = [to-tuple(ishapes), to-tuple(iboundz)]
   val tot = sum $ for bounds in boundz seq : dims(bounds)[idx]
   ;; println("TOT %_" % [tot])
@@ -56,7 +56,7 @@ public defn stack-idx-using<?T> (ishapes:Seqable<?T&Poseable>, iboundz:Seqable<B
         val now-fac = dims(bounds)[idx] / tot
         val ctr     = center(bounds)[idx]
         val amount  = dir * (tot / 2.0 - (tot-fac + now-fac / 2.0) * tot) - ctr
-        val del     = amount * V3d-unit(idx)
+        val del     = amount * Vec3-unit(idx)
         ;; println("STACKING %_ DEL %_ TOT %_ BOUNDS %_ DIMS %_ VOLUME %_" % [child del tot bounds dims(bounds) volume(dims(bounds))])
         yield(mov(del, child))
         tot-fac = tot-fac + now-fac
@@ -84,8 +84,8 @@ public defn stack-z<?T> (shapes:Seqable<?T&Poseable>) -> Seq<T> :
 
 public defn stack-meld-idx<?T> (t:Double, ishapes:Seqable<?T&Poseable>, idx:Int, dir:Double) -> Seq<T> :
   val shapes = to-tuple $ ishapes
-  defn offset (b:Box3d) :
-    val a = -0.5 * t * V3d-unit(idx)
+  defn offset (b:Box3) :
+    val a = -0.5 * t * Vec3-unit(idx)
     val res = fatten(b, a)
     ;; println("B %_ T %_ A %_ -> %_" % [b, t, a, res])
     res 
@@ -160,7 +160,7 @@ public defn assign-glue-idx<?T> (ishapes:Seqable<?T&Poseable>, target:Double, id
   for shape in shapes seq :
     match(shape) :
       (g:AnyGlue&T) :
-        val s = (amount(g) / glue-tot) * gap-tot * V3d-unit(idx)
+        val s = (amount(g) / glue-tot) * gap-tot * Vec3-unit(idx)
         spacer(shape, s)
       (s)           : s
 
@@ -197,7 +197,7 @@ public defn space-idx<?T> (iseps:Seqable<Double>, idx:Int, ishapes:Seqable<?T&Po
   ;; println("SHAPES %_ SEPS %_ TOT %_ START %_ OFFS %_ DIMZ %_" %
   ;;         [shapes, seps, tot, start, offs, to-tuple $ seq({ dims(bounds(_)) }, shapes)])
   for (shape in shapes, off in offs) seq :
-    mov(off * V3d-unit(idx), shape)
+    mov(off * Vec3-unit(idx), shape)
 
 public defn space-x<?T> (seps:Seqable<Double>, shapes:Seqable<?T&Poseable>) : space-idx(seps, 0, shapes)
 public defn space-y<?T> (seps:Seqable<Double>, shapes:Seqable<?T&Poseable>) : space-idx(seps, 1, shapes)
@@ -216,16 +216,16 @@ public defn space-x (sep:Double) : space-idx(sep, 0)
 public defn space-y (sep:Double) : space-idx(sep, 1)
 public defn space-z (sep:Double) : space-idx(sep, 2)
 
-defn align-it<?T> (ishapes:Seqable<?T&Poseable>, value:(Box3d) -> Double, mov:(Double, T) -> T) -> Seq<T> :
+defn align-it<?T> (ishapes:Seqable<?T&Poseable>, value:(Box3) -> Double, mov:(Double, T) -> T) -> Seq<T> :
   val shapes = to-tuple(ishapes)
   val target = reduce(union, seq(bounds, shapes))
   ;; val target = bounds(shapes[0])
   for (child in shapes) seq :
     mov(value(target) - value(bounds(child)), child)
 
-val id-pose = id-mat44d()
+val id-pose = id-mat4()
 
-public defn attach<?T> (src:?T&Poseable, spos:Mat44d, dst:?T&Poseable, dpos:Mat44d) -> Seqable<T> :
+public defn attach<?T> (src:?T&Poseable, spos:Mat4, dst:?T&Poseable, dpos:Mat4) -> Seqable<T> :
   [xyz(inverse(spos) * dpos, src), dst]
 
 public defn attach<?T> (src:?T&Poseable, si:Symbol, dst:?T&Poseable, di:Symbol) -> Seqable<T> :
@@ -272,7 +272,7 @@ defn segment<?T> (shapes:Seqable<?T>, width:T -> Double, max-width:Double, space
       add(row, pc)
     if length(row) > 0 : yield(to-tuple $ row)
 
-public defn nest (pcs:Seqable<Poseable>, size:V2d, spacer:V3d -> Poseable, space:Double) -> Seqable<Assembly> :
+public defn nest (pcs:Seqable<Poseable>, size:Vec2, spacer:Vec3 -> Poseable, space:Double) -> Seqable<Assembly> :
   val apcs  = to-tuple $ pcs
   ;; println("NEST A %_" % [apcs])
   val rpcs  = to-tuple $ seq(fn (pc): reflect-xy(pc) when max-idx(dims(bounds(pc))) != max-idx(size) else pc, apcs)
@@ -287,8 +287,8 @@ public defn nest (pcs:Seqable<Poseable>, size:V2d, spacer:V3d -> Poseable, space
   val res = to-tuple $ for page in pages seq :
     val rrows = for row in page seq:
       ;; println("ROW %_" % [row])
-      Assembly(stack-x(join(row, spacer(x3d(space)))))
-    Assembly(stack-y(join(rrows, Assembly([ spacer(y3d(space)) ]))))
+      Assembly(stack-x(join(row, spacer(x3(space)))))
+    Assembly(stack-y(join(rrows, Assembly([ spacer(y3(space)) ]))))
   ;; println("NEST RES %_" % [res])
   res
 

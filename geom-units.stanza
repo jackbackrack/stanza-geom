@@ -8,8 +8,8 @@ public defn mm-to-in (c:Double) : c / 25.4
 
 public defn in-to-mm (c:Double) : c * 25.4
 
-public defn in-to-mm (v:V2d) -> V2d :
-  V2d(in-to-mm(x(v)), in-to-mm(y(v)))
+public defn in-to-mm (v:Vec2) -> Vec2 :
+  Vec2(in-to-mm(x(v)), in-to-mm(y(v)))
 
 public defn in-to-pt (i:Double) : i * 72.0
 

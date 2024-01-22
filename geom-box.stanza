@@ -8,14 +8,14 @@ defpackage geom/box :
 val @doc-box = "BOXES -- tracking bounds"
 
 #for (Prim in [Int Float Double Int Float Double Int Float Double]
-      BoxElt in [V3i V3f V3d V2i V2f V2d Int Float Double ]
-      BoxName in ["Box3i" "Box3f" "Box3d" "Box2i" "Box2f" "Box2d" "Box1i" "Box1f" "Box1d"]
-      BoxElt-fill in [V3i-fill V3f-fill V3d-fill V2i-fill V2f-fill V2d-fill to-int to-float to-double]
-      Box in [Box3i Box3f Box3d Box2i Box2f Box2d Box1i Box1f Box1d]
+      BoxElt in [Vec3i Vec3f Vec3 Vec2i Vec2f Vec2 Int Float Double ]
+      BoxName in ["Box3i" "Box3f" "Box3" "Box2i" "Box2f" "Box2" "Box1i" "Box1f" "Box1"]
+      BoxElt-fill in [Vec3-fill Vec3-fill Vec3-fill Vec2-fill Vec2-fill Vec2-fill to-int to-float to-double]
+      Box in [Box3i Box3f Box3 Box2i Box2f Box2 Box1i Box1f Box1]
       neg-inf in [neg-inf-i, neg-inf-f, neg-inf-d, neg-inf-i, neg-inf-f, neg-inf-d neg-inf-i, neg-inf-f, neg-inf-d]
       pos-inf in [pos-inf-i, pos-inf-f, pos-inf-d, pos-inf-i, pos-inf-f, pos-inf-d pos-inf-i, pos-inf-f, pos-inf-d]
-      pos-inf-box in [pos-inf-box3i, pos-inf-box3f, pos-inf-box3d, pos-inf-box2i, pos-inf-box2f, pos-inf-box2d pos-inf-box1i, pos-inf-box1f, pos-inf-box1d]
-      neg-inf-box in [neg-inf-box3i, neg-inf-box3f, neg-inf-box3d, neg-inf-box2i, neg-inf-box2f, neg-inf-box2d neg-inf-box1i, neg-inf-box1f, neg-inf-box1d]
+      pos-inf-box in [pos-inf-box3i, pos-inf-box3f, pos-inf-box3, pos-inf-box2i, pos-inf-box2f, pos-inf-box2 pos-inf-box1i, pos-inf-box1f, pos-inf-box1d]
+      neg-inf-box in [neg-inf-box3i, neg-inf-box3f, neg-inf-box3, neg-inf-box2i, neg-inf-box2f, neg-inf-box2 neg-inf-box1i, neg-inf-box1f, neg-inf-box1d]
       x2 in [2 2.0f 2.0, 2, 2.0f, 2.0, 2, 2.0f, 2.0]
       x0 in [0 0.0f 0.0, 0, 0.0f, 0.0, 0, 0.0f, 0.0]) :
 
@@ -93,23 +93,23 @@ val @doc-box = "BOXES -- tracking bounds"
       result = union(result, b)
     result
 
-public defn indices (bounds:Box3i) -> Seq<V3i> :
-  generate<V3i> :
+public defn indices (bounds:Box3i) -> Seq<Vec3i> :
+  generate<Vec3i> :
     for k in z(lo(bounds)) through z(hi(bounds)) do :
       for j in y(lo(bounds)) through y(hi(bounds)) do :
         for i in x(lo(bounds)) through x(hi(bounds)) do :
-          yield(V3i(i, j, k))
+          yield(Vec3i(i, j, k))
 
-public defn indices (bounds:Box2i) -> Seq<V2i> :
-  generate<V2i> :
+public defn indices (bounds:Box2i) -> Seq<Vec2i> :
+  generate<Vec2i> :
     for j in y(lo(bounds)) through y(hi(bounds)) do :
       for i in x(lo(bounds)) through x(hi(bounds)) do :
-        yield(V2i(i, j))
+        yield(Vec2i(i, j))
 
 #for (BoxElt in [Int Float Double]
-      Box in [Box1i Box1f Box1d]
-      Box2 in [Box2i Box2f Box2d]
-      Box3 in [Box3i Box3f Box3d]
+      Box in [Box1i Box1f Box1]
+      Box2 in [Box2i Box2f Box2]
+      Box3 in [Box3i Box3f Box3]
       x0 in [0 0.0f 0.0]) :
 
   public defn x (b:Box2): Box(x(lo(b)), x(hi(b)))
@@ -150,9 +150,9 @@ public defn indices (bounds:Box2i) -> Seq<V2i> :
   public defn rnd (b:Box) -> BoxElt :
     rnd(lo(b), hi(b))
 
-#for (BoxElt in [V2i V2f V2d]
-      Box in [Box2i Box2f Box2d]
-      Box3 in [Box3i Box3f Box3d]
+#for (BoxElt in [Vec2i Vec2f Vec2]
+      Box in [Box2i Box2f Box2]
+      Box3 in [Box3i Box3f Box3]
       x0 in [0 0.0f 0.0]) :
 
   public defn xy (b:Box) -> Box : b
@@ -183,9 +183,9 @@ public defn indices (bounds:Box2i) -> Seq<V2i> :
   public defn rnd (b:Box) -> BoxElt :
     rnd(lo(b), hi(b))
 
-#for (BoxElt in [V3i V3f V3d]
-      Box in [Box3i Box3f Box3d]
-      Box2 in [Box2i Box2f Box2d]
+#for (BoxElt in [Vec3i Vec3f Vec3]
+      Box in [Box3i Box3f Box3]
+      Box2 in [Box2i Box2f Box2]
       x0 in [0 0.0f 0.0]) :
 
   public defn xy (b:Box) -> Box2 :
@@ -214,11 +214,11 @@ public defn indices (bounds:Box2i) -> Seq<V2i> :
          (y(hi(b0)) < y(lo(b1)) or y(lo(b0)) > y(hi(b1))) or
          (z(hi(b0)) < z(lo(b1)) or z(lo(b0)) > z(hi(b1))))
 
-public defn times (mat:Mat44d, b:Box3d) -> Box3d :
-  reduce(union, map(Box3d{ mat * _ }, corners(b)))
+public defn times (mat:Mat4, b:Box3) -> Box3 :
+  reduce(union, map(Box3{ mat * _ }, corners(b)))
 
-public defn times (mat:Mat44d, b:Box2d) -> Box2d :
-  reduce(union, map(Box2d{ xy(mat * xyz(_)) }, corners(b)))
+public defn times (mat:Mat4, b:Box2) -> Box2 :
+  reduce(union, map(Box2{ xy(mat * xyz(_)) }, corners(b)))
 
 public val pos-inf-f = FLOAT-MAX
 public val neg-inf-f = -1.0f * FLOAT-MAX

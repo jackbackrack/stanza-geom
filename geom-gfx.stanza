@@ -35,17 +35,17 @@ public defn compile (g:Geom) -> DisplayList :
   gl-end-list(dl)
   dl
 
-defmethod render (p:V3d) -> False :
+defmethod render (p:Vec3) -> False :
   gl-begin(GL-POINTS)
   gl-vertex(p)
   gl-end()
 
-defmethod render (p:V2d) -> False :
+defmethod render (p:Vec2) -> False :
   gl-begin(GL-POINTS)
   gl-vertex(p)
   gl-end()
 
-defmethod render (box:Box3d) -> False :
+defmethod render (box:Box3) -> False :
   gl-begin(GL-LINE-LOOP)
   gl-vertex(lo(box))
   gl-vertex(hi(box))
@@ -146,13 +146,13 @@ defmethod render (cells:Pixels) :
   val dim = dim(cells)
   gl-push-matrix()
   val dims = idims(cells)
-  val ext = 0.5 * dim * to-v3d(dims)
+  val ext = 0.5 * dim * to-vec3(dims)
   gl-push-matrix()
-  val off = -1.0 * ext + xyz(V2d-fill(0.5 * dim))
+  val off = -1.0 * ext + xyz(Vec2-fill(0.5 * dim))
   gl-translate(x(off), y(off), 0.0)
   for pos in indices(dims) do :
     gl-push-matrix()
-    val p = to-v3d(pos)
+    val p = to-vec3(pos)
     val c = cells[pos]
     gl-translate(x(p) * dim, y(p) * dim, 0.0)
     gl-scale(0.95, 0.95, 0.95)
@@ -168,11 +168,11 @@ defmethod render (cells:Pixels) :
 defmethod render (g:GeomGroup) :
   do(render, elts(g))
 
-public lostanza defn gl-load-matrix (m:ref<Mat44d>) -> ref<False> :
+public lostanza defn gl-load-matrix (m:ref<Mat4>) -> ref<False> :
   call-c glLoadMatrixd(addr!(m.m00))
   return false
 
-public lostanza defn gl-mult-matrix (m:ref<Mat44d>) -> ref<False> :
+public lostanza defn gl-mult-matrix (m:ref<Mat4>) -> ref<False> :
   call-c glMultMatrixd(addr!(m.m00))
   return false
 

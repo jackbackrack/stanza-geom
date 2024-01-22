@@ -5,8 +5,8 @@ defpackage geom/angle :
   import geom/mat
   import geom/quat
 
-public defn sin-cos (a:Double) : V2d(sin(a) cos(a))
-public defn cos-sin (a:Double) : V2d(cos(a) sin(a))
+public defn sin-cos (a:Double) : Vec2(sin(a) cos(a))
+public defn cos-sin (a:Double) : Vec2(cos(a) sin(a))
 
 public defn sin-cos-tup (a:Double) : [ sin(a) cos(a) ]
 
@@ -16,25 +16,25 @@ public defn degrees-to-radians (d:Double) -> Double :
 public defn radians-to-degrees (a:Double) -> Double :
   a * 180.0 / PI
 
-public defn degrees-to-radians (a:V3d) -> V3d :
-  V3d(degrees-to-radians(x(a)), degrees-to-radians(y(a)), degrees-to-radians(z(a)))
+public defn degrees-to-radians (a:Vec3) -> Vec3 :
+  Vec3(degrees-to-radians(x(a)), degrees-to-radians(y(a)), degrees-to-radians(z(a)))
 
-public defn radians-to-degrees (a:V3d) -> V3d :
-  V3d(radians-to-degrees(x(a)), radians-to-degrees(y(a)), radians-to-degrees(z(a)))
+public defn radians-to-degrees (a:Vec3) -> Vec3 :
+  Vec3(radians-to-degrees(x(a)), radians-to-degrees(y(a)), radians-to-degrees(z(a)))
 
-public defn rot2 (pt:V2d, ang:Double) :
+public defn rot2 (pt:Vec2, ang:Double) :
   val [c, s] = [cos(ang), sin(ang)]
-  V2d(x(pt) * c - y(pt) * s, y(pt) * c + x(pt) * s)
+  Vec2(x(pt) * c - y(pt) * s, y(pt) * c + x(pt) * s)
 
-public defn atan2 (v:V2d) : atan2(y(v), x(v))
+public defn atan2 (v:Vec2) : atan2(y(v), x(v))
 
-public defn angle-of (v:V2d) -> Double : radians-to-degrees(atan2(v))
+public defn angle-of (v:Vec2) -> Double : radians-to-degrees(atan2(v))
 
-public defn angle-of (s:V2d, e:V2d) -> Double : angle-of(e - s)
+public defn angle-of (s:Vec2, e:Vec2) -> Double : angle-of(e - s)
 
-public defn angle-between (v0:V2d, v1:V2d) -> Double :
+public defn angle-between (v0:Vec2, v1:Vec2) -> Double :
   radians-to-degrees((- atan2(x(v0) * y(v1) - y(v0) * x(v1), x(v0) * x(v1) + y(v0) * y(v1))))
 
-public defn polar-to-cartesian (r:Double, rads:Double) -> V2d :
-  V2d(r * cos(rads), r * sin(rads))
+public defn polar-to-cartesian (r:Double, rads:Double) -> Vec2 :
+  Vec2(r * cos(rads), r * sin(rads))
 

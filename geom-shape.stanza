@@ -14,9 +14,9 @@ defpackage geom/shape :
 
 public defstruct AnyShapeState :
   name : False|Symbol
-  color : V4d
+  color : Vec4
   tags : Tuple<Symbol>
-  poses : Tuple<KeyValue<Symbol,Mat44d>>
+  poses : Tuple<KeyValue<Symbol,Mat4>>
 
 public defn default-anyshape-state () : AnyShapeState(false, WHITE, [], [])
 
@@ -36,26 +36,26 @@ public defn bit-or (a:AnyShapeState, b:AnyShapeState) -> AnyShapeState :
   AnyShapeState(name(a) when name(a) is Symbol else name(b), color(a),
                 to-tuple $ cat(tags(a), tags(b)), to-tuple $ cat(poses(a), poses(b)))
 
-defmethod clone (s:AnyShape, name:False|Symbol, color:V4d, poses:Tuple<KeyValue<Symbol,Mat44d>>, tags:Tuple<Symbol>) :
+defmethod clone (s:AnyShape, name:False|Symbol, color:Vec4, poses:Tuple<KeyValue<Symbol,Mat4>>, tags:Tuple<Symbol>) :
   clone(s, AnyShapeState(name, color, tags, poses))
 
-public defn add-poses<?T> (s:?T&AnyShape, poses:Tuple<KeyValue<Symbol,Mat44d>>) -> T :
+public defn add-poses<?T> (s:?T&AnyShape, poses:Tuple<KeyValue<Symbol,Mat4>>) -> T :
   clone(s, AnyShapeState(name(s), color(s), tags(s), poses))
 public defn add-tags<?T> (s:?T&AnyShape, tags:Tuple<Symbol>) -> T :
   clone(s, AnyShapeState(name(s), color(s), tags, poses(s)))
 
 public defn add-min-x-pose<?T> (s:?T&AnyShape, dir:Double) -> T :
-  add-poses(s, [`min-x => pose-mat44d(x3d(x(lo(bounds(s)))), y3d(dir *  90.0))])
+  add-poses(s, [`min-x => pose-mat4(x3(x(lo(bounds(s)))), y3(dir *  90.0))])
 public defn add-max-x-pose<?T> (s:?T&AnyShape, dir:Double) -> T :
-  add-poses(s, [`max-x => pose-mat44d(x3d(x(hi(bounds(s)))), y3d(dir * -90.0))])
+  add-poses(s, [`max-x => pose-mat4(x3(x(hi(bounds(s)))), y3(dir * -90.0))])
 public defn add-min-y-pose<?T> (s:?T&AnyShape, dir:Double) -> T :
-  add-poses(s, [`min-y => pose-mat44d(y3d(y(lo(bounds(s)))), x3d(dir * -90.0))])
+  add-poses(s, [`min-y => pose-mat4(y3(y(lo(bounds(s)))), x3(dir * -90.0))])
 public defn add-max-y-pose<?T> (s:?T&AnyShape, dir:Double) -> T :
-  add-poses(s, [`max-y => pose-mat44d(y3d(y(hi(bounds(s)))), x3d(dir *  90.0))])
+  add-poses(s, [`max-y => pose-mat4(y3(y(hi(bounds(s)))), x3(dir *  90.0))])
 public defn add-min-z-pose<?T> (s:?T&AnyShape, dir:Double) -> T :
-  add-poses(s, [`min-z => pose-mat44d(z3d(z(lo(bounds(s)))), y3d(180.0 when dir == 1.0 else 0.0 ))])
+  add-poses(s, [`min-z => pose-mat4(z3(z(lo(bounds(s)))), y3(180.0 when dir == 1.0 else 0.0 ))])
 public defn add-max-z-pose<?T> (s:?T&AnyShape, dir:Double) -> T :
-  add-poses(s, [`max-z => pose-mat44d(z3d(z(hi(bounds(s)))), y3d(  0.0 when dir == 1.0 else 180.0))])
+  add-poses(s, [`max-z => pose-mat4(z3(z(hi(bounds(s)))), y3(  0.0 when dir == 1.0 else 180.0))])
 
 
 public defn name (a:AnyShape, b:AnyShape) :
@@ -73,8 +73,8 @@ public defn color (a:AnyShape, b:AnyShape) :
 public defn dim-min (d:Double) -> Double : d * -0.5
 public defn dim-max (d:Double) -> Double : d *  0.5
 
-public defn dim-min (dim:V3d) -> V3d : V3d(dim-min(x(dim)), dim-min(y(dim)), dim-min(z(dim)))
-public defn dim-max (dim:V3d) -> V3d : V3d(dim-max(x(dim)), dim-max(y(dim)), dim-max(z(dim)))
+public defn dim-min (dim:Vec3) -> Vec3 : Vec3(dim-min(x(dim)), dim-min(y(dim)), dim-min(z(dim)))
+public defn dim-max (dim:Vec3) -> Vec3 : Vec3(dim-max(x(dim)), dim-max(y(dim)), dim-max(z(dim)))
 
 val @doc-shape = "SHAPE -- a solid object"
 
@@ -90,12 +90,12 @@ public defn set-resolution (r:Double) : *resolution* = r
 
 ;; public defmulti slice (z:Double, s:Shape3) -> Shape2
 ;; public defmulti pixels (z:Double, s:Shape3) -> Pixels
-;; public defmulti box (b:Box3d) -> Shape3
-;; public defmulti cube (v:V3d) -> Shape3
+;; public defmulti box (b:Box3) -> Shape3
+;; public defmulti cube (v:Vec3) -> Shape3
 ;; 
 ;; public defmulti rect (b:Box2f) -> Shape2
 ;; public defmulti circle (d:Double) -> Shape2
-;; public defmulti triangle (a:V2f, b:V2f, c:V2f) -> Shape2
+;; public defmulti triangle (a:Vec2, b:Vec2, c:Vec2) -> Shape2
 ;; public defmulti extrude (h:Double, shape:Shape2) -> Shape3
 ;; 
 ;; public defmulti bit-and (a:Shape3, b:Shape3) -> Shape3

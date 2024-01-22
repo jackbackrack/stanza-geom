@@ -11,25 +11,25 @@ defpackage geom/poseable :
 val @doc-poseable = "POSEABLES -- geom with attributes and bounds and moveable"
 
 public deftype Poseable <: Geom&Bounded
-public defmulti clone<?T> (s:?T&Poseable, name:False|Symbol, color:V4d, poses:Tuple<KeyValue<Symbol,Mat44d>>, tags:Tuple<Symbol>) -> T
+public defmulti clone<?T> (s:?T&Poseable, name:False|Symbol, color:Vec4, poses:Tuple<KeyValue<Symbol,Mat4>>, tags:Tuple<Symbol>) -> T
 public defmulti name (p:Poseable) -> False|Symbol
-public defmulti color (p:Poseable) -> V4d
+public defmulti color (p:Poseable) -> Vec4
 public defmulti tags (p:Poseable) -> Tuple<Symbol>
-public defmulti poses (p:Poseable) -> Tuple<KeyValue<Symbol,Mat44d>>
-public defmulti xyz<?T> (mat:Mat44d, p:?T&Poseable) -> T
+public defmulti poses (p:Poseable) -> Tuple<KeyValue<Symbol,Mat4>>
+public defmulti xyz<?T> (mat:Mat4, p:?T&Poseable) -> T
 public defmulti any-shapes (p:Poseable) -> Seqable<AnyShape>
 public defmulti get (s:Poseable, iname:Symbol) -> False|Poseable
 public defmulti update (s:Poseable, iname:Symbol, value:Poseable) -> Poseable
 
-public defn rgb<?T> (c:V4d, p:?T&Poseable) -> T : clone(p, name(p), c, poses(p), tags(p))
+public defn rgb<?T> (c:Vec4, p:?T&Poseable) -> T : clone(p, name(p), c, poses(p), tags(p))
 public defn set-name<?T> (name:Symbol, p:?T&Poseable) -> T : clone(p, name, color(p), poses(p), tags(p))
 
-public defn mov<?T> (dp:V3d, s:?T&Poseable) -> T : xyz(mov-mat44d(dp), s)
+public defn mov<?T> (dp:Vec3, s:?T&Poseable) -> T : xyz(mov-mat4(dp), s)
 
-public defn mov-x<?T> (dx:Double, p:?T&Poseable) -> T : mov(V3d(dx, 0.0, 0.0), p)
-public defn mov-y<?T> (dy:Double, p:?T&Poseable) -> T : mov(V3d(0.0, dy, 0.0), p)
-public defn mov-z<?T> (dz:Double, p:?T&Poseable) -> T : mov(V3d(0.0, 0.0, dz), p)
-public defn mov (d:V3d)     : mov{d, _}
+public defn mov-x<?T> (dx:Double, p:?T&Poseable) -> T : mov(Vec3(dx, 0.0, 0.0), p)
+public defn mov-y<?T> (dy:Double, p:?T&Poseable) -> T : mov(Vec3(0.0, dy, 0.0), p)
+public defn mov-z<?T> (dz:Double, p:?T&Poseable) -> T : mov(Vec3(0.0, 0.0, dz), p)
+public defn mov (d:Vec3)     : mov{d, _}
 public defn mov-x (d:Double) : mov-x{d, _}
 public defn mov-y (d:Double) : mov-y{d, _}
 public defn mov-z (d:Double) : mov-z{d, _}
@@ -46,12 +46,12 @@ public defn center-y<?T> (p:?T&Poseable) -> T :
 public defn center-z<?T> (p:?T&Poseable) -> T :
   mov-x((- z(center(bounds(p)))), p)
 
-public defn corners<?T> (box:Box2d, s:?T&Poseable) -> Seqable<T> :
+public defn corners<?T> (box:Box2, s:?T&Poseable) -> Seqable<T> :
   seq(mov{xyz(_), s}, corners(box))
 
 public defn any-shapes (s:Seqable<AnyShape>) : s
 
-public defn rgb (c:V4d) : rgb{c, _}
+public defn rgb (c:Vec4) : rgb{c, _}
 
 public defmulti bit-or<?T> (a:?T&AnyShape, b:T&AnyShape) -> T
 
@@ -64,62 +64,62 @@ public defn union-or<?T> (args:Seqable<?T&AnyShape>, default:T&AnyShape) -> T :
   reduce(bit-or, default, args)
 
 public defn rot-x<?T> (d:Double, s:?T&Poseable) -> T :
-  xyz(rot-mat44d(V3d(degrees-to-radians(d), 0.0, 0.0)), s)
+  xyz(rot-mat4(Vec3(degrees-to-radians(d), 0.0, 0.0)), s)
 
 public defn rot-y<?T> (d:Double, s:?T&Poseable) -> T :
-  xyz(rot-mat44d(V3d(0.0, degrees-to-radians(d), 0.0)), s)
+  xyz(rot-mat4(Vec3(0.0, degrees-to-radians(d), 0.0)), s)
 
 public defn rot-z<?T> (d:Double, s:?T&Poseable) -> T :
-  xyz(rot-mat44d(V3d(0.0, 0.0, degrees-to-radians(d))), s)
+  xyz(rot-mat4(Vec3(0.0, 0.0, degrees-to-radians(d))), s)
 
-public defn rot<?T> (axis:V3d, ang:Double, s:?T&Poseable) -> T :
-  xyz(rot-mat44d(axis, degrees-to-radians(ang)), s)
+public defn rot<?T> (axis:Vec3, ang:Double, s:?T&Poseable) -> T :
+  xyz(rot-mat4(axis, degrees-to-radians(ang)), s)
 
-public defn rot<?T> (axis:V3d, ang:Double, pt:V3d, s:?T&Poseable) -> T :
-  val r = rot-mat44d(axis, degrees-to-radians(ang))
-  val t = mov-mat44d(pt - (r * pt))
+public defn rot<?T> (axis:Vec3, ang:Double, pt:Vec3, s:?T&Poseable) -> T :
+  val r = rot-mat4(axis, degrees-to-radians(ang))
+  val t = mov-mat4(pt - (r * pt))
   xyz(r * t, s) 
 
-public defn rot<?T> (a:V3d, b:V3d, s:?T&Poseable) -> T :
-  xyz(rot-mat44d(a, b), s)
+public defn rot<?T> (a:Vec3, b:Vec3, s:?T&Poseable) -> T :
+  xyz(rot-mat4(a, b), s)
 
-public defn rot<?T> (a:V2d, b:V2d, s:?T&Poseable) -> T :
-  xyz(rot-mat44d(a, b), s)
+public defn rot<?T> (a:Vec2, b:Vec2, s:?T&Poseable) -> T :
+  xyz(rot-mat4(a, b), s)
 
 public defn rot-x (d:Double) : rot-x{d, _}
 public defn rot-y (d:Double) : rot-y{d, _}
 public defn rot-z (d:Double) : rot-z{d, _}
-public defn rot (a:V3d, b:V3d) : rot{a, b, _}
-public defn rot (a:V2d, b:V2d) : rot{a, b, _}
-public defn rot (axis:V3d, ang:Double) : rot{axis, ang, _}
+public defn rot (a:Vec3, b:Vec3) : rot{a, b, _}
+public defn rot (a:Vec2, b:Vec2) : rot{a, b, _}
+public defn rot (axis:Vec3, ang:Double) : rot{axis, ang, _}
 
-public defn reflect-x<?T> (s:?T&Poseable) -> T : xyz(mag-mat44d(V3d(-1.0, 1.0, 1.0)), s)
-public defn reflect-y<?T> (s:?T&Poseable) -> T : xyz(mag-mat44d(V3d( 1.0,-1.0, 1.0)), s)
-public defn reflect-z<?T> (s:?T&Poseable) -> T : xyz(mag-mat44d(V3d( 1.0, 1.0,-1.0)), s)
-public defn reflect-xy<?T> (s:?T&Poseable) -> T : xyz(reflect-xy-mat44d(), s)
-public defn reflect-xz<?T> (s:?T&Poseable) -> T : xyz(reflect-xz-mat44d(), s)
-public defn reflect-yz<?T> (s:?T&Poseable) -> T : xyz(reflect-yz-mat44d(), s)
-public defn mag<?T> (fac:Double, s:?T&Poseable) -> T : xyz(mag-mat44d(fac), s)
-public defn mag1<?T> (sa:Double, s:?T&Poseable) -> T : xyz(mag-mat44d(sa), s)
-public defn mag<?T> (fac:V3d, s:?T&Poseable) -> T : xyz(mag-mat44d(fac), s)
-public defn mag-x<?T> (sx:Double, s:?T&Poseable) -> T : xyz(mag-mat44d(V3d(sx, 1.0, 1.0)), s)
-public defn mag-y<?T> (sy:Double, s:?T&Poseable) -> T : xyz(mag-mat44d(V3d(1.0, sy, 1.0)), s)
-public defn mag-z<?T> (sz:Double, s:?T&Poseable) -> T : xyz(mag-mat44d(V3d(1.0, 1.0, sz)), s)
-public defn mag   (s:V3d)    : mag{s, _}
+public defn reflect-x<?T> (s:?T&Poseable) -> T : xyz(mag-mat4(Vec3(-1.0, 1.0, 1.0)), s)
+public defn reflect-y<?T> (s:?T&Poseable) -> T : xyz(mag-mat4(Vec3( 1.0,-1.0, 1.0)), s)
+public defn reflect-z<?T> (s:?T&Poseable) -> T : xyz(mag-mat4(Vec3( 1.0, 1.0,-1.0)), s)
+public defn reflect-xy<?T> (s:?T&Poseable) -> T : xyz(reflect-xy-mat4(), s)
+public defn reflect-xz<?T> (s:?T&Poseable) -> T : xyz(reflect-xz-mat4(), s)
+public defn reflect-yz<?T> (s:?T&Poseable) -> T : xyz(reflect-yz-mat4(), s)
+public defn mag<?T> (fac:Double, s:?T&Poseable) -> T : xyz(mag-mat4(fac), s)
+public defn mag1<?T> (sa:Double, s:?T&Poseable) -> T : xyz(mag-mat4(sa), s)
+public defn mag<?T> (fac:Vec3, s:?T&Poseable) -> T : xyz(mag-mat4(fac), s)
+public defn mag-x<?T> (sx:Double, s:?T&Poseable) -> T : xyz(mag-mat4(Vec3(sx, 1.0, 1.0)), s)
+public defn mag-y<?T> (sy:Double, s:?T&Poseable) -> T : xyz(mag-mat4(Vec3(1.0, sy, 1.0)), s)
+public defn mag-z<?T> (sz:Double, s:?T&Poseable) -> T : xyz(mag-mat4(Vec3(1.0, 1.0, sz)), s)
+public defn mag   (s:Vec3)    : mag{s, _}
 public defn mag1  (s:Double)  : mag-x{s, _}
 public defn mag-x (sx:Double) : mag-x{sx, _}
 public defn mag-y (sy:Double) : mag-y{sy, _}
 public defn mag-z (sz:Double) : mag-z{sz, _}
 
-public defn pose-to-points<?T> (a:V2d, b:V2d, p:?T&Poseable) -> T :
+public defn pose-to-points<?T> (a:Vec2, b:Vec2, p:?T&Poseable) -> T :
   val v = b - a
   val c = xyz(0.5 * (a + b))
-  mov(c, rot(V2d(1.0, 0.0), normalize(v), p))
+  mov(c, rot(Vec2(1.0, 0.0), normalize(v), p))
 
-public defn pose-to-points<?T> (a:V3d, b:V3d, p:?T&Poseable) -> T :
+public defn pose-to-points<?T> (a:Vec3, b:Vec3, p:?T&Poseable) -> T :
   val v = b - a
   val c = 0.5 * (a + b)
-  mov(c, rot(V3d(0.0, 0.0, 1.0), v, p))
+  mov(c, rot(Vec3(0.0, 0.0, 1.0), v, p))
 
-public defn pose-to-points (a:V2d, b:V2d) : pose-to-points{a, b, _}
-public defn pose-to-points (a:V3d, b:V3d) : pose-to-points{a, b, _}
+public defn pose-to-points (a:Vec2, b:Vec2) : pose-to-points{a, b, _}
+public defn pose-to-points (a:Vec3, b:Vec3) : pose-to-points{a, b, _}

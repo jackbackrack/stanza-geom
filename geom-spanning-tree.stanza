@@ -9,8 +9,8 @@ defpackage geom/spanning-tree :
   import geom/delaunay with :
     prefix( Edge ) => del-
 
-defn abs (v:V2f) : V2f(abs(x(v)), abs(y(v)))
-defn map (f:Float -> Float, v:V2f) : V2f(f(x(v)), f(y(v)))
+defn abs (v:Vec2) : Vec2(abs(x(v)), abs(y(v)))
+defn map (f:Double -> Double, v:Vec2) : Vec2(f(x(v)), f(y(v)))
 
 public defstruct Edge <: Hashable & Equalable :
   a : Int
@@ -25,7 +25,7 @@ defmethod hash (e:Edge) :
 defmethod print (o:OutputStream, e:Edge) :
   print(o, "EDGE(%_, %_)" % [a(e), b(e)])
 
-defn length (points:Tuple<V2f>, e:Edge) -> Float :
+defn length (points:Tuple<Vec2>, e:Edge) -> Double :
   magnitude(points[a(e)] - points[b(e)])
 
 public defstruct IntGraph :
@@ -38,7 +38,7 @@ defmethod print (o:OutputStream, e:IntGraph) :
 defn IntGraph (point:Int) : IntGraph(point, Vector<Int>())
 
 public defstruct SpanningGraph :
-  points : Tuple<V2f>
+  points : Tuple<Vec2>
   graphs : Tuple<IntGraph>
 
 defn edges (tree:SpanningGraph) -> Seqable<Edge> :
@@ -54,7 +54,7 @@ defn edges (tree:SpanningGraph) -> Seqable<Edge> :
 defmethod print (o:OutputStream, e:SpanningGraph) :
   print(o, "SpanningGraph(%_, %_)" % [points(e), graphs(e)])
 
-defn length (tree:SpanningGraph) -> Float :
+defn length (tree:SpanningGraph) -> Double :
   sum(seq(length{points(tree), _}, edges(tree)))
 
 defn all-edges (verts:Tuple<Vertex>) -> Seqable<Edge> :
@@ -63,7 +63,7 @@ defn all-edges (verts:Tuple<Vertex>) -> Seqable<Edge> :
       for j in (i + 1) to length(verts) do :
         yield(Edge(i, j))
 
-public defn SpanningGraph (ipoints:Seqable<V2f>, seed-edges:Tuple<Edge>) -> SpanningGraph :
+public defn SpanningGraph (ipoints:Seqable<Vec2>, seed-edges:Tuple<Edge>) -> SpanningGraph :
   val points = to-tuple $ ipoints
   if length(points) == 0 :
     SpanningGraph([], [] as Tuple<IntGraph>)
@@ -77,11 +77,11 @@ public defn SpanningGraph (ipoints:Seqable<V2f>, seed-edges:Tuple<Edge>) -> Span
         ;; val edges = to-tuple $ lazy-qsort(length{points, _}, all-edges(points))
         ;; val log2n = max(4, ceil-log2(length(points)) - 2)
         ;; println("LOG2N %_" % [log2n])
-        val v2f-edges = edges(Subdivision(verts))
+        val vec2-edges = edges(Subdivision(verts))
         ;; println("DELAUNAY")
         val vert-mapper = to-inttable<Int> $ for (vert in verts, i in 0 to false) seq : id(vert) => i
         generate<Edge> :
-          for e in v2f-edges do :
+          for e in vec2-edges do :
             ;; println("e %_ ORG %_ DEST %_" % [e, key?(edge-mapper, org(e)), key?(edge-mapper, dest(e))])
             if key?(vert-mapper, id(org(e))) and key?(vert-mapper, id(dest(e))) :
               yield(Edge(vert-mapper[id(org(e))], vert-mapper[id(dest(e))]))
@@ -114,7 +114,7 @@ defmethod print (o:OutputStream, t:IntTree) :
   print(o, "IntTree(%_, %_)" % [idx(t), children(t)])
 
 public defstruct SpanningTree :
-  points : Tuple<V2f>
+  points : Tuple<Vec2>
   tree   : IntTree
 
 defmethod print (o:OutputStream, t:SpanningTree) :
@@ -131,10 +131,10 @@ defn SpanningTree (graph:SpanningGraph) -> SpanningTree :
     IntTree(g, to-tuple $ elts)
   SpanningTree(points(graph), tree)
 
-public defn SpanningTree (points:Seqable<V2f>, seed-edges:Seqable<Edge>) -> SpanningTree :
+public defn SpanningTree (points:Seqable<Vec2>, seed-edges:Seqable<Edge>) -> SpanningTree :
   SpanningTree(SpanningGraph(points, to-tuple $ seed-edges))
 
-public defn SpanningTree (points:Seqable<V2f>) -> SpanningTree :
+public defn SpanningTree (points:Seqable<Vec2>) -> SpanningTree :
   SpanningTree(SpanningGraph(points, []))
 
 public defn dump (st:SpanningTree) :

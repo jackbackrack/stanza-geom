@@ -7,7 +7,7 @@ val @doc-line = "LINE -- infinite line"
 
 #for (Line in [Line2 Line3]
       Prim in [Double Double]
-      PrimVec in [V2d V3d]) :
+      PrimVec in [Vec2 Vec3]) :
 
   public defstruct Line <: Geom :
     pos: PrimVec
@@ -40,11 +40,11 @@ val @doc-line = "LINE -- infinite line"
   defmethod print (o:OutputStream, l:Line) :
     print(o, "Line(%_, %_)" % [pos(l), dir(l)])
 
-;; public defn extrude (p0:V3f, p1:V3f) -> Half :
+;; public defn extrude (p0:Vec3, p1:Vec3) -> Half :
 ;;   val line   = line-of(p0, p1)
-;;   val normal = V3f(y(dir(line)), (- x(dir(line))))
-;;   val pt     = closest-point-to(line, V3f(0.0f, 0.0f))
+;;   val normal = Vec3(y(dir(line)), (- x(dir(line))))
+;;   val pt     = closest-point-to(line, Vec3(0.0, 0.0))
 ;;   val align  = dot(normal, normalize(pt))
 ;;   ;; println-all(["CLOSEST POINT TO " x(pt) "," y(pt) " NORMAL " x(normal) "," y(normal) " ALIGN " align])
-;;   Half(normal, (if align > 0.0f : 1.0f else : -1.0f) * len(pt))
+;;   Half(normal, (if align > 0.0 : 1.0 else : -1.0) * len(pt))
 

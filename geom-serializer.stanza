@@ -21,40 +21,46 @@ defpackage geom/serializer :
 public defserializer (out:OutputStream, in:InputStream) :
 
   defunion geom (Geom) :
-    LineSegment2f: (start:v2f, end:v2f)
-    LineSegment3f: (start:v3f, end:v3f)
-    Contour: (vertices:tuple(v2f))
+    LineSegment2f: (start:vec2, end:vec2)
+    LineSegment3f: (start:vec3, end:vec3)
+    Contour: (vertices:tuple(vec2))
     Polygon: (state:anyshapestate, contours:tuple(geom as Contour))
-    PolyLine2f: (state:anyshapestate, strokes:tuple(tuple(v2f)))
-    PolyLine3f: (state:anyshapestate, strokes:tuple(tuple(v3f)))
-    Mesh: (state:anyshapestate, vertices:tuple(v3f), faces:tuple(v3i))
-    Assembly: (mat:mat44f, name:opt<Symbol>(symbol), color:v4f, children:tuple(geom as Geom&Poseable))
+    PolyLine2f: (state:anyshapestate, strokes:tuple(tuple(vec2)))
+    PolyLine3f: (state:anyshapestate, strokes:tuple(tuple(vec3)))
+    Mesh: (state:anyshapestate, vertices:tuple(vec3), faces:tuple(v3i))
+    Assembly: (mat:mat44f, name:opt<Symbol>(symbol), color:vec4, children:tuple(geom as Geom&Poseable))
     Msg: (value:string)
     GeomGroup: (elts:tuple(geom))
     
-  defunion v2f (V2f) : 
-    V2f: (x:float, y:float)
+  defunion vec2 (Vec2) : 
+    Vec2: (x:double, y:double)
 
-  defunion v3f (V3f) : 
-    V3f: (x:float, y:float, z:float)
+  defunion vec3 (Vec3) : 
+    Vec3: (x:double, y:double, z:double)
 
-  defunion v4f (V4f) : 
-    V4f: (x:float, y:float, z:float, a:float)
+  defunion vec4 (Vec4) : 
+    Vec4: (x:double, y:double, z:double, a:double)
 
-  defunion v2i (V2i) : 
-    V2i: (x:int, y:int)
+  defunion vec2i (Vec2i) : 
+    Vec2i: (x:int, y:int)
 
-  defunion v3i (V3i) : 
-    V3i: (x:int, y:int, z:int)
+  defunion vec3i (Vec3i) : 
+    Vec3i: (x:int, y:int, z:int)
 
-  defunion box1f (Box1f) : 
-    Box1f: (lo:float, hi:float)
+  defunion vec2f (Vec2f) : 
+    Vec2f: (x:float, y:float)
 
-  defunion box2f (Box2f) : 
-    Box2f: (lo:v2f, hi:v2f)
+  defunion vec3f (Vec3f) : 
+    Vec3f: (x:float, y:float, z:float)
 
-  defunion box3f (Box3f) : 
-    Box3f: (lo:v3f, hi:v3f)
+  defunion box1 (Box1) : 
+    Box1: (lo:double, hi:double)
+
+  defunion box2 (Box2) : 
+    Box2: (lo:vec2, hi:vec2)
+
+  defunion box3 (Box3) : 
+    Box3: (lo:vec3, hi:vec3)
 
   defunion box1i (Box1i) : 
     Box1i: (lo:int, hi:int)
@@ -66,18 +72,18 @@ public defserializer (out:OutputStream, in:InputStream) :
     Box3i: (lo:v3i, hi:v3i)
 
   defunion quat (Quat) :
-    Quat: (w:float, v:v3f)
+    Quat: (w:double, v:vec3)
 
-  defatom mat44f (m:Mat44f) :
+  defatom mat4 (m:Mat4) :
     writer :
-      for i in 0 to 16 do : write-float(m[i])
+      for i in 0 to 16 do : write-double(m[i])
     reader :
-      val elts = to-tuple $ repeatedly(read-float, 16)
-      Mat44f(elts[00], elts[01], elts[02], elts[03], elts[04], elts[05], elts[06], elts[07],
-             elts[08], elts[09], elts[10], elts[11], elts[12], elts[13], elts[14], elts[15])
+      val elts = to-tuple $ repeatedly(read-double, 16)
+      Mat4(elts[00], elts[01], elts[02], elts[03], elts[04], elts[05], elts[06], elts[07],
+           elts[08], elts[09], elts[10], elts[11], elts[12], elts[13], elts[14], elts[15])
 
   defunion anyshapestate (AnyShapeState) :
-    AnyShapeState: (name:opt<Symbol>(symbol), color:v4f, tags:tuple(symbol), poses:tuple(symvalue(mat44f)))
+    AnyShapeState: (name:opt<Symbol>(symbol), color:vec4, tags:tuple(symbol), poses:tuple(symvalue(mat44f)))
 
   reader defn read-symvalue<?T> (f: () -> ?T) :
     read-symbol() => f()

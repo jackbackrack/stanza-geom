@@ -19,7 +19,7 @@ public defn assign-poses (m:Mechanism) :
     val c0 = connection(j)[0]
     val c1 = connection(j)[1]
     val np = inverse(pose(nodes(link(c1))[node(c1)])) *
-             rot-mat44f(V3f(0.0f, 0.0f, 1.0f), degrees-to-radians(state(j))) *
+             rot-mat4(z3(1.0), degrees-to-radians(state(j))) *
              pose(nodes(link(c0))[node(c0)]) *             
              pose(link(c0))
     set-pose(link(c1), np)
@@ -32,7 +32,7 @@ public defn all-links (m:Mechanism) :
   cat(links(m), cat-all(seq(all-links, children(m))))
 
 public defn elaborate (m:Mechanism) :
-  set-pose(root(m), id-mat44f())
+  set-pose(root(m), id-mat4())
   assign-poses(m)
   group $ seq(fn (l) : xyz(pose(l), geom(l)), all-links(m))  
 
@@ -41,18 +41,18 @@ val @doc-link = "LINK -- single mechanism block with geometry, nodes, and settab
 public defstruct Link :
   geom:Poseable
   nodes:Tuple<Node>
-  pose:Mat44f with: (setter => set-pose)
-  limits:False|Box3f
+  pose:Mat4 with: (setter => set-pose)
+  limits:False|Box3
 
 public defn Link (geom:Poseable, nodes:Tuple<Node>) :
-  Link(geom, nodes, id-mat44f(), false)
+  Link(geom, nodes, id-mat4(), false)
 
 val @doc-node = "NODE -- link relative pose for placing a joint connecting two links"
 
 public defstruct Node :
-  pose:Mat44f
+  pose:Mat4
 
-public defn Node (pose:Pose) : Node(to-mat44f $ pose)
+public defn Node (pose:Pose) : Node(to-mat4 $ pose)
 
 val @doc-joint = "JOINT -- z axis revolute constraint between two links at respective nodes with settable angular state"
 

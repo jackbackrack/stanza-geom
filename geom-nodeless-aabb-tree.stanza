@@ -19,19 +19,19 @@ deftype Node <: Equalable
 defmulti id (n:Node) -> Int
 defmulti parent (n:Node) -> False|Node
 defmulti set-parent (n:Node, p:False|Node) -> False
-public defmulti aabb (n:Node) -> Box2f
-defmulti set-aabb (n:Node, b:Box2f) -> False
+public defmulti aabb (n:Node) -> Box2
+defmulti set-aabb (n:Node, b:Box2) -> False
 
 defstruct LeafNode <: Node :
   id : Int with: (as-method => true)
   parent : False|Node with : (as-method => true, setter => set-parent)
-  aabb : Box2f with: (as-method => true, setter => set-aabb)
+  aabb : Box2 with: (as-method => true, setter => set-aabb)
   data : False|(Equalable&Bounded) with: (setter => set-data)
 
 defstruct BranchNode <: Node :
   id : Int with: (as-method => true)
   parent : False|Node with : (as-method => true, setter => set-parent)
-  aabb : Box2f with: (as-method => true, setter => set-aabb)
+  aabb : Box2 with: (as-method => true, setter => set-aabb)
   children : Tuple<Node> with: (setter => set-children)
   children-crossed? : True|False with : (setter => set-children-crossed?)
 
@@ -47,13 +47,13 @@ defmethod print (o:OutputStream, node:BranchNode) :
 public defn LeafNode (data:(Equalable&Bounded)) :
   LeafNode(next(gen-ids), false, box(data), data)
 
-defn update-aabb (node:Node, margin:Float) :
+defn update-aabb (node:Node, margin:Double) :
   set-aabb(node, 
            match(node) :
              (node:LeafNode) : fatten(box(data(node) as (Equalable&Bounded)), xy(margin))
              (node:BranchNode) : union(aabb(children(node)[0]), aabb(children(node)[1])))
    
-defn LeafNode (data:(Equalable&Bounded), margin:Float) :
+defn LeafNode (data:(Equalable&Bounded), margin:Double) :
   val node = LeafNode(data)
   update-aabb(node, margin)
   node
@@ -64,7 +64,7 @@ defn sibling (node:Node) :
 
 public defstruct AABBTree :
   root : False|Node with: ( setter => set-root, init => false )
-  margin : Float
+  margin : Double
   invalid-nodes : Vector<Node> with: ( init => Vector<Node>() )
 
 public defn clear (t:AABBTree) :
@@ -116,7 +116,7 @@ public defn check (t:AABBTree) :
             check(children(node)[0])
             check(children(node)[1])
 
-public defn query-nodes (t:AABBTree, target:Box2f, same?:(Equalable&Bounded) -> True|False) -> Seqable<LeafNode> :
+public defn query-nodes (t:AABBTree, target:Box2, same?:(Equalable&Bounded) -> True|False) -> Seqable<LeafNode> :
   match(root(t)) :
     (r:False) :
       to-seq $ []
@@ -138,10 +138,10 @@ public defn query-nodes (t:AABBTree, target:Box2f, same?:(Equalable&Bounded) -> 
 public defn find (t:AABBTree, target:(Equalable&Bounded)) -> Seqable<LeafNode> :
   query-nodes(t, box(target), { equal?(target, _) })
 
-public defn query (t:AABBTree, target:Box2f, same?:(Equalable&Bounded) -> True|False) -> Seqable<(Equalable&Bounded)> :
+public defn query (t:AABBTree, target:Box2, same?:(Equalable&Bounded) -> True|False) -> Seqable<(Equalable&Bounded)> :
   seq({ data(_) as (Equalable&Bounded) }, query-nodes(t, target, same?))
 
-public defn query (t:AABBTree, target:Box2f) -> Seqable<(Equalable&Bounded)> :
+public defn query (t:AABBTree, target:Box2) -> Seqable<(Equalable&Bounded)> :
   query(t, target, { false })
 
 public defn query (t:AABBTree, target:(Equalable&Bounded)) -> Seqable<(Equalable&Bounded)> :
@@ -156,12 +156,12 @@ public defn add (t:AABBTree, aabb:(Equalable&Bounded)) :
     (r:False) : set-root(t, new-leaf)
     (r:Node) :  insert-node(t, new-leaf, { root(t) as Node }, set-root{t, _})
 
-defn area (box:Box2f) : area(dims(box))
+defn area (box:Box2) : area(dims(box))
 
 defn insert-node (t:AABBTree, node:Node, dad:() -> Node, set-dad:BranchNode -> False) :
   match(dad()) :
     (p:LeafNode) :
-      val new-parent = BranchNode(next(gen-ids), false, neg-inf-box2f(), [node, p], false)
+      val new-parent = BranchNode(next(gen-ids), false, neg-inf-box2(), [node, p], false)
       set-parent(new-parent, parent(p))
       set-parent(node, new-parent)
       set-parent(p, new-parent)

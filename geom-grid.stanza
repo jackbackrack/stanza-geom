@@ -41,11 +41,11 @@ public lostanza defn clear (v:ref<Todos>) -> ref<False> :
   call-c todos_clear(v.value)
   return false
 
-val pt = V3i(0, 0, 0)
+val pt = Vec3i(0, 0, 0)
 
-public lostanza defn get (v:ref<Todos>, i:ref<Int>) -> ref<V3i> :
+public lostanza defn get (v:ref<Todos>, i:ref<Int>) -> ref<Vec3i> :
   call-c todos_elt(v.value, i.value, addr!(pt.x))
-  return V3i(x(pt), y(pt), z(pt))
+  return Vec3i(x(pt), y(pt), z(pt))
 
 public lostanza defn length (v:ref<Todos>) -> ref<Int> :
   val res = call-c todos_len(v.value)
@@ -92,7 +92,7 @@ public lostanza defn invert (dst:ref<Grid>, src:ref<Grid>) -> ref<False> :
   call-c grid_invert(n-cols(dst).value, n-rows(dst).value, n-lays(dst).value, addr!(data(dst).data), addr!(data(src).data))
   return false
 
-;; lostanza defn invert (dst:ref<Grid>, src:ref<Grid>, off:ref<V3i>) -> ref<False> :
+;; lostanza defn invert (dst:ref<Grid>, src:ref<Grid>, off:ref<Vec3i>) -> ref<False> :
 ;;   call-c grid_invert_off(n-cols(dst).value, n-rows(dst).value, n-lays(dst).value,
 ;;                          x(off).value, y(off).value, z(off).value, addr!(data(dst).data),
 ;;                          n-cols(src).value, n-rows(src).value, n-lays(src).value, addr!(data(src).data))
@@ -102,7 +102,7 @@ public lostanza defn copy (dst:ref<Grid>, src:ref<Grid>) -> ref<False> :
   call-c grid_copy(n-cols(dst).value, n-rows(dst).value, n-lays(dst).value, addr!(data(dst).data), addr!(data(src).data))
   return false
 
-public lostanza defn copy (dst:ref<Grid>, src:ref<Grid>, off:ref<V3i>) -> ref<False> :
+public lostanza defn copy (dst:ref<Grid>, src:ref<Grid>, off:ref<Vec3i>) -> ref<False> :
   call-c grid_copy_off(n-cols(dst).value, n-rows(dst).value, n-lays(dst).value,
                        x(off).value, y(off).value, z(off).value, addr!(data(dst).data),
                        n-cols(src).value, n-rows(src).value, n-lays(src).value, addr!(data(src).data))
@@ -113,7 +113,7 @@ public lostanza defn union (dst:ref<Grid>, s0:ref<Grid>, s1:ref<Grid>) -> ref<Fa
                     addr!(data(dst).data), addr!(data(s0).data), addr!(data(s1).data))
   return false
 
-public lostanza defn union (dst:ref<Grid>, s0:ref<Grid>, s1:ref<Grid>, off:ref<V3i>) -> ref<False> :
+public lostanza defn union (dst:ref<Grid>, s0:ref<Grid>, s1:ref<Grid>, off:ref<Vec3i>) -> ref<False> :
   call-c grid_union_off(n-cols(dst).value, n-rows(dst).value, n-lays(dst).value,
                         x(off).value, y(off).value, z(off).value,
                         addr!(data(dst).data), addr!(data(s0).data),
@@ -125,7 +125,7 @@ public lostanza defn intersect (dst:ref<Grid>, s0:ref<Grid>, s1:ref<Grid>) -> re
                         addr!(data(dst).data), addr!(data(s0).data), addr!(data(s1).data))
   return false
 
-;; lostanza defn intersect (dst:ref<Grid>, s0:ref<Grid>, s1:ref<Grid>, off:ref<V3i>) -> ref<False> :
+;; lostanza defn intersect (dst:ref<Grid>, s0:ref<Grid>, s1:ref<Grid>, off:ref<Vec3i>) -> ref<False> :
 ;;   call-c grid_intersect_off(n-cols(dst).value, n-rows(dst).value, n-lays(dst).value,
 ;;                             x(off).value, y(off).value, z(off).value,
 ;;                             addr!(data(dst).data), addr!(data(s0).data),
@@ -166,18 +166,18 @@ lostanza defmethod hash (g:ref<Grid>) -> ref<Int> :
   return new Int{res}
 
 public defstruct Grid <: Equalable & Hashable :
-  idims: V3i
+  idims: Vec3i
   dim: Double
   ;; ibbox: Box3i
   ;; dim: Double
   ;; bbox: Box
-  ;; pts: Array<V3d>
+  ;; pts: Array<Vec3>
   data: ByteArray
 
 public defn ibbox (g:Grid) -> Box3i :
-  Box3i(V3i(0, 0, 0), idims(g) - V3i(1, 1, 1))
+  Box3i(Vec3i(0, 0, 0), idims(g) - Vec3i(1, 1, 1))
 
-defn transform (f-d:V3i -> V3i, f-p:V3i -> V3i, g:Grid) -> Grid:
+defn transform (f-d:Vec3i -> Vec3i, f-p:Vec3i -> Vec3i, g:Grid) -> Grid:
   val res = Grid(f-d(idims(g)), dim(g))
   for off in indices(idims(g)) do :
     set-value(res, f-p(off), get-value(g, off))
@@ -186,9 +186,9 @@ defn transform (f-d:V3i -> V3i, f-p:V3i -> V3i, g:Grid) -> Grid:
 public defn rotate (r:Int, g:Grid) -> Grid:
   val d = idims(g)
   switch {r == _} :
-    90 :   transform(fn (p) : V3i(y(p), x(p), 1), fn (p) : V3i(y(d) - y(p) - 1, x(p)),            g)
-    180 :  transform(fn (p) : p,                  fn (p) : V3i(x(d) - x(p) - 1, y(d) - y(p) - 1), g)
-    270 :  transform(fn (p) : V3i(y(p), x(p), 1), fn (p) : V3i(y(p),            x(d) - x(p) - 1), g)
+    90 :   transform(fn (p) : Vec3i(y(p), x(p), 1), fn (p) : Vec3i(y(d) - y(p) - 1, x(p)),            g)
+    180 :  transform(fn (p) : p,                  fn (p) : Vec3i(x(d) - x(p) - 1, y(d) - y(p) - 1), g)
+    270 :  transform(fn (p) : Vec3i(y(p), x(p), 1), fn (p) : Vec3i(y(p),            x(d) - x(p) - 1), g)
     else : g
 
 public defn dump (dst:Grid) :
@@ -206,33 +206,33 @@ defn n-cols (grid:Grid) -> Int : x(idims(grid))
 defn n-rows (grid:Grid) -> Int : y(idims(grid))
 defn n-lays (grid:Grid) -> Int : z(idims(grid))
 
-defn to-double (v:V3i) -> V3d :
-  V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
+defn to-double (v:Vec3i) -> Vec3 :
+  Vec3(to-double(x(v)), to-double(y(v)), to-double(z(v)))
 
-;; defn cdims (grid:Grid) -> V3d :
+;; defn cdims (grid:Grid) -> Vec3 :
 ;;   dims(bbox(grid)) / to-double(idims(grid))
 
 defn index (g:Grid, i:Int, j:Int, k:Int) -> Int :
   (k * n-cols(g) * n-rows(g)) + j * n-cols(g) + i
 
-;; defn pt (g:Grid, off:Int) -> V3i :
+;; defn pt (g:Grid, off:Int) -> Vec3i :
 ;;   val area = (n-cols(g) * n-rows(g))
 ;;   val b = off % area
-;;   V3i(b % n-cols(g), b / n-cols(g), off / area) 
+;;   Vec3i(b % n-cols(g), b / n-cols(g), off / area) 
 ;; 
-;; defn get-pt (g:Grid, i:Int, j:Int, k:Int) -> V3d :
+;; defn get-pt (g:Grid, i:Int, j:Int, k:Int) -> Vec3 :
 ;;   pts(g)[index(g, i, j, k)]
 ;; 
-;; defn get-pt (g:Grid, pos:V3i) -> V3d :
+;; defn get-pt (g:Grid, pos:Vec3i) -> Vec3 :
 ;;   get-pt(g, x(pos), y(pos), z(pos))
 
 public defn get-value (g:Grid, i:Int, j:Int, k:Int) -> Byte :
   data(g)[index(g, i, j, k)]
 
-public defn get-value (g:Grid, pos:V3i) -> Byte :
+public defn get-value (g:Grid, pos:Vec3i) -> Byte :
   get-value(g, x(pos), y(pos), z(pos))
 
-public defn legal? (dims:V3i, i:Int, j:Int, k:Int) -> True|False :
+public defn legal? (dims:Vec3i, i:Int, j:Int, k:Int) -> True|False :
   i >= 0 and i < x(dims) and
   j >= 0 and j < y(dims) and
   k >= 0 and k < z(dims)
@@ -240,34 +240,34 @@ public defn legal? (dims:V3i, i:Int, j:Int, k:Int) -> True|False :
 public defn legal? (g:Grid, i:Int, j:Int, k:Int) -> True|False :
   legal?(idims(g), i, j, k)
 
-public defn legal? (g:Grid, pos:V3i) -> True|False :
+public defn legal? (g:Grid, pos:Vec3i) -> True|False :
   legal?(g, x(pos), y(pos), z(pos))
 
 public defn legal? (g:Grid, new-bbox:Box3i) -> True|False :
   legal?(g, lo(new-bbox)) and legal?(g, hi(new-bbox))
 
-public defn fits? (dims:V3i, i:Int, j:Int, k:Int) -> True|False :
+public defn fits? (dims:Vec3i, i:Int, j:Int, k:Int) -> True|False :
   i >= 0 and i <= x(dims) and
   j >= 0 and j <= y(dims) and
   k >= 0 and k <= z(dims)
 
-public defn fits? (outside:V3i, inside:V3i) -> True|False :
+public defn fits? (outside:Vec3i, inside:Vec3i) -> True|False :
   fits?(outside, x(inside), y(inside), z(inside))
 
-public defn get-value (g:Grid, pos:V3i, default:Byte) -> Byte :
+public defn get-value (g:Grid, pos:Vec3i, default:Byte) -> Byte :
   get-value(g, x(pos), y(pos), z(pos)) when legal?(g, pos) else default
     
 public defn set-value (g:Grid, i:Int, j:Int, k:Int, v:Byte) :
   if legal?(g, i, j, k) :
     data(g)[index(g, i, j, k)] = v
 
-public defn set-value (g:Grid, pos:V3i, v:Byte) :
+public defn set-value (g:Grid, pos:Vec3i, v:Byte) :
   if legal?(g, pos) :
     set-value(g, x(pos), y(pos), z(pos), v)
 
 public var grid-allocated:Int = 0
 
-public defn Grid (idims:V3i, dim:Double) -> Grid :
+public defn Grid (idims:Vec3i, dim:Double) -> Grid :
   grid-allocated = grid-allocated + x(idims) * y(idims) * z(idims)
   ;; println("  SIZE %_ = %_ ALLOC %_" % [idims, x(idims) * y(idims) * z(idims), allocated])
   val cells = ByteArray(x(idims) * y(idims) * z(idims), to-byte(0))
@@ -293,8 +293,8 @@ defmethod equal? (a:Grid, b:Grid) -> True|False :
 ;;       same? = same? and (get-value(a, pos) == get-value(b, pos))
 ;;     same?
 
-;; defn points (idims:V3i, bbox:Box) -> Array<V3d> :
-;;   val pts = Array<V3d>(x(idims) * y(idims) * z(idims))
+;; defn points (idims:Vec3i, bbox:Box) -> Array<Vec3> :
+;;   val pts = Array<Vec3>(x(idims) * y(idims) * z(idims))
 ;;   val cdims = dims(bbox) / to-double(idims) 
 ;;   for k in 0 to z(idims) do :
 ;;     val zc = z(lo(bbox)) + to-double(k) * z(cdims)
@@ -303,49 +303,49 @@ defmethod equal? (a:Grid, b:Grid) -> True|False :
 ;;       for i in 0 to x(idims) do :
 ;;         val xc = x(lo(bbox)) + (to-double(i) + 0.5f) * x(cdims)
 ;;         val idx = (k * x(idims) * y(idims)) + j * x(idims) + i
-;;         pts[idx] = V3d(xc, yc, zc)
+;;         pts[idx] = Vec3(xc, yc, zc)
 ;;   pts
 ;; 
-;; defn pt-of (pt:V3i, idims:V3i, bbox:Box) -> V3d :
+;; defn pt-of (pt:Vec3i, idims:Vec3i, bbox:Box) -> Vec3 :
 ;;   val cdims = dims(bbox) / to-double(idims) 
 ;;   val zc = z(lo(bbox)) + to-double(z(pt)) * z(cdims)
 ;;   val yc = y(lo(bbox)) + (to-double(y(pt)) + 0.5f) * y(cdims)
 ;;   val xc = x(lo(bbox)) + (to-double(x(pt)) + 0.5f) * x(cdims)
-;;   val res = V3d(xc, yc, zc)
+;;   val res = Vec3(xc, yc, zc)
 ;;   ;; println-all(["PT-OF " pt " IDIMS " idims " BBOX " bbox " CDIMS " cdims " RES " res])
 ;;   res 
 ;; 
-;; defn pt-of (pt:V3i, cells:Grid) -> V3d :
+;; defn pt-of (pt:Vec3i, cells:Grid) -> Vec3 :
 ;;   pt-of(pt, idims(cells), bbox(cells))  
 
-public defn pt-of (g:Grid, idx:V3i) -> V2d :
-  ;; xy(dim(g) * (to-v3d(idx) + V3d(0.5, 0.5, 0.0) - (0.5 * to-v3d(idims(g)))))
-  xy(dim(g) * (to-v3d(idx) + 0.5 * to-v3d(xyz(1) - idims(g))))
+public defn pt-of (g:Grid, idx:Vec3i) -> Vec2 :
+  ;; xy(dim(g) * (to-vec3(idx) + Vec3(0.5, 0.5, 0.0) - (0.5 * to-vec3(idims(g)))))
+  xy(dim(g) * (to-vec3(idx) + 0.5 * to-vec3(xyz(1) - idims(g))))
 
-public defn ctr-pt (g:Grid) -> V2d :
-  xy(dim(g) * 0.5 * to-v3d(idims(g)))
+public defn ctr-pt (g:Grid) -> Vec2 :
+  xy(dim(g) * 0.5 * to-vec3(idims(g)))
 
-val straight-deltas2 = [V3i(-1, 0, 0), V3i(1, 0, 0), V3i(0, -1, 0), V3i(0, 1, 0)]
-val straight-deltas = to-tuple $ cat(straight-deltas2, [V3i(0, 0, -1), V3i(0, 0, 1)])
-val diagonal-deltas = [V3i(-1, -1, 0), V3i(-1, 1, 0), V3i(1, -1, 0), V3i(1, 1, 0)]
+val straight-deltas2 = [Vec3i(-1, 0, 0), Vec3i(1, 0, 0), Vec3i(0, -1, 0), Vec3i(0, 1, 0)]
+val straight-deltas = to-tuple $ cat(straight-deltas2, [Vec3i(0, 0, -1), Vec3i(0, 0, 1)])
+val diagonal-deltas = [Vec3i(-1, -1, 0), Vec3i(-1, 1, 0), Vec3i(1, -1, 0), Vec3i(1, 1, 0)]
 val all-deltas = to-tuple $ cat(straight-deltas, diagonal-deltas)
 
 val all-deltas2 = to-tuple $ cat(straight-deltas2, diagonal-deltas)
 
-public defn do-render-values (cells:Grid, c:V3d) :
+public defn do-render-values (cells:Grid, c:Vec3) :
   gl-push-attrib(GL-LINE-BIT | GL-CURRENT-BIT)
   gl-push-matrix()
   val dim = dim(cells)
   val dims = idims(cells)
-  val ext = 0.5 * dim * to-v3d(dims)
+  val ext = 0.5 * dim * to-vec3(dims)
   gl-push-matrix()
-  val off = -1.0 * ext + xyz(xy(V3d-fill(0.5 * dim)))
+  val off = -1.0 * ext + xyz(xy(Vec3-fill(0.5 * dim)))
   gl-translate(x(off), y(off), 0.0)
   for pos in indices(dims) do :
     val v = get-value(cells, pos)
     if v == to-byte(1) :
       gl-push-matrix()
-      val p = dim * to-v3d(pos)
+      val p = dim * to-vec3(pos)
       gl-translate(x(p), y(p), 0.0)
       gl-scale(0.95, 0.95, 0.95)
       val cv = c ;; (to-double $ v) * c
@@ -357,23 +357,23 @@ public defn do-render-values (cells:Grid, c:V3d) :
   draw-rect(to-double(x(dims)) * dim, to-double(y(dims)) * dim)
   ;; for pos in indices(dims) do :
   ;;   gl-push-matrix()
-  ;;   val p = to-v3d(pos)
+  ;;   val p = to-vec3(pos)
   ;;   gl-translate(x(p), y(p), 0.0)
   ;;   draw-rect(dim, dim)
   ;;   gl-pop-matrix()
   gl-pop-matrix()
   gl-pop-attrib()
 
-public defn render-values (cells:Grid, c:V3d) :
+public defn render-values (cells:Grid, c:Vec3) :
   gl-push-matrix()
   val dims = idims(cells)
-  val ext = 0.5 * to-v3d(dims)
+  val ext = 0.5 * to-vec3(dims)
   val fac = max(x(ext), y(ext))
   gl-scale(0.9 / fac, 0.9 / fac, 1.0)
   do-render-values(cells, c)
   gl-pop-matrix()
 
-public defn render-values (cells:Grid) : render-values(cells, V3d(1.0, 0.0, 0.0))
+public defn render-values (cells:Grid) : render-values(cells, Vec3(1.0, 0.0, 0.0))
 
 public defn find-limits (dst:Grid) -> Box3i :
   var l = hi(ibbox(dst))
@@ -394,32 +394,32 @@ public defn find-limits (dst:Grid) -> Box3i :
 ;;   for pos in indices(bounds) do :
 ;;     set-value(dst, pos, x)
 ;; 
-;; defn copy (dst:Grid, src:Grid, off:V3i) :
+;; defn copy (dst:Grid, src:Grid, off:Vec3i) :
 ;;   for pos in indices(src) do :
 ;;     set-value(dst, pos + off, get-value(src, pos))
 ;; 
-;; defn invert (dst:Grid, src:Grid, off:V3i) :
+;; defn invert (dst:Grid, src:Grid, off:Vec3i) :
 ;;   for pos in indices(src) do :
 ;;     set-value(dst, pos + off, to-byte(1) - get-value(src, pos))
 ;; 
-;; defn union (dst:Grid, src0:Grid, src1:Grid, off:V3i) :
+;; defn union (dst:Grid, src0:Grid, src1:Grid, off:Vec3i) :
 ;;   for pos in indices(src1) do :
 ;;     set-value(dst, pos + off, get-value(src0, pos + off, to-byte $ 0) | get-value(src1, pos))
 ;; 
-;; defn union (dst:Grid, src0:Grid, src1:Grid) : union(dst, src0, src1, V3i(0, 0, 0))
+;; defn union (dst:Grid, src0:Grid, src1:Grid) : union(dst, src0, src1, Vec3i(0, 0, 0))
 ;; 
-;; defn intersect (dst:Grid, src0:Grid, src1:Grid, off:V3i) :
+;; defn intersect (dst:Grid, src0:Grid, src1:Grid, off:Vec3i) :
 ;;   for pos in indices(src1) do :
 ;;     set-value(dst, pos + off, get-value(src0, pos + off, to-byte $ 0) & get-value(src1, pos))
 ;; 
-;; defn intersect (dst:Grid, src0:Grid, src1:Grid) : intersect(dst, src0, src1, V3i(0, 0, 0))
+;; defn intersect (dst:Grid, src0:Grid, src1:Grid) : intersect(dst, src0, src1, Vec3i(0, 0, 0))
 
-public defn dilate (dst:Grid, src:Grid, off:V3i) :
+public defn dilate (dst:Grid, src:Grid, off:Vec3i) :
   fill(dst, to-byte $ 0)
   for delta in all-deltas2 do :
     union(dst, dst, src, off + delta)
 
-defn any-intersection? (a:Grid, a-default:Byte, b:Grid, off:V3i) -> True|False :
+defn any-intersection? (a:Grid, a-default:Byte, b:Grid, off:Vec3i) -> True|False :
   ;; println-all(["ANY OFF " off])
   for pos in indices(b) any? :
     val av = get-value(a, pos + off, a-default)
@@ -435,7 +435,7 @@ public defn convolve (d:Grid, a:Grid, a-default:Byte, b:Grid) :
   if trace?: println-all(["B"])
   if trace?: dump(b)
   do-convolve(d, a, a-default, b)
-  ;; for pos in indices(xy(idims(d) - idims(b)) + V3i(0, 0, 1)) do :
+  ;; for pos in indices(xy(idims(d) - idims(b)) + Vec3i(0, 0, 1)) do :
   ;;   set-value(d, pos, to-byte(1 when any-intersection?(a, a-default, b, pos - xy(idims(b))) else 0))
   if trace?: println-all(["D"])
   if trace?: dump(d)
@@ -447,24 +447,24 @@ public defn convolve-around (d:Grid, a:Grid, a-default:Byte, b:Grid) :
   if trace?: println-all(["B"])
   if trace?: dump(b)
   do-convolve-around(d, a, a-default, b)
-  ;; for pos in indices(xy(idims(d) - idims(b)) + V3i(0, 0, 1)) do :
+  ;; for pos in indices(xy(idims(d) - idims(b)) + Vec3i(0, 0, 1)) do :
   ;;   set-value(d, pos, to-byte(1 when any-intersection?(a, a-default, b, pos - xy(idims(b))) else 0))
   if trace?: println-all(["D"])
   if trace?: dump(d)
 
-;; defn true-indices (legal:Grid) -> Seq<V3i> :
-;;   generate<V3i> :
+;; defn true-indices (legal:Grid) -> Seq<Vec3i> :
+;;   generate<Vec3i> :
 ;;     for off in indices(legal) do :
 ;;       yield(off) when get-value(legal, off) == to-byte(1)
   
-defn default-box3i () : Box3i(V3i(0, 0, 0), V3i(0, 0, 0))
+defn default-box3i () : Box3i(Vec3i(0, 0, 0), Vec3i(0, 0, 0))
 
 public lostanza defn find-ones-box (g:ref<Grid>) -> ref<Box3i> :
   val lo:ptr<int> = call-c malloc(3 * sizeof(int))
   val hi:ptr<int> = call-c malloc(3 * sizeof(int))
   call-c grid_ones_box(n-cols(g).value, n-rows(g).value, n-lays(g).value, addr!(data(g).data), lo, hi)
-  val res = Box3i(V3i(new Int{lo[0]}, new Int{lo[1]}, new Int{lo[2]}),
-                  V3i(new Int{hi[0]}, new Int{hi[1]}, new Int{hi[2]}))
+  val res = Box3i(Vec3i(new Int{lo[0]}, new Int{lo[1]}, new Int{lo[2]}),
+                  Vec3i(new Int{hi[0]}, new Int{hi[1]}, new Int{hi[2]}))
   call-c free(lo)
   call-c free(hi)
   return res
@@ -473,14 +473,14 @@ public lostanza defn count-ones (g:ref<Grid>) -> ref<Int> :
   val res = call-c grid_count_ones(n-cols(g).value, n-rows(g).value, n-lays(g).value, addr!(data(g).data))
   return new Int{res}
 
-public defn true-indices (legal:Grid, trues:Todos) -> Seq<V3i> :
+public defn true-indices (legal:Grid, trues:Todos) -> Seq<Vec3i> :
   find-ones(legal, trues)
-  generate<V3i> :
+  generate<Vec3i> :
     for i in 0 to length(trues) do :
       yield(trues[i])
   
 public defn rnd-grid (box3i:Box3i) -> Grid :
-  val idims = V3i(rndi(x(lo(box3i)), x(hi(box3i))), rndi(y(lo(box3i)), y(hi(box3i))), 1)
+  val idims = Vec3i(rndi(x(lo(box3i)), x(hi(box3i))), rndi(y(lo(box3i)), y(hi(box3i))), 1)
   println-all(["IDIMS " idims])
   val image = Grid(idims, 0.0)
   for pos in indices(idims) do :
@@ -490,7 +490,7 @@ public defn rnd-grid (box3i:Box3i) -> Grid :
   image
 
 public defn to-grid (vals:Tuple<Tuple<Int>>) -> Grid :
-  val idims = V3i(length(vals[0]), length(vals), 1)
+  val idims = Vec3i(length(vals[0]), length(vals), 1)
   val image = Grid(idims, 0.0)
   for pos in indices(idims) do :
     set-value(image, pos, to-byte $ vals[y(pos)][x(pos)])
@@ -499,9 +499,9 @@ public defn to-grid (vals:Tuple<Tuple<Int>>) -> Grid :
   image
 
 public defn to-grid (pix:Pixels) -> Grid :
-  val image = Grid(idims(pix) - V3i(2, 2, 0), dim(pix))
+  val image = Grid(idims(pix) - Vec3i(2, 2, 0), dim(pix))
   for pos in indices(idims(image)) do :
-    set-value(image, pos, pix[pos + V3i(1, 1, 0)])
+    set-value(image, pos, pix[pos + Vec3i(1, 1, 0)])
   image
 
 public defn to-pixels (grid:Grid) -> Pixels :
@@ -511,13 +511,13 @@ public defn to-pixels (grid:Grid) -> Pixels :
   image
 
 public defn bounds (g:Grid) :
-  Box2d(pt-of(g, V3i(0, 0, 0)), pt-of(g, idims(g) - V3i(1, 1, 0)))
+  Box2(pt-of(g, Vec3i(0, 0, 0)), pt-of(g, idims(g) - Vec3i(1, 1, 0)))
 
-public defn idx-of (dim:Double, idims:V3i, p:V3d) :
-  val ext = xy(-0.5 * dim * to-v3d(idims))
-  to-v3i(xyz(round((xy(p) - ext) / dim)))
+public defn idx-of (dim:Double, idims:Vec3i, p:Vec3) :
+  val ext = xy(-0.5 * dim * to-vec3(idims))
+  to-vec3i(xyz(round((xy(p) - ext) / dim)))
 
-public defn idx-of (g:Grid, p:V3d) : idx-of(dim(g), idims(g), p)
+public defn idx-of (g:Grid, p:Vec3) : idx-of(dim(g), idims(g), p)
 
 public defn scan (g:Grid, t:Triangle) :
   val box = bounds(t)
@@ -526,13 +526,13 @@ public defn scan (g:Grid, t:Triangle) :
   ;; val fac = 0.5 * dim(g)
   for j in y(lo(boxi)) through y(hi(boxi)) do :
     for i in x(lo(boxi)) through x(hi(boxi)) do :
-      val pi = V2i(i, j)
+      val pi = Vec2i(i, j)
       val p  = pt-of(g, xyz(pi))
       if inside?(t, p) :
         set-value(g, i, j, 0, to-byte(1))
 ;;      for dx in -1 through 1 by 2 do :
 ;;        for dy in -1 through 1 by 2 do :
-;;          val ip = p + fac * V2d(to-double(dx), to-double(dy))
+;;          val ip = p + fac * Vec2(to-double(dx), to-double(dy))
 ;;          if inside?(t, ip) :
 ;;            set-value(g, i, j, 0, to-byte(1))
 
@@ -541,13 +541,13 @@ public defn scan (g:Grid, p:Polygon) :
   for tri in triangles(p) do :
     scan(g, tri)
 
-public defn Grid (box:Box3d, dim:Double) -> Grid :
+public defn Grid (box:Box3, dim:Double) -> Grid :
   val fdims = xy(dims $ box)
-  val rdims = to-v2i $ round $ (fdims / dim + V2d(2.0, 2.0)) ; estimate dims
-  val rgrid = Grid(V3i(x(rdims), y(rdims), 1), dim)
+  val rdims = to-vec2i $ round $ (fdims / dim + Vec2(2.0, 2.0)) ; estimate dims
+  val rgrid = Grid(Vec3i(x(rdims), y(rdims), 1), dim)
   val pts = corners(box)
   val idims = dims $ reduce(union, seq({ Box2i(xy(idx-of(rgrid, xyz(_)))) }, pts)) ; calc real dims
-  Grid(V3i(x(idims) + 2, y(idims) + 2, 1), dim)
+  Grid(Vec3i(x(idims) + 2, y(idims) + 2, 1), dim)
 
 public defn Grid (poly:Polygon, dim:Double) -> Grid :
   val res = Grid(bounds(poly), dim)

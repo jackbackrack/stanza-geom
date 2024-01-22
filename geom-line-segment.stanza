@@ -9,9 +9,9 @@ defpackage geom/line-segment :
 val @doc-linesegment = "LINESEGMENT -- line between two points"
 
 #for (Prim in [Double Double]
-      Vec in [V2d V3d]
+      Vec in [Vec2 Vec3]
       LineSegment in [LineSegment2 LineSegment3]
-      Box in [Box2d Box3d]
+      Box in [Box2 Box3]
       LineSegmentName in ["LineSegment2" "LineSegment3"]) :
 
   public defstruct LineSegment <: Geom&Bounded&Equalable :
@@ -41,7 +41,7 @@ val @doc-linesegment = "LINESEGMENT -- line between two points"
   defmethod print (o:OutputStream, l:LineSegment) :
     print(o, "%_(%_ %_)" % [LineSegmentName start(l) end(l)])
 
-public defn closest-point-to (l:LineSegment2, p:V2d) -> V2d :
+public defn closest-point-to (l:LineSegment2, p:Vec2) -> Vec2 :
   val l2 = sqr-magnitude(end(l) - start(l))
   if l2 == 0.0 :
     start(l)
@@ -50,10 +50,10 @@ public defn closest-point-to (l:LineSegment2, p:V2d) -> V2d :
     val t = max(0.0, min(1.0, dot(p - start(l), dir) / l2))
     start(l) + t * dir
 
-public defn distance (l:LineSegment2, xy:V2d) -> Double :
+public defn distance (l:LineSegment2, xy:Vec2) -> Double :
   distance(closest-point-to(l, xy), xy)
 
-;; public defn distance (l:LineSegment2, xy:V2d) -> Double :
+;; public defn distance (l:LineSegment2, xy:Vec2) -> Double :
 ;;   val [p, q] = [start(l), end(l)]
 ;;   val pq = q - p
 ;;   val dxy = xy - p
@@ -75,7 +75,7 @@ public defn intersects? (a:LineSegment2, b:LineSegment2) -> True|False :
     if q-p%r == 0.0f :
       val t0 = dot(q-p, r) / dot(r, r)
       val t1 = t0 + dot(s, r) / dot(r, r)
-      val bx = Box1d(t0) | Box1d(t1)
+      val bx = Box1(t0) | Box1(t1)
       lo(bx) >= 0.0 and hi(bx) <= 1.0
     else :
       false

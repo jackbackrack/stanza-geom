@@ -12,15 +12,15 @@ val @doc-vx = "2/3 DIM VECTORS -- ponts and dimensions"
 
 #for (Prim in [Int Float Double]
       prim in [int float double]
-      PrimVec in [V3i V3f V3d]
-      PrimVecName in ["V3i" "V3f" "V3d"]
-      PrimVec2 in [V2i V2f V2d]
-      eset in [e3i e3f e3d]
-      xset in [x3i x3f x3d]
-      yset in [y3i y3f y3d]
-      zset in [z3i z3f z3d]
-      prim-fill in [V3i-fill V3f-fill V3d-fill]
-      prim-unit in [V3i-unit V3f-unit V3d-unit]
+      PrimVec in [Vec3i Vec3f Vec3]
+      PrimVecName in ["Vec3i" "Vec3f" "Vec3"]
+      PrimVec2 in [Vec2i Vec2f Vec2]
+      eset in [e3 e3 e3]
+      xset in [x3 x3 x3]
+      yset in [y3 y3 y3]
+      zset in [z3 z3 z3]
+      prim-fill in [Vec3-fill Vec3-fill Vec3-fill]
+      prim-unit in [Vec3i-unit Vec3f-unit Vec3-unit]
       x0 in [0 0.0f 0.0]
       x1 in [1 1.0f 1.0]) :
 
@@ -146,17 +146,17 @@ val @doc-vx = "2/3 DIM VECTORS -- ponts and dimensions"
   public defn round (p:PrimVec) -> PrimVec :
     PrimVec(round(x(p)), round(y(p)), round(z(p)))
 
-  public defn sorted-indices (v:PrimVec) -> V3i :
+  public defn sorted-indices (v:PrimVec) -> Vec3i :
     if x(v) < y(v) :
       if x(v) < z(v) :
-        V3i(0, 1, 2) when y(v) < z(v) else V3i(0, 2, 1)
+        Vec3i(0, 1, 2) when y(v) < z(v) else Vec3i(0, 2, 1)
       else :
-        V3i(2, 0, 1)
+        Vec3i(2, 0, 1)
     else :
       if y(v) < z(v) :
-        V3i(1, 0, 2) when x(v) < z(v) else V3i(1, 2, 0)
+        Vec3i(1, 0, 2) when x(v) < z(v) else Vec3i(1, 2, 0)
       else :
-        V3i(2, 1, 0)
+        Vec3i(2, 1, 0)
 
   public defn min-idx (v:PrimVec) -> Int :
     sorted-indices(v)[0]
@@ -171,15 +171,15 @@ val @doc-vx = "2/3 DIM VECTORS -- ponts and dimensions"
     PrimVec(rnd(x(lo), x(hi)), rnd(y(lo), y(hi)), rnd(z(lo), z(hi)))
 
 
-public defn indices (dims:V3i) -> Seq<V3i> :
-  generate<V3i> :
+public defn indices (dims:Vec3i) -> Seq<Vec3i> :
+  generate<Vec3i> :
     for k in 0 to z(dims) do :
       for j in 0 to y(dims) do :
         for i in 0 to x(dims) do :
-          yield(V3i(i, j, k))
+          yield(Vec3i(i, j, k))
 
 #for (Prim in [Float Double]
-      PrimVec in [V3f V3d]) :
+      PrimVec in [Vec3f Vec3]) :
   public defn angle (a:PrimVec, b:PrimVec) -> Prim :
     acos(dot(a, b) / (magnitude(a) * magnitude(b)))
 
@@ -187,14 +187,14 @@ public defn indices (dims:V3i) -> Seq<V3i> :
 
 #for (Prim in [Int Float Double]
       prim in [int float double]
-      PrimVec in [V2i V2f V2d]
-      PrimVecName in ["V2i" "V2f" "V2d"]
-      PrimVec3 in [V3i V3f V3d]
-      eset in [e2i e2f e2d]
-      xset in [x2i x2f x2d]
-      yset in [y2i y2f y2d]
-      prim-fill in [V2i-fill V2f-fill V2d-fill]
-      prim-unit in [V2i-unit V2f-unit V2d-unit]
+      PrimVec in [Vec2i Vec2f Vec2]
+      PrimVecName in ["Vec2i" "Vec2f" "Vec2"]
+      PrimVec3 in [Vec3i Vec3f Vec3]
+      eset in [e2 e2 e2]
+      xset in [x2 x2 x2]
+      yset in [y2 y2 y2]
+      prim-fill in [Vec2-fill Vec2-fill Vec2-fill]
+      prim-unit in [Vec2i-unit Vec2f-unit Vec2-unit]
       x0 in [0 0.0f 0.0]
       x1 in [1 1.0f 1.0]) :
 
@@ -314,8 +314,8 @@ public defn indices (dims:V3i) -> Seq<V3i> :
   public defn round (p:PrimVec) -> PrimVec :
     PrimVec(round(x(p)), round(y(p)))
 
-  public defn sorted-indices (v:PrimVec) -> V2i :
-    V2i(0, 1) when x(v) < y(v) else V2i(1, 0)
+  public defn sorted-indices (v:PrimVec) -> Vec2i :
+    Vec2i(0, 1) when x(v) < y(v) else Vec2i(1, 0)
 
   public defn min-idx (v:PrimVec) -> Int :
     0 when x(v) < y(v) else 1
@@ -328,41 +328,41 @@ public defn indices (dims:V3i) -> Seq<V3i> :
 
 
 #for (Prim in [Float Double]
-      PrimVec in [V2f V2d]) :
+      PrimVec in [Vec2f Vec2]) :
   public defn angle (a:PrimVec, b:PrimVec) -> Prim :
     acos(dot(a, b) / (magnitude(a) * magnitude(b)))
 
-public defn to-v3d (v:V3f) -> V3d :
-  V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
+public defn to-vec3 (v:Vec3f) -> Vec3 :
+  Vec3(to-double(x(v)), to-double(y(v)), to-double(z(v)))
 
-public defn to-v3i (v:V3f) -> V3i :
-  V3i(to-int(x(v)), to-int(y(v)), to-int(z(v)))
+public defn to-vec3i (v:Vec3f) -> Vec3i :
+  Vec3i(to-int(x(v)), to-int(y(v)), to-int(z(v)))
 
-public defn to-v3i (v:V3d) -> V3i :
-  V3i(to-int(x(v)), to-int(y(v)), to-int(z(v)))
+public defn to-vec3i (v:Vec3) -> Vec3i :
+  Vec3i(to-int(x(v)), to-int(y(v)), to-int(z(v)))
 
-public defn to-v3f (v:V3i) -> V3f :
-  V3f(to-float(x(v)), to-float(y(v)), to-float(z(v)))
+public defn to-vec3f (v:Vec3f) -> Vec3f :
+  Vec3f(to-float(x(v)), to-float(y(v)), to-float(z(v)))
 
-public defn to-v3d (v:V3i) -> V3d :
-  V3d(to-double(x(v)), to-double(y(v)), to-double(z(v)))
+public defn to-vec3 (v:Vec3i) -> Vec3 :
+  Vec3(to-double(x(v)), to-double(y(v)), to-double(z(v)))
 
-public defn to-v2i (v:V2f) -> V2i :
-  V2i(to-int(x(v)), to-int(y(v)))
+public defn to-vec2i (v:Vec3f) -> Vec2i :
+  Vec2i(to-int(x(v)), to-int(y(v)))
 
-public defn to-v2i (v:V2d) -> V2i :
-  V2i(to-int(x(v)), to-int(y(v)))
+public defn to-vec2i (v:Vec2) -> Vec2i :
+  Vec2i(to-int(x(v)), to-int(y(v)))
 
-public defn to-v2f (v:V2i) -> V2f :
-  V2f(to-float(x(v)), to-float(y(v)))
+public defn to-vec2f (v:Vec2i) -> Vec2f :
+  Vec2f(to-float(x(v)), to-float(y(v)))
 
-public defn to-v2d (v:V2i) -> V2d :
-  V2d(to-double(x(v)), to-double(y(v)))
+public defn to-vec2d (v:Vec2i) -> Vec2 :
+  Vec2(to-double(x(v)), to-double(y(v)))
 
-public defn V2f (x:Double, y:Double) -> V2f :
-  V2f(to-float(x), to-float(y))
+public defn Vec2f (x:Double, y:Double) -> Vec2f :
+  Vec2f(to-float(x), to-float(y))
 
-public defn bisection-normal (a:V3d, b:V3d) -> V3d :
+public defn bisection-normal (a:Vec3, b:Vec3) -> Vec3 :
   val n = 
     if magnitude(a + b) < EPS :
       a
@@ -370,7 +370,7 @@ public defn bisection-normal (a:V3d, b:V3d) -> V3d :
       (a + b) % (a % b)
   normalize(n)
 
-public defn normal (a:V3d, b:V3d) -> V3d :
+public defn normal (a:Vec3, b:Vec3) -> Vec3 :
   val n = 
     if magnitude(a + b) < EPS :
       a
@@ -388,51 +388,51 @@ public defn normal (a:V3d, b:V3d) -> V3d :
 
 val @doc-v4f = "4 DIM VECTORS -- color"
 
-public lostanza deftype V4d <: Array<Double> & Geom & Hashable :
+public lostanza deftype Vec4 <: Array<Double> & Geom & Hashable :
   x: double
   y: double
   z: double
   a: double
 
-public lostanza defn V4d (x:ref<Double>, y:ref<Double>, z:ref<Double>, a:ref<Double>) -> ref<V4d> :
-  return new V4d{x.value, y.value, z.value, a.value}
+public lostanza defn Vec4 (x:ref<Double>, y:ref<Double>, z:ref<Double>, a:ref<Double>) -> ref<Vec4> :
+  return new Vec4{x.value, y.value, z.value, a.value}
 
-public lostanza defn x (v:ref<V4d>) -> ref<Double> :
+public lostanza defn x (v:ref<Vec4>) -> ref<Double> :
   return new Double{v.x}
 
-public lostanza defn y (v:ref<V4d>) -> ref<Double> :
+public lostanza defn y (v:ref<Vec4>) -> ref<Double> :
   return new Double{v.y}
 
-public lostanza defn z (v:ref<V4d>) -> ref<Double> :
+public lostanza defn z (v:ref<Vec4>) -> ref<Double> :
   return new Double{v.z}
 
-public lostanza defn a (v:ref<V4d>) -> ref<Double> :
+public lostanza defn a (v:ref<Vec4>) -> ref<Double> :
   return new Double{v.a}
 
-public defn V4d (x:Double, y:Double, z:Double) -> V4d :
-  V4d(x, y, z, 0.0)
+public defn Vec4 (x:Double, y:Double, z:Double) -> Vec4 :
+  Vec4(x, y, z, 0.0)
 
-public lostanza defmethod get (v:ref<V4d>, i:ref<Int>) -> ref<Double> :
+public lostanza defmethod get (v:ref<Vec4>, i:ref<Int>) -> ref<Double> :
   ensure-index-in-bounds(i, new Int{3})
   return new Double{addr!(v.x)[i.value]}
 
-public defmethod length (a:V4d) -> Int : 4
+public defmethod length (a:Vec4) -> Int : 4
 
-defmethod equal? (v1:V4d, v2:V4d) :
+defmethod equal? (v1:Vec4, v2:Vec4) :
   x(v1) == x(v2) and y(v1) == y(v2) and z(v1) == z(v2) and a(v1) == a(v2) 
 
-defmethod hash (v:V4d) :
+defmethod hash (v:Vec4) :
   (7 * ((7 * ((7 * hash(x(v))) + hash(y(v)))) + hash(z(v)))) + hash(a(v))
 
-defmethod print (o:OutputStream, v:V4d) :
-  print(o, "V4d(%~, %~, %~, %~)" % [x(v), y(v), z(v), z(v)])
+defmethod print (o:OutputStream, v:Vec4) :
+  print(o, "Vec4(%~, %~, %~, %~)" % [x(v), y(v), z(v), z(v)])
 
-public val RED   = V4d(1.0, 0.0, 0.0, 1.0)
-public val GREEN = V4d(0.0, 1.0, 0.0, 1.0)
-public val BLUE  = V4d(0.0, 0.0, 1.0, 1.0)
-public val BLACK  = V4d(0.0, 0.0, 0.0, 1.0)
-public val WHITE  = V4d(1.0, 1.0, 1.0, 1.0)
+public val RED   = Vec4(1.0, 0.0, 0.0, 1.0)
+public val GREEN = Vec4(0.0, 1.0, 0.0, 1.0)
+public val BLUE  = Vec4(0.0, 0.0, 1.0, 1.0)
+public val BLACK  = Vec4(0.0, 0.0, 0.0, 1.0)
+public val WHITE  = Vec4(1.0, 1.0, 1.0, 1.0)
 
-public defn area* (dims:V3f) -> Float : dims[max-idx(dims)] * dims[mid-idx(dims)]
-public defn area* (dims:V3d) -> Double : dims[max-idx(dims)] * dims[mid-idx(dims)]
+public defn area* (dims:Vec3f) -> Float : dims[max-idx(dims)] * dims[mid-idx(dims)]
+public defn area* (dims:Vec3) -> Double : dims[max-idx(dims)] * dims[mid-idx(dims)]
 

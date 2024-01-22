@@ -16,13 +16,13 @@ defpackage geom/polygon :
 val @doc-contour = "CONTOUR -- closed paths"
 
 public defstruct Contour <: Geom&Equalable :
-  vertices: Tuple<V2d>
+  vertices: Tuple<Vec2>
 
 defmethod equal? (a:Contour, b:Contour) -> True|False :
   vertices(a) == vertices(b)
 
-public defn bounds (c:Contour) -> Box3d :
-  reduce(union, neg-inf-box3d(), seq(Box3d{xyz(_)}, vertices(c)))
+public defn bounds (c:Contour) -> Box3 :
+  reduce(union, neg-inf-box3(), seq(Box3{xyz(_)}, vertices(c)))
 
 defmethod print (o:OutputStream, c:Contour) :
   val pv = to-tuple(vertices(c)[0 to 100]) when length(vertices(c)) > 100 else vertices(c)
@@ -31,10 +31,10 @@ defmethod print (o:OutputStream, c:Contour) :
 public var *line-width* = 0.001
 public defn set-line-width (x:Double) : *line-width* = x
 
-public defn times (mat:Mat44d, p:Contour) -> Contour :
+public defn times (mat:Mat4, p:Contour) -> Contour :
   Contour(for p in vertices(p) map : mat * p)
 
-public defn to-stroke (contour:Contour) -> Tuple<V2d> :
+public defn to-stroke (contour:Contour) -> Tuple<Vec2> :
   to-tuple $ cat(vertices(contour), [ vertices(contour)[0] ])
 
 public defn segments (contour:Contour) -> Seq<LineSegment2> :
@@ -42,7 +42,7 @@ public defn segments (contour:Contour) -> Seq<LineSegment2> :
   for i in 0 to length(pts) seq :
     LineSegment2(pts[i], pts[(i + 1) % length(pts)])
 
-public defn area (verts:Tuple<V2d>) -> Double :
+public defn area (verts:Tuple<Vec2>) -> Double :
   val a = sum $ for i in 1 through length(verts) seq :
     val [p1, p2] = [verts[i - 1], verts[i % length(verts)]]
     x(p1) * y(p2) - x(p2) * y(p1)
@@ -58,12 +58,12 @@ public defn area (polygon:Polygon) -> Double :
 ;; ;;; STROKE
 ;; 
 ;; public defstruct Stroke <: Geom :
-;;   points: Tuple<V2d>
+;;   points: Tuple<Vec2>
 ;; 
 ;; defmethod print (o:OutputStream, c:Stroke) :
 ;;   print("Stroke(%,)" % [points(c)])
 ;; 
-;; public defn times (mat:Mat44d, p:Stroke) -> Stroke :
+;; public defn times (mat:Mat4, p:Stroke) -> Stroke :
 ;;   Stroke(for p in points(p) map : mat * p)
 
 val @doc-polygon = "POLYGON -- list of contours"
@@ -82,26 +82,26 @@ public defn Polygon () -> Polygon :
   Polygon([])
 
 public defn get (p:Polygon, i:Int) -> Contour : contours(p)[i]
-public defn get (c:Contour, i:Int) -> V2d : vertices(c)[i]
+public defn get (c:Contour, i:Int) -> Vec2 : vertices(c)[i]
 
 public defn polygon-n (d:Double, n:Int) -> Polygon :
   val r = 0.5 * d
   val points = 
     for i in 0 to n seq :
       val a = to-double(i) * 2.0 * PI / to-double(n)
-      V2d(r * sin(a), r * cos(a))
+      Vec2(r * sin(a), r * cos(a))
   to-polygon(Contour(to-tuple(points)))
 
-public defn polygon-rect (dims:V2d) -> Polygon :
+public defn polygon-rect (dims:Vec2) -> Polygon :
   to-polygon(Contour(to-tuple(corners(dims-to-box(dims)))))
 
-defmethod spacer (g:Polygon, gdims:V3d) :
+defmethod spacer (g:Polygon, gdims:Vec3) :
   polygon-rect(xy(gdims))
 
 public defn to-polygon (c:Contour) -> Polygon :
   Polygon([c])
 
-public defn to-polygon (b:Box2d) -> Polygon :
+public defn to-polygon (b:Box2) -> Polygon :
   to-polygon $ Contour $ corners(b)
 
 public defn to-polyline (p:Polygon) -> PolyLine2 :
@@ -110,17 +110,17 @@ public defn to-polyline (p:Polygon) -> PolyLine2 :
 defmethod clone (poly:Polygon, state:AnyShapeState) -> Polygon :
   Polygon(state, contours(poly))
 
-public defmethod bounds (p:Polygon) -> Box3d :
-  reduce(union, neg-inf-box3d(), seq(bounds, contours(p)))
+public defmethod bounds (p:Polygon) -> Box3 :
+  reduce(union, neg-inf-box3(), seq(bounds, contours(p)))
 
-defmethod xyz (mat:Mat44d, poly:Polygon) -> Polygon :
+defmethod xyz (mat:Mat4, poly:Polygon) -> Polygon :
   Polygon(state(poly), to-tuple $ for c in contours(poly) map : mat * c)
 
-public defn to-v2d (vals:Seqable<Double>) -> V2d :
+public defn to-v2d (vals:Seqable<Double>) -> Vec2 :
   val elts = to-tuple $ vals
-  V2d(elts[0], elts[1])
+  Vec2(elts[0], elts[1])
   
-public defn vertices (p:Polygon) -> Tuple<V2d> :
+public defn vertices (p:Polygon) -> Tuple<Vec2> :
   to-tuple $ cat-all(for c in contours(p) seq : vertices(c))
 
 public defn segments (polygon:Polygon) -> Seq<LineSegment2> :
@@ -135,18 +135,18 @@ public defn cat (p1:Polygon, p2:Polygon) -> Polygon :
 defmethod print (o:OutputStream, c:Polygon) :
   print(o, "Polygon([%,])" % [contours(c)])
 
-defn simplify-polygon (poly-:Tuple<V2d>, max-angle-deg:Double, max-dist:Double) -> Seqable<V2d> :
+defn simplify-polygon (poly-:Tuple<Vec2>, max-angle-deg:Double, max-dist:Double) -> Seqable<Vec2> :
   defn sqr (a:Double) : a * a
   val mincos = cos(max-angle-deg * PI / 180.0)
   val sqr-min-length = sqr(max-dist)
-  val poly = to-vector<V2d> $ poly-
+  val poly = to-vector<Vec2> $ poly-
   ;; println("MAX-ANGLE-DEG %_ MAX-DIST %_ IN %_" % [max-angle-deg, max-dist, length(poly)])
-  val tmp  = Vector<V2d>()
+  val tmp  = Vector<Vec2>()
   defn swap () :
     clear(poly)
     add-all(poly, tmp)
 
-  defn sqr-magnitude (v:V2d) : dot(v, v)
+  defn sqr-magnitude (v:Vec2) : dot(v, v)
 
   ;; Repeatedly simplify until nothing changes
 
