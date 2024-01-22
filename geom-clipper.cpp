@@ -23,6 +23,8 @@ struct clipper_paths {
   uint32_t count;
 };
 
+const double SIMPLE_RES = 2.5;
+
 clipper_path* clipper_fab_path(int num_pts);
 clipper_vec2* clipper_fab_vec2(double x, double y);
 void clipper_path_set_point(clipper_path* path, int point_idx, double x, double y);
@@ -87,7 +89,7 @@ clipper_paths* clipper_minkowski_diff(clipper_path *fpattern, clipper_path *fpat
     int64_t y = double_to_cint(fpath->pts[i].y, res);
     path.push_back(Point64(x, y));
   }
-  Paths64 solution = SimplifyPaths(MinkowskiDiff(pattern, path, true), 2.5);
+  Paths64 solution = SimplifyPaths(MinkowskiDiff(pattern, path, true), SIMPLE_RES);
   clipper_paths* ret = clipper_fab_paths(solution.size());
   for (uint32_t j = 0; j < solution.size(); j++) {
     Path64 elt = solution[j];
@@ -144,7 +146,7 @@ clipper_paths* clipper_op(clipper_paths *a, clipper_paths *b, int op, double res
   co.AddClip(inputs);
   Paths64 result;
   co.Execute((ClipType)op, FillRule::NonZero, result);
-  Paths64 solution = SimplifyPaths(result, 2.5);
+  Paths64 solution = SimplifyPaths(result, SIMPLE_RES);
   clipper_paths* ret = clipper_fab_paths(solution.size());
   for (uint32_t j = 0; j < solution.size(); j++) {
     Path64 elt = solution[j];
@@ -173,7 +175,7 @@ clipper_paths* clipper_offset(clipper_paths *paths, double amount, double res) {
   co.AddPaths(inputs, JoinType::Miter, EndType::Polygon);
   Paths64 result;
   co.Execute(amount * res, result);
-  Paths64 solution = SimplifyPaths(result, 2.5);
+  Paths64 solution = SimplifyPaths(result, SIMPLE_RES);
   clipper_paths* ret = clipper_fab_paths(solution.size());
   for (uint32_t j = 0; j < solution.size(); j++) {
     Path64 elt = solution[j];
