@@ -2,6 +2,7 @@ defpackage geom/polygon :
   import core
   import math
   import collections
+  import utils/seqable
   import geom/vec
   import geom/mat
   import geom/box
@@ -54,6 +55,17 @@ public defn area (contour:Contour) -> Double :
 
 public defn area (polygon:Polygon) -> Double :
   sum $ seq(area, contours(polygon))
+
+public defn centroid (verts:Tuple<Vec2>) -> Vec2 :
+  val pts = for [p0, p1] in successive-pairs-wrapped(verts) seq :
+    (x(p0) * y(p1) - x(p1) * y(p0)) * Vec2((x(p0) + x(p1)), (y(p0) + y(p1)))
+  reduce(plus, pts) / (6.0 * area(verts))
+
+public defn centroid (contour:Contour) -> Vec2 :
+  centroid(vertices(contour))
+
+public defn centroid (polygon:Polygon) -> Vec2 :
+  reduce(plus, seq(centroid, contours(polygon)))
 
 ;; ;;; STROKE
 ;; 

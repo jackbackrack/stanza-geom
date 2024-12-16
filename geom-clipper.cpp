@@ -32,12 +32,23 @@ clipper_paths* clipper_fab_paths(int num_paths);
 void clipper_fab_paths_path(clipper_paths* paths, int path_idx, int num_pts);
 void clipper_paths_set_point(clipper_paths* paths, int path_idx, int point_idx, double x, double y);
 clipper_paths* clipper_offset(clipper_paths *paths, double amount, double res);
+clipper_paths* clipper_inflate_paths(clipper_paths *paths, double amount, double res);
 clipper_paths* clipper_op(clipper_paths *a, clipper_paths *b, int op, double res);
+clipper_paths* clipper_polyline_op(clipper_paths *a, clipper_paths *b, int op, double res);
 clipper_paths* clipper_minkowski_diff(clipper_path *fpattern, clipper_path *fpath, double res);
 int clipper_point_in_polygon(clipper_vec2 *pt, clipper_path* poly, double res);
 void clipper_paths_delete(clipper_paths* ps);
 void clipper_path_delete(clipper_path* p);
 void clipper_vec2_delete(clipper_vec2* p);
+
+Clipper64* clipper_fab_clipper64(void);
+void clipper_clipper64_delete(Clipper64 *c64);
+
+int clipper_add_subject(Clipper64* co, clipper_paths *a, double res);
+int clipper_add_open_subject(Clipper64* co, clipper_paths *a, double res);
+int clipper_add_clip(Clipper64* co, clipper_paths *a, double res);
+clipper_paths* clipper_open_execute(Clipper64* co, int op, double res);
+clipper_paths* clipper_execute(Clipper64* co, int op, double res);
 
 };
 
@@ -75,30 +86,50 @@ inline double cint_to_double (int64_t d, double res) {
   return static_cast<double>(((double)d) / res);
 }
 
-clipper_paths* clipper_minkowski_diff(clipper_path *fpattern, clipper_path *fpath, double res) {
+Path64 clipper_path_to_path64 (clipper_path *cp, double res) {
   Path64 pattern;
-  for (uint32_t i = 0; i < fpattern->count; i++) {
-    int64_t x = double_to_cint(fpattern->pts[i].x, res);
-    int64_t y = double_to_cint(fpattern->pts[i].y, res);
+  for (uint32_t i = 0; i < cp->count; i++) {
+    int64_t x = double_to_cint(cp->pts[i].x, res);
+    int64_t y = double_to_cint(cp->pts[i].y, res);
     // std::cout << x << "," << y << std::endl;
     pattern.push_back(Point64(x, y));
   }
-  Path64 path;
-  for (uint32_t i = 0; i < fpath->count; i++) {
-    int64_t x = double_to_cint(fpath->pts[i].x, res);
-    int64_t y = double_to_cint(fpath->pts[i].y, res);
-    path.push_back(Point64(x, y));
-  }
-  Paths64 solution = SimplifyPaths(MinkowskiDiff(pattern, path, true), SIMPLE_RES);
-  clipper_paths* ret = clipper_fab_paths(solution.size());
-  for (uint32_t j = 0; j < solution.size(); j++) {
-    Path64 elt = solution[j];
+  return pattern;
+}
+
+clipper_paths* paths64_to_clipper_paths (Paths64 p, double res) {
+  clipper_paths* ret = clipper_fab_paths(p.size());
+  for (uint32_t j = 0; j < p.size(); j++) {
+    Path64 elt = p[j];
     clipper_fab_paths_path(ret, j, elt.size());
     for (uint32_t i = 0; i < elt.size(); i++) {
       ret->ps[j].pts[i].x = cint_to_double(elt[i].x, res);
       ret->ps[j].pts[i].y = cint_to_double(elt[i].y, res);
     }
   }
+  return ret;
+}
+
+Paths64 clipper_paths_to_paths64 (clipper_paths *cps, double res) {
+  Paths64 inputs;
+  for (uint32_t j = 0; j < cps->count; j++) {
+    Path64 input;
+    clipper_path path = cps->ps[j];
+    for (uint32_t i = 0; i < path.count; i++) {
+      int64_t x = double_to_cint(path.pts[i].x, res);
+      int64_t y = double_to_cint(path.pts[i].y, res);
+      input.push_back(Point64(x, y));
+    }
+    inputs.push_back(input);
+  }
+  return inputs;
+}
+
+clipper_paths* clipper_minkowski_diff(clipper_path *fpattern, clipper_path *fpath, double res) {
+  Path64 pattern = clipper_path_to_path64(fpattern, res);
+  Path64 path = clipper_path_to_path64(fpath, res);
+  Paths64 solution = SimplifyPaths(MinkowskiDiff(pattern, path, true), SIMPLE_RES);
+  clipper_paths* ret = paths64_to_clipper_paths(solution, res);
   return ret;
 }
 
@@ -106,85 +137,54 @@ int clipper_point_in_polygon(clipper_vec2 *pt, clipper_path *polygon, double res
   Point64 point;
   point.x = double_to_cint(pt->x, res);
   point.y = double_to_cint(pt->y, res);
-  Path64 poly;
-  // std::cout << "PATTERN" << std::endl;
-  for (uint32_t i = 0; i < polygon->count; i++) {
-    int64_t x = double_to_cint(polygon->pts[i].x, res);
-    int64_t y = double_to_cint(polygon->pts[i].y, res);
-    poly.push_back(Point64(x, y));
-  }
+  Path64 poly = clipper_path_to_path64(polygon, res);
   auto out = PointInPolygon(point, poly);
   // std::cout << "POINT-IN? " << ((int)out) << std::endl;
   return (int)out;
 }
 
 clipper_paths* clipper_op(clipper_paths *a, clipper_paths *b, int op, double res) {
-  Paths64 inputs;
   Clipper64 co;
-  for (uint32_t j = 0; j < a->count; j++) {
-    Path64 input;
-    clipper_path path = a->ps[j];
-    for (uint32_t i = 0; i < path.count; i++) {
-      int64_t x = double_to_cint(path.pts[i].x, res);
-      int64_t y = double_to_cint(path.pts[i].y, res);
-      input.push_back(Point64(x, y));
-    }
-    inputs.push_back(input);
-  }
-  co.AddSubject(inputs);
-  inputs.clear();
-  for (uint32_t j = 0; j < b->count; j++) {
-    Path64 input;
-    clipper_path path = b->ps[j];
-    for (uint32_t i = 0; i < path.count; i++) {
-      int64_t x = double_to_cint(path.pts[i].x, res);
-      int64_t y = double_to_cint(path.pts[i].y, res);
-      input.push_back(Point64(x, y));
-    }
-    inputs.push_back(input);
-  }
-  co.AddClip(inputs);
+  Paths64 ai = clipper_paths_to_paths64(a, res);
+  co.AddSubject(ai);
+  Paths64 bi = clipper_paths_to_paths64(b, res);
+  co.AddClip(bi);
   Paths64 result;
   co.Execute((ClipType)op, FillRule::NonZero, result);
   Paths64 solution = SimplifyPaths(result, SIMPLE_RES);
-  clipper_paths* ret = clipper_fab_paths(solution.size());
-  for (uint32_t j = 0; j < solution.size(); j++) {
-    Path64 elt = solution[j];
-    clipper_fab_paths_path(ret, j, elt.size());
-    for (uint32_t i = 0; i < elt.size(); i++) {
-      ret->ps[j].pts[i].x = cint_to_double(elt[i].x, res);
-      ret->ps[j].pts[i].y = cint_to_double(elt[i].y, res);
-    }
-  }
+  clipper_paths* ret = paths64_to_clipper_paths(solution, res);
   return ret;
 }
 
+clipper_paths* clipper_polyline_op(clipper_paths *a, clipper_paths *b, int op, double res) {
+  Clipper64 co;
+  Paths64 ai = clipper_paths_to_paths64(a, res);
+  co.AddOpenSubject(ai);
+  Paths64 bi = clipper_paths_to_paths64(b, res);
+  co.AddClip(bi);
+  Paths64 closed_result, result;
+  co.Execute((ClipType)op, FillRule::NonZero, closed_result, result);
+  Paths64 solution = SimplifyPaths(result, SIMPLE_RES);
+  clipper_paths* ret = paths64_to_clipper_paths(solution, res);
+  return ret;
+}
+  
 clipper_paths* clipper_offset(clipper_paths *paths, double amount, double res) {
-  Paths64 inputs;
   ClipperOffset co;
-  for (uint32_t j = 0; j < paths->count; j++) {
-    Path64 input;
-    clipper_path path = paths->ps[j];
-    for (uint32_t i = 0; i < path.count; i++) {
-      int64_t x = double_to_cint(path.pts[i].x, res);
-      int64_t y = double_to_cint(path.pts[i].y, res);
-      input.push_back(Point64(x, y));
-    }
-    inputs.push_back(input);
-  }
+  Paths64 inputs = clipper_paths_to_paths64(paths, res);
   co.AddPaths(inputs, JoinType::Miter, EndType::Polygon);
   Paths64 result;
   co.Execute(amount * res, result);
   Paths64 solution = SimplifyPaths(result, SIMPLE_RES);
-  clipper_paths* ret = clipper_fab_paths(solution.size());
-  for (uint32_t j = 0; j < solution.size(); j++) {
-    Path64 elt = solution[j];
-    clipper_fab_paths_path(ret, j, elt.size());
-    for (uint32_t i = 0; i < elt.size(); i++) {
-      ret->ps[j].pts[i].x = cint_to_double(elt[i].x, res);
-      ret->ps[j].pts[i].y = cint_to_double(elt[i].y, res);
-    }
-  }
+  clipper_paths* ret = paths64_to_clipper_paths(solution, res);
+  return ret;
+}
+
+clipper_paths* clipper_inflate_paths(clipper_paths *paths, double amount, double res) {
+  Paths64 inputs = clipper_paths_to_paths64(paths, res);
+  Paths64 result = InflatePaths(inputs, amount * res, JoinType::Miter, EndType::Square);
+  Paths64 solution = SimplifyPaths(result, SIMPLE_RES);
+  clipper_paths* ret = paths64_to_clipper_paths(solution, res);
   return ret;
 }
 
@@ -240,4 +240,47 @@ void clipper_vec2_delete(clipper_vec2 *p) {
 void clipper_path_delete(clipper_path *path) {
   jfree(path->pts);
   jfree(path);
+}
+
+int clipper_add_subject(Clipper64* co, clipper_paths *a, double res) {
+  Paths64 inputs = clipper_paths_to_paths64(a, res);
+  co->AddSubject(inputs);
+  return 1;
+}
+
+int clipper_add_open_subject(Clipper64* co, clipper_paths *a, double res) {
+  Paths64 inputs = clipper_paths_to_paths64(a, res);
+  co->AddOpenSubject(inputs);
+  return 1;
+}
+
+int clipper_add_clip(Clipper64* co, clipper_paths *a, double res) {
+  Paths64 inputs = clipper_paths_to_paths64(a, res);
+  co->AddClip(inputs);
+  return 1;
+}
+
+clipper_paths* clipper_open_execute(Clipper64* co, int op, double res) {
+  Paths64 closed_result, result;
+  co->Execute((ClipType)op, FillRule::NonZero, closed_result, result);
+  Paths64 solution = SimplifyPaths(result, SIMPLE_RES);
+  clipper_paths* ret = paths64_to_clipper_paths(solution, res);
+  return ret;
+}
+  
+clipper_paths* clipper_execute(Clipper64* co, int op, double res) {
+  Paths64 result;
+  co->Execute((ClipType)op, FillRule::NonZero, result);
+  Paths64 solution = SimplifyPaths(result, SIMPLE_RES);
+  clipper_paths* ret = paths64_to_clipper_paths(solution, res);
+  return ret;
+}
+  
+Clipper64* clipper_fab_clipper64(void) {
+  auto res = new Clipper64();
+  return res;
+}
+
+void clipper_clipper64_delete(Clipper64 *c64) {
+  delete c64;
 }

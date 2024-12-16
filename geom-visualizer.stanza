@@ -4,7 +4,7 @@ defpackage geom/visualizer :
   import collections
   import utils/socket
   ;import serialize
-  import stz/serializer
+  import stz/fastio-runtime
   import geom/geom
   import geom/serializer
 
